@@ -1,0 +1,283 @@
+/* ========================================== */
+/* ESTILOS PERSONALIZADOS - BELGRANO AHORRO */
+/* ========================================== */
+/* Este archivo contiene todos los estilos personalizados */
+/* Puedes modificar colores, fuentes, efectos, etc. */
+
+/* ========================================== */
+/* VARIABLES CSS - CAMBIA AQUÍ LOS COLORES */
+/* ========================================== */
+:root {
+    --primary-color: #27ae60;      /* Verde principal */
+    --primary-dark: #229954;       /* Verde oscuro para hover */
+    --secondary-color: #2c3e50;    /* Azul oscuro para texto */
+    --accent-color: #a76b0c;       /* Naranja para destacados */
+    --background-color: #f8f9fa;   /* Fondo gris claro */
+    --card-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    --border-radius: 12px;
+    --transition: all 0.3s ease;
+}
+
+/* ========================================== */
+/* ESTILOS GENERALES DEL CUERPO */
+/* ========================================== */
+body {
+    background: linear-gradient(135deg, var(--background-color) 0%, #ffffff 100%);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--secondary-color);
+    line-height: 1.6;
+}
+
+/* ========================================== */
+/* BARRA DE NAVEGACIÓN MEJORADA */
+/* ========================================== */
+.navbar {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%) !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 1rem 0;
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.8rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.navbar-nav .nav-link {
+    font-weight: 500;
+    transition: var(--transition);
+    border-radius: 20px;
+    padding: 0.5rem 1rem;
+}
+
+.navbar-nav .nav-link:hover {
+    background-color: rgba(255,255,255,0.2);
+    transform: translateY(-2px);
+}
+
+/* ========================================== */
+/* TARJETAS DE PRODUCTOS MEJORADAS */
+/* ========================================== */
+.card {
+    transition: var(--transition);
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+    background: white;
+}
+
+.card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.card-img-top {
+    height: 220px;
+    object-fit: cover;
+    transition: var(--transition);
+}
+
+.card:hover .card-img-top {
+    transform: scale(1.05);
+}
+
+/* ========================================== */
+/* TEXTO EN LAS TARJETAS */
+/* ========================================== */
+.card-title {
+    color: var(--secondary-color);
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.card-text {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+/* ========================================== */
+/* BOTONES MEJORADOS */
+/* ========================================== */
+.btn {
+    border-radius: 25px;
+    font-weight: 500;
+    padding: 0.5rem 1.5rem;
+    transition: var(--transition);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.9rem;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    border: none;
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, #1e8449 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+}
+
+.btn-outline-success {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.btn-outline-success:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+/* ========================================== */
+/* FORMULARIOS MEJORADOS */
+/* ========================================== */
+.form-control {
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    transition: var(--transition);
+    padding: 0.75rem 1rem;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(39, 174, 96, 0.25);
+}
+
+.input-group {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* ========================================== */
+/* ALERTAS Y MENSAJES */
+/* ========================================== */
+.alert {
+    border-radius: var(--border-radius);
+    border: none;
+    box-shadow: var(--card-shadow);
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+    color: #0c5460;
+}
+
+/* ========================================== */
+/* CARRITO DE COMPRAS */
+/* ========================================== */
+.cart-item {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.cart-summary {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+}
+
+/* ========================================== */
+/* BADGES Y ETIQUETAS */
+/* ========================================== */
+.badge {
+    border-radius: 15px;
+    padding: 0.5rem 0.75rem;
+    font-weight: 600;
+}
+
+.badge.bg-success {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%) !important;
+}
+
+/* ========================================== */
+/* ANIMACIONES Y EFECTOS */
+/* ========================================== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+/* ========================================== */
+/* RESPONSIVE DESIGN */
+/* ========================================== */
+@media (max-width: 768px) {
+    .navbar-brand {
+        font-size: 1.5rem;
+    }
+    
+    .card-img-top {
+        height: 180px;
+    }
+    
+    .btn {
+        padding: 0.4rem 1rem;
+        font-size: 0.8rem;
+    }
+}
+
+/* ========================================== */
+/* PIE DE PÁGINA */
+/* ========================================== */
+footer {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-top: 1px solid #dee2e6;
+    margin-top: 3rem;
+}
+
+/* ========================================== */
+/* LOADING Y ESTADOS */
+/* ========================================== */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    transform: none !important;
+}
+
+/* ========================================== */
+/* UTILIDADES ADICIONALES */
+/* ========================================== */
+.text-gradient {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.shadow-custom {
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.border-gradient {
+    border: 2px solid;
+    border-image: linear-gradient(135deg, var(--primary-color), var(--accent-color)) 1;
+}

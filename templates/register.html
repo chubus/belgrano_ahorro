@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-custom">
+                <div class="card-header text-center">
+                    <h2 class="mb-0">📝 Registro de Usuario</h2>
+                    <p class="text-muted mb-0">Crea tu cuenta para empezar a comprar</p>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('register') }}">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="nombre" class="form-label">Nombre *</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="nombre" 
+                                       name="nombre" 
+                                       required 
+                                       value="{{ request.form.get('nombre', '') }}"
+                                       placeholder="Tu nombre">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="apellido" class="form-label">Apellido *</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="apellido" 
+                                       name="apellido" 
+                                       required 
+                                       value="{{ request.form.get('apellido', '') }}"
+                                       placeholder="Tu apellido">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email *</label>
+                            <input type="email" 
+                                   class="form-control" 
+                                   id="email" 
+                                   name="email" 
+                                   required 
+                                   value="{{ request.form.get('email', '') }}"
+                                   placeholder="tu@email.com">
+                            <div class="form-text">Usaremos este email para tu cuenta</div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="password" class="form-label">Contraseña *</label>
+                                <input type="password" 
+                                       class="form-control" 
+                                       id="password" 
+                                       name="password" 
+                                       required 
+                                       minlength="6"
+                                       placeholder="Mínimo 6 caracteres">
+                                <div class="form-text">Al menos 6 caracteres</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="confirmar_password" class="form-label">Confirmar Contraseña *</label>
+                                <input type="password" 
+                                       class="form-control" 
+                                       id="confirmar_password" 
+                                       name="confirmar_password" 
+                                       required 
+                                       minlength="6"
+                                       placeholder="Repite tu contraseña">
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="telefono" class="form-label">Teléfono</label>
+                                <input type="tel" 
+                                       class="form-control" 
+                                       id="telefono" 
+                                       name="telefono" 
+                                       value="{{ request.form.get('telefono', '') }}"
+                                       placeholder="+54 9 1234 5678">
+                                <div class="form-text">Opcional</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="direccion" class="form-label">Dirección</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="direccion" 
+                                       name="direccion" 
+                                       value="{{ request.form.get('direccion', '') }}"
+                                       placeholder="Tu dirección de entrega">
+                                <div class="form-text">Opcional</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="terminos" name="terminos" value="aceptado" required>
+                                <label class="form-check-label" for="terminos">
+                                    Acepto los <a href="#" class="text-decoration-none">términos y condiciones</a> *
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                🚀 Crear Cuenta
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="text-center">
+                        <p class="mb-2">¿Ya tienes una cuenta?</p>
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">
+                            🔐 Iniciar Sesión
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-body text-center">
+                    <h6>🔒 Securizado por Chubustein</h6>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border: 2px solid #2c3e50;
+    border-radius: 15px;
+}
+
+.card-header {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    color: #2c3e50;
+    border-bottom: 2px solid #2c3e50;
+    border-radius: 13px 13px 0 0 !important;
+}
+
+.form-control {
+    border: 2px solid #2c3e50;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #FFD700;
+    box-shadow: 0 0 0 0.2rem rgba(255, 215, 0, 0.25);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    border: 2px solid #2c3e50;
+    border-radius: 8px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.form-check-input:checked {
+    background-color: #FFD700;
+    border-color: #FFD700;
+}
+
+.form-text {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+</style>
+
+<script>
+// Validación de contraseñas en tiempo real
+document.getElementById('confirmar_password').addEventListener('input', function() {
+    const password = document.getElementById('password').value;
+    const confirmPassword = this.value;
+    
+    if (password !== confirmPassword) {
+        this.setCustomValidity('Las contraseñas no coinciden');
+    } else {
+        this.setCustomValidity('');
+    }
+});
+
+// Validación de email
+document.getElementById('email').addEventListener('input', function() {
+    const email = this.value;
+    const emailRegex = /^[\w\.-]+@[\w\.-]+\.\w+$/;
+    
+    if (email && !emailRegex.test(email)) {
+        this.setCustomValidity('Por favor ingresa un email válido');
+    } else {
+        this.setCustomValidity('');
+    }
+});
+
+// Validación de teléfono
+document.getElementById('telefono').addEventListener('input', function() {
+    const telefono = this.value;
+    const telefonoRegex = /^[\d\-\+\s]+$/;
+    
+    if (telefono && !telefonoRegex.test(telefono)) {
+        this.setCustomValidity('Por favor ingresa un teléfono válido');
+    } else {
+        this.setCustomValidity('');
+    }
+});
+</script>
+{% endblock %} 

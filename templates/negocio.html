@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- =================================================================
+     PÁGINA DE NEGOCIO ESPECÍFICO - BELGRANO AHORRO
+     =================================================================
+     
+     DESCRIPCIÓN:
+     Esta página muestra todos los productos de un negocio específico,
+     organizados por categorías y con información detallada del negocio.
+     
+     MANTENIMIENTO:
+     - Para cambiar información del negocio: editar productos.json sección "negocios"
+     - Para agregar productos: agregar en productos.json con negocio_id correcto
+     - Para cambiar colores del negocio: modificar campo "color" en productos.json
+     - Para cambiar logo: reemplazar imagen en static/images/
+     ================================================================= -->
+
+<!-- =================================================================
+     BANNER DEL NEGOCIO
+     =================================================================
+     MANTENIMIENTO:
+     - Para cambiar nombre: modificar negocio.nombre
+     - Para cambiar descripción: modificar negocio.descripcion
+     - Para cambiar logo: reemplazar negocio.logo
+     - Para cambiar color: modificar negocio.color en productos.json
+     ================================================================= -->
+<div class="hero-section mb-5" style="background: linear-gradient(135deg, {{ negocio.color }} 0%, {{ negocio.color }}80 100%);">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-4 fw-bold text-white">🏪 {{ negocio.nombre }}</h1>
+                <p class="lead text-white">{{ negocio.descripcion }}</p>
+                <div class="d-flex gap-3">
+                    <a href="#productos" class="btn btn-light btn-lg">🛍️ Ver Productos</a>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-light btn-lg">🏠 Volver al Inicio</a>
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                {% if negocio.logo %}
+                <img src="{{ negocio.logo }}" alt="{{ negocio.nombre }}" class="img-fluid rounded shadow" style="max-height: 200px;">
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- =================================================================
+     SECCIÓN DE PRODUCTOS DEL NEGOCIO
+     =================================================================
+     MANTENIMIENTO:
+     - Para agregar productos: agregar en productos.json con negocio correcto
+     - Para cambiar precios: modificar "precio" en productos.json
+     - Para agregar ofertas: establecer "precio_original" y "oferta": true
+     - Para destacar productos: cambiar "destacado": true
+     ================================================================= -->
+{% if productos %}
+<section id="productos" class="mb-5">
+    <div class="container">
+        <h2 class="text-center mb-4 text-gold">📦 Productos de {{ negocio.nombre }}</h2>
+        
+        <!-- =================================================================
+             FILTRO POR CATEGORÍAS
+             =================================================================
+             MANTENIMIENTO:
+             - Para agregar categorías: editar productos.json sección "categorias"
+             - Para cambiar iconos: modificar campo "icono" en la categoría
+             ================================================================= -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-custom">
+                    <div class="card-body">
+                        <h5 class="card-title text-black">🏷️ Filtrar por Categoría</h5>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="#productos" class="btn btn-outline-primary">📦 Todos</a>
+                            {% for categoria_id, categoria in categorias.items() %}
+                            <a href="#{{ categoria_id }}" class="btn btn-outline-secondary">
+                                {{ categoria.icono }} {{ categoria.nombre }}
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- =================================================================
+             PRODUCTOS ORGANIZADOS POR CATEGORÍA
+             =================================================================
+             MANTENIMIENTO:
+             - Para cambiar layout: modificar clases CSS
+             - Para agregar información: agregar campos en productos.json
+             - Para cambiar imágenes: reemplazar en static/images/productos/[negocio]/
+             ================================================================= -->
+        {% for categoria_id, categoria in categorias.items() %}
+        {% set productos_categoria = productos|selectattr('categoria', 'equalto', categoria_id)|list %}
+        {% if productos_categoria %}
+        <div id="{{ categoria_id }}" class="mb-5">
+            <h3 class="text-center mb-4 text-black">
+                {{ categoria.icono }} {{ categoria.nombre }}
+            </h3>
+            <div class="row">
+                {% for producto in productos_categoria %}
+                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                    <div class="card h-100 producto-card {% if producto.destacado %}destacado{% endif %}">
+                        <div class="position-relative">
+                            <!-- =================================================================
+                                 IMAGEN DEL PRODUCTO
+                                 =================================================================
+                                 MANTENIMIENTO:
+                                 - Para cambiar imagen: reemplazar producto.imagen
+                                 - Para agregar imagen: colocar en static/images/productos/[negocio]/
+                                 ================================================================= -->
+                            <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">
+                            
+                            <!-- =================================================================
+                                 BADGES DE DESTACADO Y OFERTA
+                                 =================================================================
+                                 MANTENIMIENTO:
+                                 - Para destacar producto: cambiar "destacado": true en productos.json
+                                 - Para crear oferta: establecer "precio_original" y "oferta": true
+                                 ================================================================= -->
+                            {% if producto.destacado %}
+                            <div class="position-absolute top-0 start-0 m-2">
+                                <span class="badge bg-warning">⭐ Destacado</span>
+                            </div>
+                            {% endif %}
+                            {% if producto.precio_original and producto.precio_original > producto.precio %}
+                            <div class="position-absolute top-0 end-0 m-2">
+                                <span class="badge bg-danger">🔥 Oferta</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="card-body d-flex flex-column">
+                            <!-- =================================================================
+                                 INFORMACIÓN DEL PRODUCTO
+                                 =================================================================
+                                 MANTENIMIENTO:
+                                 - Para cambiar nombre: modificar "nombre" en productos.json
+                                 - Para cambiar descripción: modificar "descripcion" en productos.json
+                                 - Para cambiar precio: modificar "precio" en productos.json
+                                 ================================================================= -->
+                            <h6 class="card-title text-black">{{ producto.nombre }}</h6>
+                            <p class="card-text text-muted small">{{ producto.descripcion }}</p>
+                            
+                            <div class="mt-auto">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                        <span class="text-danger fw-bold">${{ producto.precio }}</span>
+                                        <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
+                                        {% else %}
+                                        <span class="fw-bold text-black">${{ producto.precio }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted">Stock: {{ producto.stock }}</small>
+                                </div>
+                                
+                                <!-- =================================================================
+                                     BOTÓN DE AGREGAR AL CARRITO
+                                     =================================================================
+                                     MANTENIMIENTO:
+                                     - Para cambiar comportamiento: modificar formulario
+                                     - Para agregar validaciones: agregar JavaScript
+                                     ================================================================= -->
+                                <form method="POST" action="{{ url_for('agregar_al_carrito') }}" class="d-inline">
+                                    <input type="hidden" name="producto_id" value="{{ producto.id }}">
+                                    <input type="hidden" name="cantidad" value="1">
+                                    <button type="submit" class="btn btn-success w-100">
+                                        🛒 Agregar al Carrito
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</section>
+{% else %}
+<!-- =================================================================
+     MENSAJE CUANDO NO HAY PRODUCTOS
+     =================================================================
+     MANTENIMIENTO:
+     - Para cambiar mensaje: modificar texto aquí
+     - Para agregar productos: agregar en productos.json con negocio correcto
+     ================================================================= -->
+<div class="container text-center mb-5">
+    <div class="card shadow-custom">
+        <div class="card-body">
+            <h3 class="text-black">📦 No hay productos disponibles</h3>
+            <p class="text-muted">Este negocio aún no tiene productos cargados.</p>
+            <a href="{{ url_for('index') }}" class="btn btn-primary">🏠 Volver al Inicio</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- =================================================================
+     SECCIÓN DE INFORMACIÓN DEL NEGOCIO
+     =================================================================
+     MANTENIMIENTO:
+     - Para cambiar información: editar negocio en productos.json
+     - Para agregar más datos: agregar campos en productos.json
+     ================================================================= -->
+<section class="mb-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card shadow-custom">
+                    <div class="card-body">
+                        <h4 class="card-title text-black">ℹ️ Información del Negocio</h4>
+                        <p class="card-text text-black">{{ negocio.descripcion }}</p>
+                        <p class="card-text text-muted">
+                            <strong>Productos disponibles:</strong> {{ productos|length }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow-custom">
+                    <div class="card-body">
+                        <h4 class="card-title text-black">📞 Contacto</h4>
+                        <p class="card-text text-muted">
+                            Para consultas sobre productos de {{ negocio.nombre }}, 
+                            contacta directamente con el negocio.
+                        </p>
+                        <a href="{{ url_for('contacto') }}" class="btn btn-outline-primary">
+                            📧 Contactar Soporte
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =================================================================
+     ESTILOS ESPECÍFICOS PARA LA PÁGINA DE NEGOCIO
+     =================================================================
+     MANTENIMIENTO:
+     - Para cambiar colores: modificar variables CSS
+     - Para cambiar animaciones: modificar propiedades transition
+     - Para cambiar layout: modificar clases y estilos
+     ================================================================= -->
+<style>
+.hero-section {
+    padding: 4rem 0;
+    border-radius: 0 0 2rem 2rem;
+    border-bottom: 4px solid #2c3e50;
+}
+
+.producto-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 2px solid #2c3e50;
+    background: rgba(255, 255, 255, 0.95);
+    height: 100%;
+}
+
+.producto-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+}
+
+.producto-card.destacado {
+    border: 3px solid #FFD700;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 165, 0, 0.1));
+}
+
+.shadow-custom {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    border: none;
+    border-radius: 15px;
+}
+
+@media (max-width: 768px) {
+    .hero-section {
+        padding: 2rem 0;
+    }
+    
+    .display-4 {
+        font-size: 2rem;
+    }
+}
+</style>
+{% endblock %} 

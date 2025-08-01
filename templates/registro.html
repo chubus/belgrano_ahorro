@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-custom">
+            <div class="card-header text-center bg-primary text-white">
+                <h4 class="mb-0">📝 Crear Cuenta</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">👤 Nombre Completo</label>
+                        <input type="text" class="form-control" id="nombre" name="nombre" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">📧 Email</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">🔒 Contraseña</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                        <div class="form-text">Mínimo 6 caracteres</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmar_password" class="form-label">🔒 Confirmar Contraseña</label>
+                        <input type="password" class="form-control" id="confirmar_password" name="confirmar_password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="telefono" class="form-label">📱 Teléfono (opcional)</label>
+                        <input type="text" class="form-control" id="telefono" name="telefono">
+                    </div>
+                    <div class="mb-3">
+                        <label for="direccion" class="form-label">🏠 Dirección (opcional)</label>
+                        <input type="text" class="form-control" id="direccion" name="direccion">
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            ✅ Crear Cuenta
+                        </button>
+                    </div>
+                </form>
+                
+                <hr class="my-4">
+                
+                <div class="text-center">
+                    <p class="mb-2">¿Ya tienes cuenta?</p>
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-success">
+                        🔐 Iniciar Sesión
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

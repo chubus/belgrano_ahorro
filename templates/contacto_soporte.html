@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-custom">
+            <div class="card-header text-center bg-danger text-white">
+                <h3 class="mb-0">📞 Contacto con Soporte</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h5>⚠️ Problemas con tu cuenta</h5>
+                    <p class="mb-0">Si no pudiste recuperar tu contraseña automáticamente, nuestro equipo de soporte te ayudará.</p>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="text-primary">📧 Información que necesitamos:</h5>
+                        <ul class="list-unstyled">
+                            <li>✅ Email de tu cuenta</li>
+                            <li>✅ Nombre completo registrado</li>
+                            <li>✅ Teléfono de contacto</li>
+                            <li>✅ Descripción del problema</li>
+                            <li>✅ Fecha aproximada del registro</li>
+                        </ul>
+                        
+                        <div class="alert alert-info">
+                            <h6>🔒 Seguridad</h6>
+                            <p class="mb-0">Nunca te pediremos tu contraseña actual. Solo verificaremos tu identidad.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h5 class="text-success">📞 Canales de contacto:</h5>
+                        
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6>📱 WhatsApp</h6>
+                                <p class="mb-1"><strong>+54 9 11 1234-5678</strong></p>
+                                <small class="text-muted">Respuesta en 2-4 horas</small>
+                            </div>
+                        </div>
+                        
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6>📧 Email</h6>
+                                <p class="mb-1"><strong>soporte@belgranoahorro.com</strong></p>
+                                <small class="text-muted">Respuesta en 24 horas</small>
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-body">
+                                <h6>📞 Teléfono</h6>
+                                <p class="mb-1"><strong>+54 11 4567-8901</strong></p>
+                                <small class="text-muted">Lun-Vie 9:00-18:00</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr class="my-4">
+                
+                <div class="text-center">
+                    <h5>📝 Formulario de contacto</h5>
+                    <p class="text-muted">Completa este formulario y te responderemos lo antes posible:</p>
+                    
+                    <form method="POST" action="{{ url_for('contacto') }}">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="nombre" class="form-label">Nombre completo *</label>
+                                    <input type="text" class="form-control" id="nombre" name="nombre" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email de contacto *</label>
+                                    <input type="email" class="form-control" id="email" name="email" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="telefono" class="form-label">Teléfono</label>
+                                    <input type="tel" class="form-control" id="telefono" name="telefono">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="email_cuenta" class="form-label">Email de la cuenta problemática *</label>
+                                    <input type="email" class="form-control" id="email_cuenta" name="email_cuenta" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="asunto" class="form-label">Asunto</label>
+                            <select class="form-select" id="asunto" name="asunto" required>
+                                <option value="">Selecciona un asunto</option>
+                                <option value="recuperar_cuenta">Recuperar cuenta perdida</option>
+                                <option value="cambiar_email">Cambiar email de cuenta</option>
+                                <option value="bloqueo_cuenta">Cuenta bloqueada</option>
+                                <option value="error_login">Error al iniciar sesión</option>
+                                <option value="otro_problema">Otro problema</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="mensaje" class="form-label">Descripción del problema *</label>
+                            <textarea class="form-control" id="mensaje" name="mensaje" rows="4" 
+                                      placeholder="Describe detalladamente tu problema..." required></textarea>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                📤 Enviar Solicitud de Ayuda
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <hr class="my-4">
+                
+                <div class="text-center">
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-primary me-2">
+                        🔐 Volver al Login
+                    </a>
+                    <a href="{{ url_for('recuperar_password') }}" class="btn btn-outline-warning">
+                        🔄 Intentar Recuperación Automática
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

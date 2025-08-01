@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-custom">
+            <div class="card-header text-center bg-info text-white">
+                <h4 class="mb-0">🔢 Verificar Código</h4>
+            </div>
+            <div class="card-body p-4">
+                <div class="alert alert-info">
+                    <h6>📱 Paso 2: Ingresa el código</h6>
+                    <p class="mb-0">Revisa tu email y ingresa el código de 6 dígitos que te enviamos.</p>
+                </div>
+                
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">📧 Email</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="codigo" class="form-label">🔢 Código de Verificación</label>
+                        <input type="text" class="form-control" id="codigo" name="codigo" 
+                               maxlength="8" pattern="[A-Za-z0-9]{6,8}" required>
+                        <div class="form-text">Ingresa el código de 6-8 caracteres</div>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-info btn-lg">
+                            ✅ Verificar Código
+                        </button>
+                    </div>
+                </form>
+                
+                <hr class="my-4">
+                
+                <div class="text-center">
+                    <p class="mb-2">¿No recibiste el código?</p>
+                    <a href="{{ url_for('recuperar_password') }}" class="btn btn-outline-warning me-2">
+                        🔄 Reenviar Código
+                    </a>
+                    <a href="{{ url_for('contacto_soporte') }}" class="btn btn-outline-secondary">
+                        📞 Soporte
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-custom">
+            <div class="card-header bg-success text-white text-center">
+                <h3 class="mb-0">👤 Mi Perfil</h3>
+            </div>
+            <div class="card-body">
+                
+                <!-- INFORMACIÓN PERSONAL -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h5 class="text-success mb-3">📋 Información Personal</h5>
+                        <div class="mb-3">
+                            <strong>Nombre:</strong> {{ usuario.nombre }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Email:</strong> {{ usuario.email }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Teléfono:</strong> {{ usuario.telefono or 'No especificado' }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Dirección:</strong> {{ usuario.direccion or 'No especificada' }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Miembro desde:</strong> {{ usuario.fecha_registro[:10] if usuario.fecha_registro else 'Fecha no disponible' }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Rol:</strong> 
+                            <span class="badge bg-{{ 'primary' if usuario.rol == 'admin' else 'success' }}">
+                                {{ 'Administrador' if usuario.rol == 'admin' else 'Cliente' }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h5 class="text-success mb-3">📊 Estadísticas</h5>
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-6">
+                                        <h4 class="text-success">{{ pedidos|length }}</h4>
+                                        <small>Pedidos realizados</small>
+                                    </div>
+                                    <div class="col-6">
+                                        <h4 class="text-success">{{ total_gastado|default(0) }}</h4>
+                                        <small>Total gastado</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTONES DE ACCIÓN -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="text-success mb-3">⚙️ Acciones</h5>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editarPerfilModal">
+                                ✏️ Editar Perfil
+                            </button>
+                            <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#cambiarPasswordModal">
+                                🔐 Cambiar Contraseña
+                            </button>
+                            <a href="{{ url_for('mis_pedidos') }}" class="btn btn-outline-info">
+                                📋 Ver Mis Pedidos
+                            </a>
+                            <a href="{{ url_for('carrito') }}" class="btn btn-outline-success">
+                                🛒 Ir al Carrito
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HISTORIAL DE SESIONES -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h5 class="text-success mb-3">📱 Actividad Reciente</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>IP</th>
+                                        <th>Dispositivo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for sesion in sesiones %}
+                                    <tr>
+                                        <td>{{ sesion[0][:19] }}</td>
+                                        <td>{{ sesion[1] or 'N/A' }}</td>
+                                        <td>
+                                            <small class="text-muted">
+                                                {{ sesion[2][:50] + '...' if sesion[2] and sesion[2]|length > 50 else sesion[2] or 'N/A' }}
+                                            </small>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted">
+                                            No hay actividad reciente
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL EDITAR PERFIL -->
+<div class="modal fade" id="editarPerfilModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">✏️ Editar Perfil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('editar_perfil') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre completo *</label>
+                        <input type="text" class="form-control" id="nombre" name="nombre" 
+                               value="{{ usuario.nombre }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="telefono" class="form-label">Teléfono</label>
+                        <input type="tel" class="form-control" id="telefono" name="telefono" 
+                               value="{{ usuario.telefono or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="direccion" class="form-label">Dirección</label>
+                        <textarea class="form-control" id="direccion" name="direccion" rows="3">{{ usuario.direccion or '' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">💾 Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CAMBIAR CONTRASEÑA -->
+<div class="modal fade" id="cambiarPasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">🔐 Cambiar Contraseña</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('cambiar_password') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="password_actual" class="form-label">Contraseña actual *</label>
+                        <input type="password" class="form-control" id="password_actual" 
+                               name="password_actual" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password_nuevo" class="form-label">Nueva contraseña *</label>
+                        <input type="password" class="form-control" id="password_nuevo" 
+                               name="password_nuevo" required minlength="6">
+                        <div class="form-text">Mínimo 6 caracteres</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmar_password" class="form-label">Confirmar nueva contraseña *</label>
+                        <input type="password" class="form-control" id="confirmar_password" 
+                               name="confirmar_password" required minlength="6">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">🔐 Cambiar Contraseña</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Validar que las contraseñas coincidan
+document.getElementById('cambiarPasswordModal').addEventListener('submit', function(e) {
+    const password = document.getElementById('password_nuevo').value;
+    const confirmar = document.getElementById('confirmar_password').value;
+    
+    if (password !== confirmar) {
+        e.preventDefault();
+        alert('Las contraseñas no coinciden');
+    }
+});
+</script>
+{% endblock %} 

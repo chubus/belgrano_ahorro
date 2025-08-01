@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-custom">
+            <div class="card-header bg-success text-white text-center">
+                <h3 class="mb-0">🎉 ¡Pedido Confirmado!</h3>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-4">
+                    <h1 class="text-success">✅</h1>
+                    <h4>Tu pedido ha sido procesado exitosamente</h4>
+                    <p class="text-muted">Número de pedido: <strong>{{ numero_pedido }}</strong></p>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">📋 Información del Pedido</h6>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Estado:</strong> <span class="badge bg-success">Confirmado</span></p>
+                                <p><strong>Fecha:</strong> {{ fecha_actual }}</p>
+                                <p><strong>Hora:</strong> {{ hora_actual }}</p>
+                                <p><strong>Método de pago:</strong> Procesado</p>
+                                <p><strong>Entrega:</strong> 24-48 horas</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">📦 Resumen</h6>
+                            </div>
+                            <div class="card-body">
+                                <p>Tu pedido ha sido recibido y está siendo procesado.</p>
+                                <p>Recibirás un email con los detalles completos.</p>
+                                <hr>
+                                <div class="d-flex justify-content-between">
+                                    <strong>Estado:</strong>
+                                    <strong class="text-success">✅ Confirmado</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h5>📧 Próximos pasos:</h5>
+                    <ul class="list-unstyled">
+                        <li>✅ Recibirás un email de confirmación</li>
+                        <li>📞 Te contactaremos para coordinar la entrega</li>
+                        <li>🚚 Tu pedido será enviado en 24-48 horas</li>
+                        <li>📱 Recibirás actualizaciones por WhatsApp</li>
+                    </ul>
+                </div>
+                
+                <div class="mt-4">
+                    <a href="{{ url_for('index') }}" class="btn btn-success me-2">
+                        🛍️ Seguir Comprando
+                    </a>
+                    <a href="{{ url_for('mis_pedidos') }}" class="btn btn-outline-primary">
+                        📋 Ver Mis Pedidos
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

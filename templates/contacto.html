@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow-custom">
+            <div class="card-header bg-success text-white text-center">
+                <h3 class="mb-0">📞 Contáctanos</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- INFORMACIÓN DE CONTACTO -->
+                    <div class="col-md-6">
+                        <h4 class="text-success mb-4">🏪 Belgrano Ahorro</h4>
+                        
+                        <div class="mb-4">
+                            <h6><i class="fas fa-map-marker-alt text-success"></i> Dirección</h6>
+                            <p class="mb-0">Av. Cabildo 1234<br>Belgrano, CABA<br>Argentina</p>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h6><i class="fas fa-phone text-success"></i> Teléfonos</h6>
+                            <p class="mb-0">
+                                📱 WhatsApp: <a href="https://wa.me/5491112345678" class="text-success">+54 9 11 1234-5678</a><br>
+                                📞 Fijo: <a href="tel:+541145678901" class="text-success">+54 11 4567-8901</a>
+                            </p>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h6><i class="fas fa-envelope text-success"></i> Email</h6>
+                            <p class="mb-0">
+                                📧 <a href="mailto:info@belgranoahorro.com" class="text-success">info@belgranoahorro.com</a><br>
+                                📧 <a href="mailto:ventas@belgranoahorro.com" class="text-success">ventas@belgranoahorro.com</a>
+                            </p>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h6><i class="fas fa-clock text-success"></i> Horarios de Atención</h6>
+                            <p class="mb-0">
+                                🕐 Lunes a Viernes: 8:00 - 20:00<br>
+                                🕐 Sábados: 8:00 - 18:00<br>
+                                🕐 Domingos: 9:00 - 14:00
+                            </p>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h6><i class="fas fa-truck text-success"></i> Envíos</h6>
+                            <p class="mb-0">
+                                🚚 Envío gratis en Belgrano<br>
+                                🚚 Envío a domicilio en CABA<br>
+                                🚚 Retiro en local sin cargo
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- FORMULARIO DE CONTACTO -->
+                    <div class="col-md-6">
+                        <h4 class="text-success mb-4">✉️ Envíanos un mensaje</h4>
+                        
+                        <form method="POST" action="{{ url_for('contacto') }}">
+                            <div class="mb-3">
+                                <label for="nombre" class="form-label">Nombre completo *</label>
+                                <input type="text" class="form-control" id="nombre" name="nombre" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email *</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="telefono" class="form-label">Teléfono</label>
+                                <input type="tel" class="form-control" id="telefono" name="telefono">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="asunto" class="form-label">Asunto *</label>
+                                <select class="form-select" id="asunto" name="asunto" required>
+                                    <option value="">Selecciona un asunto</option>
+                                    <option value="consulta">Consulta general</option>
+                                    <option value="pedido">Consulta sobre pedido</option>
+                                    <option value="producto">Consulta sobre producto</option>
+                                    <option value="envio">Consulta sobre envío</option>
+                                    <option value="reclamo">Reclamo</option>
+                                    <option value="sugerencia">Sugerencia</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="mensaje" class="form-label">Mensaje *</label>
+                                <textarea class="form-control" id="mensaje" name="mensaje" rows="5" 
+                                          placeholder="Escribe tu mensaje aquí..." required></textarea>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-success btn-lg w-100">
+                                📤 Enviar Mensaje
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- MAPA -->
+                <div class="row mt-5">
+                    <div class="col-12">
+                        <h4 class="text-success mb-3">📍 Ubicación</h4>
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <p class="mb-0">
+                                    <i class="fas fa-map-marker-alt text-success"></i>
+                                    Av. Cabildo 1234, Belgrano, CABA
+                                </p>
+                                <small class="text-muted">
+                                    📍 Entre Juramento y Echeverría
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <div class="alert alert-danger text-center">
+        <h2>⚠️ Error del sistema</h2>
+        <p>En este momento no es posible procesar tu solicitud.<br>
+        Por favor, intenta nuevamente más tarde o contacta al soporte.</p>
+        <a href="{{ url_for('index') }}" class="btn btn-primary mt-3">Volver al inicio</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>🛒 Carrito de Compras</h2>
+    <a href="{{ url_for('index') }}" class="btn btn-outline-primary">← Volver al catálogo</a>
+</div>
+
+{% if carrito_items %}
+    <!-- LISTA DE PRODUCTOS EN EL CARRITO -->
+    <div class="row">
+        <div class="col-md-8">
+            {% for item in carrito_items %}
+            <div class="card mb-3">
+                <div class="row g-0">
+                    <div class="col-md-3">
+                        <img src="{{ item.producto.imagen }}" class="img-fluid rounded-start h-100" style="object-fit: cover;" alt="{{ item.producto.nombre }}">
+                    </div>
+                    <div class="col-md-9">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-4">
+                                    <h5 class="card-title">{{ item.producto.nombre }}</h5>
+                                    <p class="card-text text-success fw-bold">$ {{ item.producto.precio }}</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <form action="{{ url_for('actualizar_cantidad') }}" method="POST" class="d-flex align-items-center">
+                                        <input type="hidden" name="producto_id" value="{{ item.producto.nombre }}">
+                                        <label class="me-2">Cantidad:</label>
+                                        <input type="number" name="cantidad" value="{{ item.cantidad }}" min="0" max="10" class="form-control" style="width: 80px;">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary ms-2">Actualizar</button>
+                                    </form>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <p class="card-text fw-bold">Subtotal: $ {{ item.subtotal }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- RESUMEN DEL CARRITO -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">📋 Resumen de Compra</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Total de productos:</span>
+                        <span class="fw-bold">{{ carrito_items|length }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Total a pagar:</span>
+                        <span class="fw-bold text-success fs-5">$ {{ total }}</span>
+                    </div>
+                    <hr>
+                    <div class="d-grid gap-2">
+                        {% if session.usuario_id %}
+                            <a href="{{ url_for('checkout') }}" class="btn btn-success btn-lg">
+                                💳 Proceder al pago
+                            </a>
+                        {% else %}
+                            <a href="{{ url_for('login') }}" class="btn btn-warning btn-lg">
+                                🔐 Iniciar sesión para comprar
+                            </a>
+                        {% endif %}
+                        <a href="{{ url_for('vaciar_carrito') }}" class="btn btn-outline-danger">
+                            🗑️ Vaciar carrito
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <!-- CARRITO VACÍO -->
+    <div class="text-center py-5">
+        <div class="mb-4">
+            <h1 class="text-muted">🛒</h1>
+        </div>
+        <h3 class="text-muted mb-3">Tu carrito está vacío</h3>
+        <p class="text-muted mb-4">Agrega algunos productos para comenzar a comprar</p>
+        <a href="{{ url_for('index') }}" class="btn btn-success btn-lg">
+            🛍️ Ir al catálogo
+        </a>
+    </div>
+{% endif %}
+{% endblock %} 

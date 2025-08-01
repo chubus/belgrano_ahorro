@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>📋 Mis Pedidos</h2>
+    <a href="{{ url_for('index') }}" class="btn btn-outline-primary">← Volver al catálogo</a>
+</div>
+
+{% if pedidos %}
+    {% for pedido in pedidos %}
+    <div class="card mb-4 shadow-custom">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0">Pedido #{{ pedido.numero }}</h5>
+                <small class="text-muted">{{ pedido.fecha[:10] }}</small>
+            </div>
+            <div>
+                <span class="badge bg-{{ 'success' if pedido.estado == 'confirmado' else 'warning' if pedido.estado == 'pendiente' else 'danger' }}">
+                    {{ pedido.estado|title }}
+                </span>
+                <span class="badge bg-primary ms-2">${{ pedido.total }}</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <h6>📦 Información del Pedido:</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>Método de pago:</strong> {{ pedido.metodo_pago }}</li>
+                        <li><strong>Dirección:</strong> {{ pedido.direccion }}</li>
+                        <li><strong>Fecha:</strong> {{ pedido.fecha }}</li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('ver_pedido', pedido_id=pedido.id) }}" class="btn btn-outline-info btn-sm">
+                            👁️ Ver Detalles
+                        </a>
+                        <a href="{{ url_for('repetir_pedido', pedido_id=pedido.id) }}" class="btn btn-outline-success btn-sm">
+                            🔄 Repetir Pedido
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="text-center py-5">
+        <div class="mb-4">
+            <h1 class="text-muted">📋</h1>
+        </div>
+        <h3 class="text-muted mb-3">No tienes pedidos aún</h3>
+        <p class="text-muted mb-4">Realiza tu primera compra para ver tus pedidos aquí</p>
+        <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg">
+            🛍️ Comenzar a Comprar
+        </a>
+    </div>
+{% endif %}
+
+<!-- Estadísticas del usuario -->
+{% if pedidos %}
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">📊 Total de Pedidos</h5>
+                <h2 class="text-primary">{{ pedidos|length }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">💰 Total Gastado</h5>
+                <h2 class="text-success">${{ pedidos|sum(attribute='total') }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">📅 Último Pedido</h5>
+                <h6 class="text-info">{{ pedidos[0].fecha[:10] if pedidos else 'N/A' }}</h6>
+            </div>
+        </div>
+    </div>
+    </div>
+{% endif %}
+{% endblock %} 
