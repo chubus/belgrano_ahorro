@@ -1,7 +1,7 @@
 services:
   - type: web
     name: belgrano-ahorro
-    env: python
+    env: docker
     buildCommand: "docker build -t belgrano-ahorro ."
     startCommand: "docker run -p 5000:5000 belgrano-ahorro"
     envVars:
