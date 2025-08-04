@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libtiff-dev \
     libwebp-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Establece el directorio de trabajo
 WORKDIR /app
@@ -24,8 +24,11 @@ RUN pip install -r requirements.txt
 # Copia el resto del código de la aplicación
 COPY . .
 
+# Crea la base de datos si no existe
+RUN python inicializar_db.py
+
 # Expone el puerto (5000 para Flask)
 EXPOSE 5000
 
-# Comando para ejecutar la aplicación directamente desde app.py
-CMD ["python", "app.py"]
+# Comando para ejecutar la aplicación
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "app:app"]

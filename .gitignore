@@ -1,0 +1,35 @@
+# Ignorar base de datos local
+belgrano_ahorro.db
+
+# Ignorar archivos de caché de Python
+__pycache__/
+*.py[cod]
+
+# Ignorar archivos de entorno virtual
+.env
+.venv/
+venv/
+ENV/
+
+# Ignorar archivos de configuración de IDE
+.vscode/
+.idea/
+
+# Ignorar archivos de logs
+*.log
+
+# Ignorar archivos temporales
+*.tmp
+*.temp
+
+# Ignorar archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Ignorar archivos de Docker
+Dockerfile.*
+docker-compose*.yml
+
+# Ignorar archivos de pruebas (opcional)
+test_*.py
+*_test.py

@@ -1,11 +1,13 @@
 services:
   - type: web
     name: belgrano-ahorro
-    env: docker
-    buildCommand: "docker build -t belgrano-ahorro ."
-    startCommand: "docker run -p 5000:5000 belgrano-ahorro"
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn --bind 0.0.0.0:$PORT --workers 2 app:app"
     envVars:
-      - key: PORT
-        value: 5000
-    regions:
-      - oregon
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: FLASK_APP
+        value: app.py
+      - key: FLASK_ENV
