@@ -91,6 +91,48 @@ def crear_base_datos():
             )
         ''')
         
+        # Tabla comerciantes
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS comerciantes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER NOT NULL,
+                nombre_negocio VARCHAR(100) NOT NULL,
+                cuit VARCHAR(20),
+                direccion_comercial TEXT,
+                telefono_comercial VARCHAR(20),
+                tipo_negocio VARCHAR(50),
+                fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
+                activo BOOLEAN DEFAULT 1,
+                FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+            )
+        ''')
+        
+        # Tabla paquetes de comerciantes
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS paquetes_comerciantes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                comerciante_id INTEGER NOT NULL,
+                nombre_paquete VARCHAR(100) NOT NULL,
+                descripcion TEXT,
+                fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+                activo BOOLEAN DEFAULT 1,
+                frecuencia VARCHAR(20) DEFAULT 'mensual',
+                proximo_pedido DATE,
+                FOREIGN KEY (comerciante_id) REFERENCES comerciantes (id)
+            )
+        ''')
+        
+        # Tabla items de paquetes
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS paquete_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                paquete_id INTEGER NOT NULL,
+                producto_id VARCHAR(50) NOT NULL,
+                cantidad INTEGER NOT NULL,
+                FOREIGN KEY (paquete_id) REFERENCES paquetes_comerciantes (id)
+            )
+        ''')
+        
         # Tabla tokens de recuperación
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS tokens_recuperacion (
@@ -125,7 +167,7 @@ def verificar_password(password, hashed):
     except:
         return False
 
-def crear_usuario(nombre, apellido, email, password, telefono=None, direccion=None):
+def crear_usuario(nombre, apellido, email, password, telefono=None, direccion=None, rol='cliente'):
     try:
         conn = sqlite3.connect('belgrano_ahorro.db')
         cursor = conn.cursor()
@@ -134,7 +176,7 @@ def crear_usuario(nombre, apellido, email, password, telefono=None, direccion=No
             conn.close()
             return {'exito': False, 'mensaje': 'El email ya está registrado'}
         password_hash = hash_password(password)
-        cursor.execute('''INSERT INTO usuarios (nombre, apellido, email, password, telefono, direccion) VALUES (?, ?, ?, ?, ?, ?)''', (nombre, apellido, email, password_hash, telefono, direccion))
+        cursor.execute('''INSERT INTO usuarios (nombre, apellido, email, password, telefono, direccion, rol) VALUES (?, ?, ?, ?, ?, ?, ?)''', (nombre, apellido, email, password_hash, telefono, direccion, rol))
         usuario_id = cursor.lastrowid
         conn.commit()
         conn.close()
@@ -425,3 +467,216 @@ def generar_numero_pedido():
     fecha = datetime.now().strftime("%Y%m%d")
     codigo = str(uuid.uuid4())[:8].upper()
     return f"PED-{fecha}-{codigo}"
+
+# ========== COMERCIANTES ==========
+def crear_comerciante(usuario_id, nombre_negocio, cuit=None, direccion_comercial=None, telefono_comercial=None, tipo_negocio=None):
+    """Crear un nuevo comerciante"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        # Verificar si el usuario ya es comerciante
+        cursor.execute('SELECT id FROM comerciantes WHERE usuario_id = ?', (usuario_id,))
+        if cursor.fetchone():
+            return {'exito': False, 'mensaje': 'El usuario ya está registrado como comerciante'}
+        
+        # Insertar comerciante
+        cursor.execute('''
+            INSERT INTO comerciantes (usuario_id, nombre_negocio, cuit, direccion_comercial, telefono_comercial, tipo_negocio)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (usuario_id, nombre_negocio, cuit, direccion_comercial, telefono_comercial, tipo_negocio))
+        
+        conn.commit()
+        conn.close()
+        return {'exito': True, 'mensaje': 'Comerciante registrado exitosamente'}
+    except Exception as e:
+        logger.error(f"Error creando comerciante: {e}")
+        return {'exito': False, 'mensaje': f'Error al crear comerciante: {str(e)}'}
+
+def obtener_comerciante_por_usuario(usuario_id):
+    """Obtener información del comerciante por usuario_id"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT c.*, u.nombre, u.apellido, u.email, u.telefono
+            FROM comerciantes c
+            JOIN usuarios u ON c.usuario_id = u.id
+            WHERE c.usuario_id = ? AND c.activo = 1
+        ''', (usuario_id,))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return {
+                'id': row[0],
+                'usuario_id': row[1],
+                'nombre_negocio': row[2],
+                'cuit': row[3],
+                'direccion_comercial': row[4],
+                'telefono_comercial': row[5],
+                'tipo_negocio': row[6],
+                'fecha_registro': row[7],
+                'activo': row[8],
+                'nombre': row[9],
+                'apellido': row[10],
+                'email': row[11],
+                'telefono': row[12]
+            }
+        return None
+    except Exception as e:
+        logger.error(f"Error obteniendo comerciante: {e}")
+        return None
+
+def crear_paquete_comerciante(comerciante_id, nombre_paquete, descripcion=None, frecuencia='mensual'):
+    """Crear un nuevo paquete para comerciante"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        # Calcular próximo pedido (1 mes desde hoy)
+        from datetime import datetime, timedelta
+        proximo_pedido = (datetime.now() + timedelta(days=30)).date()
+        
+        cursor.execute('''
+            INSERT INTO paquetes_comerciantes (comerciante_id, nombre_paquete, descripcion, frecuencia, proximo_pedido)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (comerciante_id, nombre_paquete, descripcion, frecuencia, proximo_pedido))
+        
+        paquete_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return {'exito': True, 'paquete_id': paquete_id, 'mensaje': 'Paquete creado exitosamente'}
+    except Exception as e:
+        logger.error(f"Error creando paquete: {e}")
+        return {'exito': False, 'mensaje': f'Error al crear paquete: {str(e)}'}
+
+def agregar_producto_a_paquete(paquete_id, producto_id, cantidad):
+    """Agregar un producto a un paquete"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO paquete_items (paquete_id, producto_id, cantidad)
+            VALUES (?, ?, ?)
+        ''', (paquete_id, producto_id, cantidad))
+        
+        conn.commit()
+        conn.close()
+        return {'exito': True, 'mensaje': 'Producto agregado al paquete'}
+    except Exception as e:
+        logger.error(f"Error agregando producto a paquete: {e}")
+        return {'exito': False, 'mensaje': f'Error al agregar producto: {str(e)}'}
+
+def obtener_paquetes_comerciante(comerciante_id):
+    """Obtener todos los paquetes de un comerciante"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, nombre_paquete, descripcion, fecha_creacion, frecuencia, proximo_pedido, activo
+            FROM paquetes_comerciantes
+            WHERE comerciante_id = ? AND activo = 1
+            ORDER BY fecha_creacion DESC
+        ''', (comerciante_id,))
+        
+        paquetes = []
+        for row in cursor.fetchall():
+            paquete = {
+                'id': row[0],
+                'nombre_paquete': row[1],
+                'descripcion': row[2],
+                'fecha_creacion': row[3],
+                'frecuencia': row[4],
+                'proximo_pedido': row[5],
+                'activo': row[6]
+            }
+            
+            # Obtener items del paquete
+            cursor.execute('''
+                SELECT producto_id, cantidad
+                FROM paquete_items
+                WHERE paquete_id = ?
+            ''', (paquete['id'],))
+            
+            paquete['items'] = [{'producto_id': row[0], 'cantidad': row[1]} for row in cursor.fetchall()]
+            paquetes.append(paquete)
+        
+        conn.close()
+        return paquetes
+    except Exception as e:
+        logger.error(f"Error obteniendo paquetes: {e}")
+        return []
+
+def procesar_pedido_automatico_paquete(paquete_id):
+    """Procesar pedido automático de un paquete"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        # Obtener información del paquete y comerciante
+        cursor.execute('''
+            SELECT pc.comerciante_id, pc.nombre_paquete, c.usuario_id
+            FROM paquetes_comerciantes pc
+            JOIN comerciantes c ON pc.comerciante_id = c.id
+            WHERE pc.id = ?
+        ''', (paquete_id,))
+        
+        row = cursor.fetchone()
+        if not row:
+            return {'exito': False, 'mensaje': 'Paquete no encontrado'}
+        
+        comerciante_id, nombre_paquete, usuario_id = row
+        
+        # Obtener items del paquete
+        cursor.execute('''
+            SELECT producto_id, cantidad
+            FROM paquete_items
+            WHERE paquete_id = ?
+        ''', (paquete_id,))
+        
+        items = cursor.fetchall()
+        if not items:
+            return {'exito': False, 'mensaje': 'Paquete sin productos'}
+        
+        # Crear pedido automático
+        numero_pedido = f"PAQ-{paquete_id}-{datetime.now().strftime('%Y%m%d')}"
+        total = 0
+        
+        # Calcular total (necesitarías obtener precios de productos.json)
+        # Por ahora usamos un total estimado
+        total = sum(cantidad * 100 for _, cantidad in items)  # Precio estimado $100 por producto
+        
+        cursor.execute('''
+            INSERT INTO pedidos (usuario_id, numero_pedido, total, estado, metodo_pago, direccion_entrega, notas)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (usuario_id, numero_pedido, total, 'pendiente', 'transferencia', 'Entrega comercial', f'Pedido automático - {nombre_paquete}'))
+        
+        pedido_id = cursor.lastrowid
+        
+        # Agregar items al pedido
+        for producto_id, cantidad in items:
+            cursor.execute('''
+                INSERT INTO pedido_items (pedido_id, producto_id, cantidad, precio_unitario, subtotal)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (pedido_id, producto_id, cantidad, 100, cantidad * 100))  # Precio estimado
+        
+        # Actualizar próximo pedido
+        from datetime import datetime, timedelta
+        proximo_pedido = (datetime.now() + timedelta(days=30)).date()
+        cursor.execute('''
+            UPDATE paquetes_comerciantes
+            SET proximo_pedido = ?
+            WHERE id = ?
+        ''', (proximo_pedido, paquete_id))
+        
+        conn.commit()
+        conn.close()
+        return {'exito': True, 'numero_pedido': numero_pedido, 'mensaje': 'Pedido automático procesado'}
+    except Exception as e:
+        logger.error(f"Error procesando pedido automático: {e}")
+        return {'exito': False, 'mensaje': f'Error al procesar pedido: {str(e)}'}

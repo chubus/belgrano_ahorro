@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Registro de Comerciante - Belgrano Ahorro{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-custom">
+                <div class="card-header" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white;">
+                    <h3 class="mb-0">🏪 Registro de Comerciante</h3>
+                    <p class="mb-0">Únete a nuestra plataforma como comerciante</p>
+                </div>
+                <div class="card-body p-4">
+                    
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST">
+                        <!-- Datos Personales -->
+                        <h5 class="text-primary mb-3">👤 Datos Personales</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="nombre" class="form-label">Nombre *</label>
+                                <input type="text" class="form-control" id="nombre" name="nombre" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="apellido" class="form-label">Apellido *</label>
+                                <input type="text" class="form-control" id="apellido" name="apellido" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">Email *</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="telefono" class="form-label">Teléfono</label>
+                                <input type="tel" class="form-control" id="telefono" name="telefono">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="direccion" class="form-label">Dirección</label>
+                            <input type="text" class="form-control" id="direccion" name="direccion">
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="password" class="form-label">Contraseña *</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="confirmar_password" class="form-label">Confirmar Contraseña *</label>
+                                <input type="password" class="form-control" id="confirmar_password" name="confirmar_password" required>
+                            </div>
+                        </div>
+
+                        <!-- Datos Comerciales -->
+                        <h5 class="text-primary mb-3">🏢 Datos Comerciales</h5>
+                        <div class="mb-3">
+                            <label for="nombre_negocio" class="form-label">Nombre del Negocio *</label>
+                            <input type="text" class="form-control" id="nombre_negocio" name="nombre_negocio" required>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="cuit" class="form-label">CUIT</label>
+                                <input type="text" class="form-control" id="cuit" name="cuit">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="tipo_negocio" class="form-label">Tipo de Negocio</label>
+                                <select class="form-select" id="tipo_negocio" name="tipo_negocio">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Supermercado">Supermercado</option>
+                                    <option value="Almacén">Almacén</option>
+                                    <option value="Restaurante">Restaurante</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label for="direccion_comercial" class="form-label">Dirección Comercial</label>
+                                <input type="text" class="form-control" id="direccion_comercial" name="direccion_comercial">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="telefono_comercial" class="form-label">Teléfono Comercial</label>
+                                <input type="tel" class="form-control" id="telefono_comercial" name="telefono_comercial">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100 mb-3">
+                            🏪 Registrar Comerciante
+                        </button>
+                        
+                        <div class="text-center">
+                            <p class="mb-0">¿Ya tienes cuenta? <a href="{{ url_for('login_comerciante') }}" class="text-primary">Iniciar sesión</a></p>
+                            <p class="mt-2"><a href="{{ url_for('index') }}" class="text-muted">← Volver al inicio</a></p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

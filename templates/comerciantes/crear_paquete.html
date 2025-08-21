@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Crear Paquete - Panel de Comerciantes{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-custom">
+                <div class="card-header bg-success text-white">
+                    <h3 class="mb-0">📦 Crear Nuevo Paquete</h3>
+                    <small>Configura un pedido automático mensual</small>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="nombre_paquete" class="form-label">Nombre del Paquete *</label>
+                            <input type="text" class="form-control" id="nombre_paquete" name="nombre_paquete" 
+                                   placeholder="Ej: Paquete Básico Mensual" required>
+                            <div class="form-text">Un nombre descriptivo para identificar tu paquete</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="descripcion" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="descripcion" name="descripcion" rows="3"
+                                      placeholder="Describe qué productos incluye este paquete..."></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="frecuencia" class="form-label">Frecuencia de Pedido</label>
+                            <select class="form-select" id="frecuencia" name="frecuencia">
+                                <option value="mensual" selected>Mensual</option>
+                                <option value="quincenal">Quincenal</option>
+                                <option value="semanal">Semanal</option>
+                            </select>
+                            <div class="form-text">Con qué frecuencia se procesará automáticamente este paquete</div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <strong>💡 Información:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Después de crear el paquete, podrás agregar productos</li>
+                                <li>Los pedidos se procesarán automáticamente según la frecuencia</li>
+                                <li>Puedes procesar manualmente en cualquier momento</li>
+                                <li>Los pedidos se generarán con descuentos mayoristas</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                📦 Crear Paquete
+                            </button>
+                            <a href="{{ url_for('comerciantes_paquetes') }}" class="btn btn-outline-secondary">
+                                ← Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -174,6 +174,59 @@ def obtener_ofertas():
     datos = cargar_datos_completos()
     return datos.get('ofertas', {})
 
+def obtener_sucursales():
+    """
+    Obtener todas las sucursales del sistema
+    
+    RETORNA:
+    - Diccionario con todas las sucursales organizadas por negocio
+    
+    MANTENIMIENTO:
+    - Para agregar sucursales: editar sección "sucursales" en productos.json
+    - Para cambiar estado: modificar "activo": true/false en la sucursal
+    """
+    datos = cargar_datos_completos()
+    return datos.get('sucursales', {})
+
+def obtener_sucursales_por_negocio(negocio_id):
+    """
+    Obtener sucursales de un negocio específico
+    
+    PARÁMETROS:
+    - negocio_id: ID del negocio
+    
+    RETORNA:
+    - Lista de sucursales activas del negocio
+    """
+    sucursales = obtener_sucursales()
+    if negocio_id in sucursales:
+        return [suc for suc in sucursales[negocio_id].values() if suc.get('activo', True)]
+    return []
+
+def obtener_productos_por_sucursal(negocio_id, sucursal_id):
+    """
+    Obtener productos disponibles en una sucursal específica
+    
+    PARÁMETROS:
+    - negocio_id: ID del negocio
+    - sucursal_id: ID de la sucursal
+    
+    RETORNA:
+    - Lista de productos disponibles en la sucursal
+    """
+    datos = cargar_datos_completos()
+    productos = datos.get('productos', [])
+    
+    productos_sucursal = []
+    for producto in productos:
+        if (producto.get('negocio') == negocio_id and 
+            producto.get('activo', True) and
+            'sucursales' in producto and
+            sucursal_id in producto['sucursales']):
+            productos_sucursal.append(producto)
+    
+    return productos_sucursal
+
 def obtener_productos_por_negocio(negocio_id):
     """Obtener productos de un negocio específico"""
     datos = cargar_datos_completos()
@@ -761,6 +814,7 @@ def index():
     datos = cargar_datos_completos()
     negocios = datos.get('negocios', {})
     categorias = datos.get('categorias', {})
+    sucursales = datos.get('sucursales', {})
     ofertas_activas = obtener_ofertas_activas()
     productos_destacados = obtener_productos_destacados()
     
@@ -781,6 +835,7 @@ def index():
     return render_template("index.html", 
                          negocios=negocios,
                          categorias=categorias,
+                         sucursales=sucursales,
                          ofertas=ofertas_activas,
                          productos_destacados=productos_destacados,
                          productos_por_negocio=productos_por_negocio,
@@ -803,6 +858,7 @@ def ver_negocio(negocio_id):
     datos = cargar_datos_completos()
     negocios = datos.get('negocios', {})
     categorias = datos.get('categorias', {})
+    sucursales = datos.get('sucursales', {})
     
     if negocio_id not in negocios:
         flash('Negocio no encontrado', 'danger')
@@ -810,11 +866,13 @@ def ver_negocio(negocio_id):
     
     negocio = negocios[negocio_id]
     productos = obtener_productos_por_negocio(negocio_id)
+    sucursales_negocio = sucursales.get(negocio_id, {})
     
     return render_template("negocio.html", 
                          negocio=negocio,
                          productos=productos,
-                         categorias=categorias)
+                         categorias=categorias,
+                         sucursales=sucursales_negocio)
 
 @app.route("/categoria/<categoria_id>")
 def ver_categoria(categoria_id):
@@ -1045,6 +1103,76 @@ def procesar_pago():
     session.pop('carrito', None)
     
     if pedido_id:
+        # INTEGRACIÓN CON BELGRANO TICKETS
+        try:
+            from integracion_belgrano_tickets import BelgranoTicketsAPI
+            
+            # Preparar datos para enviar a Belgrano Tickets
+            # Obtener nombre completo del usuario (manejar caso sin apellido)
+            nombre_completo = usuario.get('nombre', 'Cliente')
+            if usuario.get('apellido'):
+                nombre_completo = f"{usuario['nombre']} {usuario['apellido']}"
+            
+            # Verificar si es un comerciante
+            es_comerciante = usuario.get('rol') == 'comerciante'
+            nombre_cliente = nombre_completo
+            
+            if es_comerciante:
+                # Obtener información del comerciante
+                comerciante = database.obtener_comerciante_por_usuario(usuario['id'])
+                if comerciante:
+                    nombre_cliente = f"{comerciante['nombre_negocio']} - {nombre_completo}"
+                    # Agregar información comercial a las indicaciones
+                    indicaciones_comerciales = f"COMERCIANTE - Negocio: {comerciante['nombre_negocio']}"
+                    if comerciante.get('tipo_negocio'):
+                        indicaciones_comerciales += f", Tipo: {comerciante['tipo_negocio']}"
+                    if comerciante.get('cuit'):
+                        indicaciones_comerciales += f", CUIT: {comerciante['cuit']}"
+                    
+                    notas_completas = f"{indicaciones_comerciales}. {notas or 'Sin indicaciones especiales'}"
+                else:
+                    notas_completas = f"COMERCIANTE - {notas or 'Sin indicaciones especiales'}"
+            else:
+                notas_completas = notas or 'Sin indicaciones especiales'
+            
+            ticket_data = {
+                'numero': numero_pedido,
+                'cliente_nombre': nombre_cliente,
+                'direccion': direccion,
+                'telefono': usuario.get('telefono', ''),
+                'email': usuario['email'],
+                'productos': [
+                    {
+                        'nombre': item['producto']['nombre'],
+                        'cantidad': item['cantidad'],
+                        'precio': item['producto']['precio'],
+                        'subtotal': item['subtotal']
+                    } for item in carrito_items
+                ],
+                'total': total,
+                'metodo_pago': metodo_pago,
+                'fecha': datetime.now().isoformat(),
+                'indicaciones': notas_completas,
+                'tipo_cliente': 'comerciante' if es_comerciante else 'cliente'
+            }
+            
+            # Enviar ticket a Belgrano Tickets
+            api = BelgranoTicketsAPI()
+            if api.verificar_conexion():
+                resultado = api.enviar_ticket(ticket_data)
+                if resultado:
+                    tipo_cliente = "Comerciante" if es_comerciante else "Cliente"
+                    print(f"✅ Ticket enviado a Belgrano Tickets: {numero_pedido} ({tipo_cliente})")
+                else:
+                    print(f"⚠️ No se pudo enviar ticket a Belgrano Tickets: {numero_pedido}")
+            else:
+                print(f"⚠️ Belgrano Tickets no está disponible")
+                
+        except ImportError:
+            print("⚠️ Módulo de integración no disponible")
+        except Exception as e:
+            print(f"⚠️ Error en integración con Belgrano Tickets: {e}")
+        
         flash(f'¡Pedido confirmado! Número: {numero_pedido}', 'success')
         return redirect(url_for('confirmacion_pedido', numero_pedido=numero_pedido))
     else:
@@ -1177,6 +1305,254 @@ def sobre_nosotros():
     RUTA SOBRE NOSOTROS - Página con información de la empresa
     """
     return render_template("sobre_nosotros.html")
+
+# ==========================================
+# SECCIÓN COMERCIANTES (RUTAS BÁSICAS)
+# ==========================================
+
+@app.route("/comerciantes")
+def comerciantes_home():
+    """
+    Panel principal de Comerciantes con accesos rápidos.
+    Usa los flujos existentes (carrito, checkout, pedidos) para asegurar funcionalidad.
+    """
+    datos = cargar_datos_completos()
+    negocios = datos.get('negocios', {})
+    categorias = datos.get('categorias', {})
+    return render_template("comerciantes/dashboard.html", negocios=negocios, categorias=categorias)
+
+@app.route("/comerciantes/pedidos")
+def comerciantes_pedidos():
+    """Atajo a los pedidos del usuario desde el panel de comerciantes."""
+    return redirect(url_for('mis_pedidos'))
+
+@app.route("/comerciantes/carrito")
+def comerciantes_carrito():
+    """Atajo al carrito normal desde el panel de comerciantes."""
+    return redirect(url_for('carrito'))
+
+@app.route("/comerciantes/checkout")
+def comerciantes_checkout():
+    """Atajo al checkout normal desde el panel de comerciantes."""
+    return redirect(url_for('checkout'))
+
+@app.route("/comerciantes/confirmacion/<numero_pedido>")
+def comerciantes_confirmacion(numero_pedido):
+    """Atajo a la confirmación de pedido normal desde el panel de comerciantes."""
+    return redirect(url_for('confirmacion_pedido', numero_pedido=numero_pedido))
+
+# ==========================================
+# REGISTRO Y LOGIN DE COMERCIANTES
+# ==========================================
+
+@app.route("/comerciantes/registro", methods=['GET', 'POST'])
+def registro_comerciante():
+    """Registro específico para comerciantes"""
+    if request.method == 'POST':
+        # Datos personales
+        nombre = request.form.get('nombre')
+        apellido = request.form.get('apellido')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        telefono = request.form.get('telefono')
+        direccion = request.form.get('direccion')
+        
+        # Datos comerciales
+        nombre_negocio = request.form.get('nombre_negocio')
+        cuit = request.form.get('cuit')
+        direccion_comercial = request.form.get('direccion_comercial')
+        telefono_comercial = request.form.get('telefono_comercial')
+        tipo_negocio = request.form.get('tipo_negocio')
+        
+        # Validaciones
+        if not all([nombre, apellido, email, password, nombre_negocio]):
+            flash('Por favor completa todos los campos obligatorios', 'danger')
+            return render_template("comerciantes/registro.html")
+        
+        # Crear usuario con rol comerciante
+        resultado = database.crear_usuario(nombre, apellido, email, password, telefono, direccion, 'comerciante')
+        
+        if resultado['exito']:
+            # Crear perfil de comerciante
+            comerciante_resultado = database.crear_comerciante(
+                resultado['usuario_id'], 
+                nombre_negocio, 
+                cuit, 
+                direccion_comercial, 
+                telefono_comercial, 
+                tipo_negocio
+            )
+            
+            if comerciante_resultado['exito']:
+                flash('¡Comerciante registrado exitosamente! Ya puedes iniciar sesión.', 'success')
+                return redirect(url_for('login_comerciante'))
+            else:
+                flash(f'Error al crear perfil comercial: {comerciante_resultado["mensaje"]}', 'danger')
+        else:
+            flash(f'Error al crear usuario: {resultado["mensaje"]}', 'danger')
+    
+    return render_template("comerciantes/registro.html")
+
+@app.route("/comerciantes/login", methods=['GET', 'POST'])
+def login_comerciante():
+    """Login específico para comerciantes"""
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        if not email or not password:
+            flash('Por favor ingresa email y contraseña', 'danger')
+            return render_template("comerciantes/login.html")
+        
+        resultado = database.verificar_usuario(email, password)
+        
+        if resultado['exito']:
+            usuario = resultado['usuario']
+            
+            # Verificar que sea comerciante
+            if usuario.get('rol') != 'comerciante':
+                flash('Esta cuenta no está registrada como comerciante', 'danger')
+                return render_template("comerciantes/login.html")
+            
+            # Obtener información del comerciante
+            comerciante = database.obtener_comerciante_por_usuario(usuario['id'])
+            
+            if comerciante:
+                session['usuario_id'] = usuario['id']
+                session['usuario_nombre'] = usuario['nombre']
+                session['usuario_email'] = usuario['email']
+                session['usuario_rol'] = 'comerciante'
+                session['comerciante_id'] = comerciante['id']
+                session['nombre_negocio'] = comerciante['nombre_negocio']
+                
+                flash(f'¡Bienvenido, {comerciante["nombre_negocio"]}!', 'success')
+                return redirect(url_for('comerciantes_home'))
+            else:
+                flash('Error al cargar información del comerciante', 'danger')
+        else:
+            flash(resultado['mensaje'], 'danger')
+    
+    return render_template("comerciantes/login.html")
+
+# ==========================================
+# GESTIÓN DE PAQUETES DE COMERCIANTES
+# ==========================================
+
+@app.route("/comerciantes/paquetes")
+def comerciantes_paquetes():
+    """Gestión de paquetes de comerciantes"""
+    if not usuario_logueado() or session.get('usuario_rol') != 'comerciante':
+        flash('Debes iniciar sesión como comerciante', 'warning')
+        return redirect(url_for('login_comerciante'))
+    
+    comerciante_id = session.get('comerciante_id')
+    paquetes = database.obtener_paquetes_comerciante(comerciante_id)
+    
+    return render_template("comerciantes/paquetes.html", paquetes=paquetes)
+
+@app.route("/comerciantes/paquetes/crear", methods=['GET', 'POST'])
+def crear_paquete():
+    """Crear nuevo paquete"""
+    if not usuario_logueado() or session.get('usuario_rol') != 'comerciante':
+        flash('Debes iniciar sesión como comerciante', 'warning')
+        return redirect(url_for('login_comerciante'))
+    
+    if request.method == 'POST':
+        nombre_paquete = request.form.get('nombre_paquete')
+        descripcion = request.form.get('descripcion')
+        frecuencia = request.form.get('frecuencia', 'mensual')
+        
+        if not nombre_paquete:
+            flash('El nombre del paquete es obligatorio', 'danger')
+            return render_template("comerciantes/crear_paquete.html")
+        
+        comerciante_id = session.get('comerciante_id')
+        resultado = database.crear_paquete_comerciante(comerciante_id, nombre_paquete, descripcion, frecuencia)
+        
+        if resultado['exito']:
+            flash(f'Paquete "{nombre_paquete}" creado exitosamente', 'success')
+            return redirect(url_for('editar_paquete', paquete_id=resultado['paquete_id']))
+        else:
+            flash(f'Error al crear paquete: {resultado["mensaje"]}', 'danger')
+    
+    return render_template("comerciantes/crear_paquete.html")
+
+@app.route("/comerciantes/paquetes/<int:paquete_id>/editar")
+def editar_paquete(paquete_id):
+    """Editar paquete existente"""
+    if not usuario_logueado() or session.get('usuario_rol') != 'comerciante':
+        flash('Debes iniciar sesión como comerciante', 'warning')
+        return redirect(url_for('login_comerciante'))
+    
+    # Obtener datos completos
+    datos = cargar_datos_completos()
+    negocios = datos.get('negocios', {})
+    sucursales = datos.get('sucursales', {})
+    
+    # Obtener paquete
+    comerciante_id = session.get('comerciante_id')
+    paquetes = database.obtener_paquetes_comerciante(comerciante_id)
+    paquete = next((p for p in paquetes if p['id'] == paquete_id), None)
+    
+    if not paquete:
+        flash('Paquete no encontrado', 'danger')
+        return redirect(url_for('comerciantes_paquetes'))
+    
+    return render_template("comerciantes/editar_paquete.html", 
+                         paquete=paquete, 
+                         negocios=negocios,
+                         sucursales=sucursales)
+
+@app.route("/comerciantes/paquetes/<int:paquete_id>/agregar_producto", methods=['POST'])
+def agregar_producto_paquete(paquete_id):
+    """Agregar producto a un paquete"""
+    if not usuario_logueado() or session.get('usuario_rol') != 'comerciante':
+        return jsonify({'exito': False, 'mensaje': 'No autorizado'})
+    
+    producto_id = request.form.get('producto_id')
+    cantidad = int(request.form.get('cantidad', 1))
+    
+    if not producto_id or cantidad <= 0:
+        return jsonify({'exito': False, 'mensaje': 'Datos inválidos'})
+    
+    resultado = database.agregar_producto_a_paquete(paquete_id, producto_id, cantidad)
+    return jsonify(resultado)
+
+@app.route("/api/productos_por_sucursal", methods=['POST'])
+def api_productos_por_sucursal():
+    """API para obtener productos de una sucursal específica"""
+    if not usuario_logueado():
+        return jsonify({'exito': False, 'mensaje': 'No autorizado'})
+    
+    data = request.get_json()
+    negocio_id = data.get('negocio_id')
+    sucursal_id = data.get('sucursal_id')
+    
+    if not negocio_id or not sucursal_id:
+        return jsonify({'exito': False, 'mensaje': 'Datos incompletos'})
+    
+    productos = obtener_productos_por_sucursal(negocio_id, sucursal_id)
+    
+    return jsonify({
+        'exito': True,
+        'productos': productos
+    })
+
+@app.route("/comerciantes/paquetes/<int:paquete_id>/procesar", methods=['POST'])
+def procesar_paquete(paquete_id):
+    """Procesar pedido automático de un paquete"""
+    if not usuario_logueado() or session.get('usuario_rol') != 'comerciante':
+        flash('Debes iniciar sesión como comerciante', 'warning')
+        return redirect(url_for('login_comerciante'))
+    
+    resultado = database.procesar_pedido_automatico_paquete(paquete_id)
+    
+    if resultado['exito']:
+        flash(f'Pedido automático procesado: {resultado["numero_pedido"]}', 'success')
+        return redirect(url_for('comerciantes_confirmacion', numero_pedido=resultado['numero_pedido']))
+    else:
+        flash(f'Error al procesar pedido: {resultado["mensaje"]}', 'danger')
+        return redirect(url_for('comerciantes_paquetes'))
 
 # ==========================================
 # MANEJADORES DE ERRORES

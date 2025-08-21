@@ -164,13 +164,16 @@
                                      - Para cambiar comportamiento: modificar formulario
                                      - Para agregar validaciones: agregar JavaScript
                                      ================================================================= -->
-                                <form method="POST" action="{{ url_for('agregar_al_carrito') }}" class="d-inline">
-                                    <input type="hidden" name="producto_id" value="{{ producto.id }}">
-                                    <input type="hidden" name="cantidad" value="1">
-                                    <button type="submit" class="btn btn-success w-100">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="input-group input-group-sm" style="width: 120px;">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                                        <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                                    </div>
+                                    <button type="button" class="btn btn-success" onclick="agregarAlCarrito('{{ producto.id }}')">
                                         🛒 Agregar al Carrito
                                     </button>
-                                </form>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -202,6 +205,49 @@
 {% endif %}
 
 <!-- =================================================================
+     SECCIÓN DE SUCURSALES DEL NEGOCIO
+     =================================================================
+     MANTENIMIENTO:
+     - Para cambiar información: editar sucursales en productos.json
+     - Para agregar sucursales: agregar en sección "sucursales" de productos.json
+     ================================================================= -->
+{% if sucursales %}
+<section class="mb-5">
+    <div class="container">
+        <h2 class="text-center mb-4 text-gold">🏪 Nuestras Sucursales</h2>
+        <div class="row">
+            {% for sucursal_id, sucursal in sucursales.items() %}
+            {% if sucursal.activo %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card shadow-custom h-100">
+                    <div class="card-body">
+                        <h5 class="card-title text-black">
+                            <i class="fas fa-store me-2"></i>{{ sucursal.nombre }}
+                        </h5>
+                        <p class="card-text text-muted">
+                            <i class="fas fa-map-marker-alt me-2"></i>{{ sucursal.direccion }}
+                        </p>
+                        <p class="card-text text-muted">
+                            <i class="fas fa-phone me-2"></i>{{ sucursal.telefono }}
+                        </p>
+                        <p class="card-text text-muted">
+                            <i class="fas fa-clock me-2"></i>{{ sucursal.horarios }}
+                        </p>
+                        <div class="mt-3">
+                            <span class="badge bg-success">✅ Abierto</span>
+                            <span class="badge bg-primary">📍 {{ sucursal_id.replace('_', ' ').title() }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- =================================================================
      SECCIÓN DE INFORMACIÓN DEL NEGOCIO
      =================================================================
      MANTENIMIENTO:
@@ -219,6 +265,11 @@
                         <p class="card-text text-muted">
                             <strong>Productos disponibles:</strong> {{ productos|length }}
                         </p>
+                        {% if sucursales %}
+                        <p class="card-text text-muted">
+                            <strong>Sucursales activas:</strong> {{ sucursales|selectattr('activo', 'equalto', true)|list|length }}
+                        </p>
+                        {% endif %}
                     </div>
                 </div>
             </div>

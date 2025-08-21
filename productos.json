@@ -25,6 +25,62 @@
       "activo": true
     }
   },
+  "sucursales": {
+    "belgrano_ahorro": {
+      "sucursal_centro": {
+        "id": 1,
+        "nombre": "Sucursal Centro",
+        "direccion": "Av. Belgrano 1234, Centro",
+        "telefono": "011-1234-5678",
+        "horarios": "Lun-Sáb 8:00-22:00, Dom 9:00-21:00",
+        "activo": true
+      },
+      "sucursal_norte": {
+        "id": 2,
+        "nombre": "Sucursal Norte",
+        "direccion": "Av. Corrientes 567, Norte",
+        "telefono": "011-1234-5679",
+        "horarios": "Lun-Sáb 8:00-22:00, Dom 9:00-21:00",
+        "activo": true
+      },
+      "sucursal_sur": {
+        "id": 3,
+        "nombre": "Sucursal Sur",
+        "direccion": "Av. San Juan 890, Sur",
+        "telefono": "011-1234-5680",
+        "horarios": "Lun-Sáb 8:00-22:00, Dom 9:00-21:00",
+        "activo": true
+      }
+    },
+    "maxi_descuento": {
+      "sucursal_principal": {
+        "id": 4,
+        "nombre": "Sucursal Principal",
+        "direccion": "Av. Rivadavia 1500, Centro",
+        "telefono": "011-1234-5681",
+        "horarios": "Lun-Sáb 7:00-23:00, Dom 8:00-22:00",
+        "activo": true
+      },
+      "sucursal_este": {
+        "id": 5,
+        "nombre": "Sucursal Este",
+        "direccion": "Av. Independencia 2000, Este",
+        "telefono": "011-1234-5682",
+        "horarios": "Lun-Sáb 7:00-23:00, Dom 8:00-22:00",
+        "activo": true
+      }
+    },
+    "super_mercado": {
+      "sucursal_central": {
+        "id": 6,
+        "nombre": "Sucursal Central",
+        "direccion": "Av. Córdoba 3000, Centro",
+        "telefono": "011-1234-5683",
+        "horarios": "Lun-Sáb 9:00-21:00, Dom 10:00-20:00",
+        "activo": true
+      }
+    }
+  },
   "categorias": {
     "granos_cereales": {
       "id": 1,
@@ -232,7 +288,8 @@
       "categoria": "granos_cereales",
       "stock": 50,
       "destacado": true,
-      "activo": true
+      "activo": true,
+      "sucursales": ["sucursal_centro", "sucursal_norte", "sucursal_sur"]
     },
     {
       "id": 2,
@@ -244,7 +301,8 @@
       "categoria": "condimentos",
       "stock": 45,
       "destacado": true,
-      "activo": true
+      "activo": true,
+      "sucursales": ["sucursal_centro", "sucursal_sur"]
     },
     {
       "id": 3,
@@ -256,7 +314,8 @@
       "categoria": "granos_cereales",
       "stock": 40,
       "destacado": false,
-      "activo": true
+      "activo": true,
+      "sucursales": ["sucursal_norte", "sucursal_sur"]
     },
     {
       "id": 4,
@@ -268,7 +327,8 @@
       "categoria": "condimentos",
       "stock": 40,
       "destacado": false,
-      "activo": true
+      "activo": true,
+      "sucursales": ["sucursal_centro", "sucursal_norte"]
     },
     {
       "id": 5,
@@ -280,7 +340,8 @@
       "categoria": "lacteos",
       "stock": 60,
       "destacado": true,
-      "activo": true
+      "activo": true,
+      "sucursales": ["sucursal_centro", "sucursal_sur"]
     },
     {
       "id": 6,
@@ -520,7 +581,8 @@
       "categoria": "granos_cereales",
       "stock": 30,
       "destacado": true,
-      "activo": true
+      "activo": true,
+      "sucursales": ["sucursal_principal", "sucursal_este"]
     },
     {
       "id": 26,
@@ -532,7 +594,8 @@
       "categoria": "condimentos",
       "stock": 25,
       "destacado": true,
-      "activo": true
+      "activo": true,
+      "sucursales": ["sucursal_principal"]
     },
     {
       "id": 27,

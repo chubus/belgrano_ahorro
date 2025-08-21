@@ -29,6 +29,9 @@
                         <li><strong>Método de pago:</strong> {{ pedido.metodo_pago }}</li>
                         <li><strong>Dirección:</strong> {{ pedido.direccion }}</li>
                         <li><strong>Fecha:</strong> {{ pedido.fecha }}</li>
+                        <li><strong>Total:</strong> ${{ pedido.total }}</li>
+                        <li><strong>Cantidad de productos:</strong> {{ pedido.cantidad_productos if pedido.cantidad_productos else 'N/A' }}</li>
+                        <li><strong>Estado:</strong> <span class="badge bg-{{ 'success' if pedido.estado == 'confirmado' else 'warning' if pedido.estado == 'pendiente' else 'danger' }}">{{ pedido.estado|title }}</span></li>
                     </ul>
                 </div>
                 <div class="col-md-4">

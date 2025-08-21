@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Paquete - Panel de Comerciantes{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-custom">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <h2 class="mb-1">✏️ Editar Paquete: {{ paquete.nombre_paquete }}</h2>
+                            <small class="text-muted">Selecciona sucursales y agrega productos específicos</small>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('comerciantes_paquetes') }}" class="btn btn-outline-primary">← Volver a paquetes</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Productos Actuales del Paquete -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">📦 Productos en el Paquete</h5>
+                </div>
+                <div class="card-body">
+                    <div id="productos-paquete">
+                        {% if paquete.items %}
+                            <div class="list-group">
+                                {% for item in paquete.items %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ item.producto_id }}</strong>
+                                        <br>
+                                        <small class="text-muted">Cantidad: {{ item.cantidad }}</small>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <p class="text-muted">No hay productos en este paquete</p>
+                                <small>Selecciona una sucursal y agrega productos</small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Selección de Sucursales -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">🏪 Seleccionar Sucursal</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="negocio-select" class="form-label">Negocio:</label>
+                        <select id="negocio-select" class="form-select">
+                            <option value="">Selecciona un negocio</option>
+                            {% for negocio_id, negocio in negocios.items() %}
+                                {% if negocio.activo %}
+                                <option value="{{ negocio_id }}">{{ negocio.nombre }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="sucursal-select" class="form-label">Sucursal:</label>
+                        <select id="sucursal-select" class="form-select" disabled>
+                            <option value="">Primero selecciona un negocio</option>
+                        </select>
+                    </div>
+                    
+                    <div id="info-sucursal" class="alert alert-info" style="display: none;">
+                        <h6 id="sucursal-nombre"></h6>
+                        <small id="sucursal-direccion"></small><br>
+                        <small id="sucursal-horarios"></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Productos de la Sucursal -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">🛍️ Productos de la Sucursal</h5>
+                </div>
+                <div class="card-body">
+                    <div id="productos-sucursal" class="productos-lista" style="max-height: 400px; overflow-y: auto;">
+                        <div class="text-center py-4">
+                            <p class="text-muted">Selecciona una sucursal para ver sus productos</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para confirmar agregar producto -->
+<div class="modal fade" id="modalAgregarProducto" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Agregar Producto al Paquete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-3">
+                        <img id="producto-imagen" src="" alt="" class="img-fluid rounded">
+                    </div>
+                    <div class="col-9">
+                        <h6 id="producto-nombre"></h6>
+                        <p class="text-muted mb-2">$<span id="producto-precio"></span></p>
+                        <div class="input-group">
+                            <label class="input-group-text">Cantidad:</label>
+                            <input type="number" id="producto-cantidad" class="form-control" value="1" min="1" max="99">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-confirmar-agregar">Agregar al Paquete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let productoSeleccionado = null;
+
+// Cargar sucursales cuando se selecciona un negocio
+document.getElementById('negocio-select').addEventListener('change', function() {
+    const negocioId = this.value;
+    const sucursalSelect = document.getElementById('sucursal-select');
+    const infoSucursal = document.getElementById('info-sucursal');
+    
+    // Limpiar selección anterior
+    sucursalSelect.innerHTML = '<option value="">Selecciona una sucursal</option>';
+    sucursalSelect.disabled = true;
+    infoSucursal.style.display = 'none';
+    document.getElementById('productos-sucursal').innerHTML = '<div class="text-center py-4"><p class="text-muted">Selecciona una sucursal para ver sus productos</p></div>';
+    
+    if (negocioId) {
+        // Obtener sucursales del negocio seleccionado
+        const sucursales = {{ sucursales | tojson }};
+        const sucursalesNegocio = sucursales[negocioId];
+        
+        if (sucursalesNegocio) {
+            Object.keys(sucursalesNegocio).forEach(sucursalKey => {
+                const sucursal = sucursalesNegocio[sucursalKey];
+                if (sucursal.activo) {
+                    const option = document.createElement('option');
+                    option.value = sucursalKey;
+                    option.textContent = sucursal.nombre;
+                    sucursalSelect.appendChild(option);
+                }
+            });
+            sucursalSelect.disabled = false;
+        }
+    }
+});
+
+// Cargar productos cuando se selecciona una sucursal
+document.getElementById('sucursal-select').addEventListener('change', function() {
+    const negocioId = document.getElementById('negocio-select').value;
+    const sucursalId = this.value;
+    const infoSucursal = document.getElementById('info-sucursal');
+    
+    if (negocioId && sucursalId) {
+        // Mostrar información de la sucursal
+        const sucursales = {{ sucursales | tojson }};
+        const sucursal = sucursales[negocioId][sucursalId];
+        
+        document.getElementById('sucursal-nombre').textContent = sucursal.nombre;
+        document.getElementById('sucursal-direccion').textContent = sucursal.direccion;
+        document.getElementById('sucursal-horarios').textContent = sucursal.horarios;
+        infoSucursal.style.display = 'block';
+        
+        // Cargar productos de la sucursal
+        cargarProductosSucursal(negocioId, sucursalId);
+    }
+});
+
+function cargarProductosSucursal(negocioId, sucursalId) {
+    fetch('/api/productos_por_sucursal', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            negocio_id: negocioId,
+            sucursal_id: sucursalId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.exito) {
+            mostrarProductosSucursal(data.productos);
+        } else {
+            console.error('Error al cargar productos:', data.mensaje);
+            document.getElementById('productos-sucursal').innerHTML = '<div class="alert alert-danger">Error al cargar productos</div>';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('productos-sucursal').innerHTML = '<div class="alert alert-danger">Error de conexión</div>';
+    });
+}
+
+function mostrarProductosSucursal(productos) {
+    const container = document.getElementById('productos-sucursal');
+    
+    if (productos.length === 0) {
+        container.innerHTML = '<div class="text-center py-4"><p class="text-muted">No hay productos disponibles en esta sucursal</p></div>';
+        return;
+    }
+    
+    let html = '';
+    productos.forEach(producto => {
+        html += `
+            <div class="card mb-2">
+                <div class="card-body p-2">
+                    <div class="row align-items-center">
+                        <div class="col-2">
+                            <img src="${producto.imagen}" alt="${producto.nombre}" 
+                                 class="img-fluid rounded" style="max-height: 40px;">
+                        </div>
+                        <div class="col-6">
+                            <h6 class="mb-0">${producto.nombre}</h6>
+                            <small class="text-muted">$${producto.precio}</small>
+                        </div>
+                        <div class="col-4">
+                            <button class="btn btn-sm btn-primary" onclick="seleccionarProducto(${JSON.stringify(producto).replace(/"/g, '&quot;')})">
+                                ➕
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function seleccionarProducto(producto) {
+    productoSeleccionado = producto;
+    
+    // Llenar modal
+    document.getElementById('producto-imagen').src = producto.imagen;
+    document.getElementById('producto-nombre').textContent = producto.nombre;
+    document.getElementById('producto-precio').textContent = producto.precio;
+    document.getElementById('producto-cantidad').value = 1;
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('modalAgregarProducto'));
+    modal.show();
+}
+
+document.getElementById('btn-confirmar-agregar').addEventListener('click', function() {
+    if (!productoSeleccionado) return;
+    
+    const cantidad = parseInt(document.getElementById('producto-cantidad').value);
+    if (cantidad <= 0) {
+        alert('La cantidad debe ser mayor a 0');
+        return;
+    }
+    
+    // Agregar producto al paquete
+    agregarProductoAlPaquete(productoSeleccionado.id, cantidad);
+    
+    // Cerrar modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalAgregarProducto'));
+    modal.hide();
+});
+
+function agregarProductoAlPaquete(productoId, cantidad) {
+    const paqueteId = {{ paquete.id }};
+    
+    fetch(`/comerciantes/paquetes/${paqueteId}/agregar_producto`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `producto_id=${productoId}&cantidad=${cantidad}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.exito) {
+            // Actualizar lista de productos del paquete
+            actualizarProductosPaquete();
+            alert('Producto agregado exitosamente al paquete');
+        } else {
+            alert('Error al agregar producto: ' + data.mensaje);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error de conexión');
+    });
+}
+
+function actualizarProductosPaquete() {
+    // Recargar la página para mostrar los productos actualizados
+    location.reload();
+}
+</script>
+{% endblock %}

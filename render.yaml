@@ -1,0 +1,40 @@
+services:
+  # Belgrano Ahorro - E-commerce Principal
+  - type: web
+    name: belgrano-ahorro
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_APP
+        value: app.py
+      - key: PORT
+        value: 5000
+    healthCheckPath: /
+    autoDeploy: true
+
+  # Belgrano Tickets - Panel de Administración
+  - type: web
+    name: belgrano-ticketera
+    env: python
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt
+      cd belgrano_tickets && python crear_db_simple.py
+    startCommand: cd belgrano_tickets && python app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_APP
+        value: belgrano_tickets/app.py
+      - key: PORT
+        value: 5001
+    healthCheckPath: /
+    autoDeploy: true

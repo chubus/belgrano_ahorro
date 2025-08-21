@@ -73,6 +73,33 @@
                 <h1 class="display-4 fw-bold text-black">🛒 Belgrano Ahorro</h1>
                 <!-- DESCRIPCIÓN - CAMBIAR AQUÍ EL TEXTO DESCRIPTIVO -->
                 <p class="lead text-black">Los mejores precios de Gral Belgrano, todo en un solo lugar</p>
+                
+                <!-- Estadísticas de Negocios -->
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <div class="text-center">
+                            <h4 class="text-gold mb-0">{{ negocios|length }}</h4>
+                            <small class="text-muted">Negocios</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-center">
+                            {% set total_sucursales = 0 %}
+                            {% for negocio_id, sucursales_negocio in sucursales.items() %}
+                                {% set total_sucursales = total_sucursales + (sucursales_negocio|selectattr('activo', 'equalto', true)|list|length) %}
+                            {% endfor %}
+                            <h4 class="text-gold mb-0">{{ total_sucursales }}</h4>
+                            <small class="text-muted">Sucursales</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-center">
+                            <h4 class="text-gold mb-0">{{ productos_destacados|length }}</h4>
+                            <small class="text-muted">Destacados</small>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="d-flex gap-3">
                     <a href="#productos" class="btn btn-light btn-lg">🛍️ Ver Productos</a>
                     <a href="#ofertas" class="btn btn-outline-dark btn-lg">🔥 Ofertas</a>
@@ -128,13 +155,16 @@
                                         <span class="fw-bold">${{ producto.precio }}</span>
                                         {% endif %}
                                     </div>
-                                    <form method="POST" action="{{ url_for('agregar_al_carrito') }}" class="d-inline">
-                                        <input type="hidden" name="producto_id" value="{{ producto.id }}">
-                                        <input type="hidden" name="cantidad" value="1">
-                                        <button type="submit" class="btn btn-sm btn-outline-primary agregar-carrito-btn">
-                                            🛒
+                                    <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                            🛒
                         </button>
-                                    </form>
+                    </div>
                                 </div>
                             </div>
                         </div>
@@ -197,13 +227,16 @@
                                                 <span class="fw-bold">${{ producto.precio }}</span>
                                                 {% endif %}
                                             </div>
-                                            <form method="POST" action="{{ url_for('agregar_al_carrito') }}" class="d-inline">
-                                                <input type="hidden" name="producto_id" value="{{ producto.id }}">
-                                                <input type="hidden" name="cantidad" value="1">
-                                                <button type="submit" class="btn btn-sm btn-outline-primary agregar-carrito-btn">
-                                                    🛒
-                                                </button>
-                                            </form>
+                                            <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                            🛒
+                        </button>
+                    </div>
                                         </div>
                                     </div>
                                 </div>
@@ -259,13 +292,16 @@
                                                 <span class="fw-bold">${{ producto.precio }}</span>
                                                 {% endif %}
                                             </div>
-                                            <form method="POST" action="{{ url_for('agregar_al_carrito') }}" class="d-inline">
-                                                <input type="hidden" name="producto_id" value="{{ producto.id }}">
-                                                <input type="hidden" name="cantidad" value="1">
-                                                <button type="submit" class="btn btn-sm btn-outline-primary agregar-carrito-btn">
-                                                    🛒
-                                                </button>
-                                            </form>
+                                            <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                            🛒
+                        </button>
+                    </div>
                                         </div>
                                     </div>
                                 </div>
@@ -321,13 +357,16 @@
                                                 <span class="fw-bold">${{ producto.precio }}</span>
                                                 {% endif %}
                                             </div>
-                                            <form method="POST" action="{{ url_for('agregar_al_carrito') }}" class="d-inline">
-                                                <input type="hidden" name="producto_id" value="{{ producto.id }}">
-                                                <input type="hidden" name="cantidad" value="1">
-                                                <button type="submit" class="btn btn-sm btn-outline-primary agregar-carrito-btn">
-                                                    🛒
-                                                </button>
-                                            </form>
+                                            <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                            🛒
+                        </button>
+                    </div>
                                         </div>
                                     </div>
                                 </div>
@@ -383,13 +422,16 @@
                                                 <span class="fw-bold">${{ producto.precio }}</span>
                                                 {% endif %}
                                             </div>
-                                            <form method="POST" action="{{ url_for('agregar_al_carrito') }}" class="d-inline">
-                                                <input type="hidden" name="producto_id" value="{{ producto.id }}">
-                                                <input type="hidden" name="cantidad" value="1">
-                                                <button type="submit" class="btn btn-sm btn-outline-primary agregar-carrito-btn">
-                                                    🛒
-                                                </button>
-                                            </form>
+                                            <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                            🛒
+                        </button>
+                    </div>
                                         </div>
                                     </div>
                                 </div>
@@ -445,13 +487,16 @@
                                                 <span class="fw-bold">${{ producto.precio }}</span>
                                                 {% endif %}
                                             </div>
-                                            <form method="POST" action="{{ url_for('agregar_al_carrito') }}" class="d-inline">
-                                                <input type="hidden" name="producto_id" value="{{ producto.id }}">
-                                                <input type="hidden" name="cantidad" value="1">
-                                                <button type="submit" class="btn btn-sm btn-outline-primary agregar-carrito-btn">
-                                                    🛒
-                                                </button>
-                </form>
+                                            <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                            🛒
+                        </button>
+                    </div>
                                         </div>
                                     </div>
             </div>
@@ -507,13 +552,16 @@
                                                 <span class="fw-bold">${{ producto.precio }}</span>
                                                 {% endif %}
                                             </div>
-                                            <form method="POST" action="{{ url_for('agregar_al_carrito') }}" class="d-inline">
-                                                <input type="hidden" name="producto_id" value="{{ producto.id }}">
-                                                <input type="hidden" name="cantidad" value="1">
-                                                <button type="submit" class="btn btn-sm btn-outline-primary agregar-carrito-btn">
-                                                    🛒
-                                                </button>
-                                            </form>
+                                            <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                            🛒
+                        </button>
+                    </div>
                                         </div>
                                     </div>
                                 </div>
@@ -545,10 +593,36 @@
                             <div>
                                 <h3 class="mb-0">{{ negocios[negocio_id].nombre }}</h3>
                                 <p class="mb-0">{{ negocios[negocio_id].descripcion }}</p>
+                                {% if sucursales and sucursales[negocio_id] %}
+                                <small class="mt-2 d-block">
+                                    <i class="fas fa-store me-1"></i>
+                                    {{ sucursales[negocio_id]|selectattr('activo', 'equalto', true)|list|length }} sucursales disponibles
+                                </small>
+                                {% endif %}
                             </div>
-                            <a href="{{ url_for('ver_negocio', negocio_id=negocio_id) }}" class="btn btn-light btn-sm">
-                                Ver Todo →
-                            </a>
+                            <div class="text-end">
+                                <a href="{{ url_for('ver_negocio', negocio_id=negocio_id) }}" class="btn btn-light btn-sm mb-2">
+                                    Ver Todo →
+                                </a>
+                                {% if sucursales and sucursales[negocio_id] %}
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-map-marker-alt"></i> Sucursales
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        {% for sucursal_id, sucursal in sucursales[negocio_id].items() %}
+                                        {% if sucursal.activo %}
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('ver_negocio', negocio_id=negocio_id) }}#{{ sucursal_id }}">
+                                                <i class="fas fa-store me-2"></i>{{ sucursal.nombre }}
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     <div class="card-body">
@@ -587,13 +661,16 @@
                                                         <span class="fw-bold">${{ producto.precio }}</span>
                                                         {% endif %}
                                                     </div>
-                                                    <form method="POST" action="{{ url_for('agregar_al_carrito') }}" class="d-inline">
-                                                        <input type="hidden" name="producto_id" value="{{ producto.id }}">
-                                                        <input type="hidden" name="cantidad" value="1">
-                                                        <button type="submit" class="btn btn-sm btn-outline-primary agregar-carrito-btn">
-                                                            🛒
-                                                        </button>
-                                                    </form>
+                                                    <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                            🛒
+                        </button>
+                    </div>
                                                 </div>
                                             </div>
                                         </div>
