@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Belgrano Tickets - Servicio Independiente
+  belgrano-ticketera:
+    build:
+      context: ..
+      dockerfile: belgrano_tickets/Dockerfile
+    container_name: belgrano-ticketera
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./instance:/app/belgrano_tickets/instance
+      - ./static:/app/belgrano_tickets/static
+      - ./belgrano_tickets.db:/app/belgrano_tickets/belgrano_tickets.db
+      - ../belgrano_ahorro.db:/app/belgrano_ahorro.db
+    environment:
+      - FLASK_ENV=production
+      - FLASK_APP=belgrano_tickets/app.py
+      - PORT=5001
+      - BELGRANO_AHORRO_URL=http://belgrano-ahorro:5000
+      - SECRET_KEY=belgrano_tickets_secret_2025
+    restart: unless-stopped
+    networks:
+      - belgrano-network
+
+  # Belgrano Ahorro - Servicio Principal (opcional, para desarrollo local)
+  belgrano-ahorro:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: belgrano-ahorro
+    ports:
+      - "5000:5000"
+    volumes:
+      - ../instance:/app/instance
+      - ../static:/app/static
+      - ../belgrano_ahorro.db:/app/belgrano_ahorro.db
+    environment:
+      - FLASK_ENV=production
+      - FLASK_APP=app.py
+      - PORT=5000
+    restart: unless-stopped
+    networks:
+      - belgrano-network
+
+networks:
+  belgrano-network:
+    driver: bridge
+    name: belgrano-network
