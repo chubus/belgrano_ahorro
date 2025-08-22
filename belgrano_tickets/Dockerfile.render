@@ -45,9 +45,15 @@ ENV BELGRANO_AHORRO_URL=http://belgrano-ahorro:5000
 # Expone el puerto de la ticketera
 EXPOSE 5001
 
-# Copiar y configurar el script de inicio
-COPY belgrano_tickets/start_ticketera.sh /start_ticketera.sh
-RUN chmod +x /start_ticketera.sh
+# Crear script de inicio directamente en el contenedor
+RUN echo '#!/bin/bash' > /start_ticketera.sh && \
+    echo 'set -e' >> /start_ticketera.sh && \
+    echo 'echo "🚀 Iniciando Belgrano Tickets..."' >> /start_ticketera.sh && \
+    echo 'cd /app/belgrano_tickets' >> /start_ticketera.sh && \
+    echo 'python -c "from app import app, db; app.app_context().push(); db.create_all(); print(\"Base de datos inicializada\")"' >> /start_ticketera.sh && \
+    echo 'echo "🏃 Iniciando aplicación..."' >> /start_ticketera.sh && \
+    echo 'exec python app.py' >> /start_ticketera.sh && \
+    chmod +x /start_ticketera.sh
 
 # Comando para ejecutar la ticketera
 CMD ["/start_ticketera.sh"]

@@ -8,12 +8,7 @@ services:
       pip install -r belgrano_tickets/requirements_ticketera.txt
     startCommand: |
       cd belgrano_tickets &&
-      python -c "
-from app import app, db
-with app.app_context():
-    db.create_all()
-print('Base de datos inicializada')
-" &&
+      python -c "from app import app, db; app.app_context().push(); db.create_all(); print('Base de datos inicializada')" &&
       python app.py
     envVars:
       - key: PYTHON_VERSION

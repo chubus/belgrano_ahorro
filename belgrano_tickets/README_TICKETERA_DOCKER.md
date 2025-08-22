@@ -1,281 +1,180 @@
-# 🎫 Belgrano Tickets - Docker Independiente
+# 🎫 Belgrano Tickets - Deploy Independiente con Docker
 
 ## 📋 Descripción
 
-Este Dockerfile y configuración permiten ejecutar **Belgrano Tickets** como un servicio web independiente pero conectado con **Belgrano Ahorro**. La ticketera funciona en el puerto 5001 y se comunica con el servicio principal.
+Este directorio contiene la configuración completa para desplegar **Belgrano Tickets** como un servicio web independiente, conectado con **Belgrano Ahorro**.
 
 ## 🏗️ Arquitectura
 
 ```
 ┌─────────────────┐    ┌──────────────────┐
 │ Belgrano Ahorro │◄──►│ Belgrano Tickets │
-│   Puerto 5000   │    │   Puerto 5001    │
+│   (Puerto 5000) │    │   (Puerto 5001)  │
 └─────────────────┘    └──────────────────┘
 ```
 
-## 📁 Estructura de Archivos
+## 📁 Archivos de Configuración
 
-```
-belgrano_tickets/
-├── Dockerfile                    # Dockerfile específico para la ticketera
-├── docker-compose.yml           # Configuración de servicios
-├── start_ticketera.sh           # Script de inicio (Linux/Mac)
-├── start_ticketera.bat          # Script de inicio (Windows)
-├── requirements_ticketera.txt   # Dependencias específicas
-├── config_ticketera.py          # Configuración de la aplicación
-├── render_ticketera.yaml        # Configuración para Render
-└── README_TICKETERA_DOCKER.md   # Esta documentación
-```
+### **Docker**
+- `Dockerfile` - Configuración del contenedor de la ticketera
+- `docker-compose.yml` - Orquestación de servicios
+- `requirements_ticketera.txt` - Dependencias específicas
 
-## 🚀 Inicio Rápido
+### **Scripts de Inicio**
+- `start_ticketera.bat` - Script para Windows
+- `start_ticketera.sh` - Script para Linux/Mac
 
-### Opción 1: Docker Compose (Recomendado)
+### **Configuración**
+- `config_ticketera.py` - Configuración específica
+- `render_ticketera.yaml` - Deploy en Render
 
+## 🚀 Opciones de Deploy
+
+### **Opción 1: Docker Local**
+
+#### **Con Docker Compose (Recomendado)**
 ```bash
 # Desde el directorio belgrano_tickets/
+cd belgrano_tickets/
+
+# Construir y ejecutar
 docker-compose up --build
+
+# En segundo plano
+docker-compose up -d --build
 ```
 
-### Opción 2: Script de Windows
-
-```bash
-# Ejecutar el script de Windows
+#### **Con Script de Windows**
+```cmd
+# Ejecutar el script
 start_ticketera.bat
 ```
 
-### Opción 3: Docker Directo
-
+#### **Con Docker Directo**
 ```bash
-# Construir la imagen
+# Construir imagen
 docker build -f belgrano_tickets/Dockerfile -t belgrano-ticketera .
 
-# Ejecutar el contenedor
+# Ejecutar contenedor
 docker run -p 5001:5001 \
-  -v $(pwd)/belgrano_tickets/belgrano_tickets.db:/app/belgrano_tickets/belgrano_tickets.db \
-  -v $(pwd)/belgrano_ahorro.db:/app/belgrano_ahorro.db \
   -e BELGRANO_AHORRO_URL=http://localhost:5000 \
+  -e SECRET_KEY=belgrano_tickets_secret_2025 \
   belgrano-ticketera
 ```
 
+### **Opción 2: Render (Producción)**
+
+1. **Conectar repositorio a Render**
+2. **Usar configuración específica:**
+   - Archivo: `belgrano_tickets/render_ticketera.yaml`
+   - Build Command: `pip install -r belgrano_tickets/requirements_ticketera.txt`
+   - Start Command: `cd belgrano_tickets && python app.py`
+
 ## 🔧 Configuración
 
-### Variables de Entorno
+### **Variables de Entorno**
 
 | Variable | Descripción | Valor por Defecto |
 |----------|-------------|-------------------|
-| `FLASK_APP` | Archivo principal de Flask | `belgrano_tickets/app.py` |
-| `FLASK_ENV` | Entorno de Flask | `production` |
-| `PORT` | Puerto de la aplicación | `5001` |
-| `SECRET_KEY` | Clave secreta de Flask | `belgrano_tickets_secret_2025` |
-| `BELGRANO_AHORRO_URL` | URL del servicio principal | `http://localhost:5000` |
+| `PORT` | Puerto de la ticketera | `5001` |
+| `FLASK_ENV` | Entorno Flask | `production` |
+| `SECRET_KEY` | Clave secreta | `belgrano_tickets_secret_2025` |
+| `BELGRANO_AHORRO_URL` | URL de Belgrano Ahorro | `http://localhost:5000` |
 
-### Volúmenes
+### **Conexión con Belgrano Ahorro**
 
-- `./instance` → `/app/belgrano_tickets/instance`
-- `./static` → `/app/belgrano_tickets/static`
-- `./belgrano_tickets.db` → `/app/belgrano_tickets/belgrano_tickets.db`
-- `../belgrano_ahorro.db` → `/app/belgrano_ahorro.db`
+La ticketera se conecta automáticamente con Belgrano Ahorro para:
+- Obtener datos de productos
+- Sincronizar información de usuarios
+- Compartir bases de datos
 
-## 🌐 Acceso a la Aplicación
+## 📊 Bases de Datos
 
-- **URL Local**: http://localhost:5001
-- **URL Belgrano Ahorro**: http://localhost:5000
-- **Panel de Administración**: http://localhost:5001/login
+### **Archivos de BD**
+- `belgrano_tickets.db` - Base de datos de tickets
+- `../belgrano_ahorro.db` - Base de datos principal (compartida)
 
-## 🔗 Integración con Belgrano Ahorro
-
-### Comunicación entre Servicios
-
-La ticketera se conecta con Belgrano Ahorro para:
-
-1. **Sincronización de Datos**: Acceso a productos y pedidos
-2. **Gestión de Tickets**: Creación y seguimiento de tickets
-3. **Notificaciones**: Actualizaciones en tiempo real
-4. **Autenticación**: Verificación de usuarios
-
-### Configuración de Red
-
-```yaml
-networks:
-  belgrano-network:
-    driver: bridge
-    name: belgrano-network
+### **Inicialización Automática**
+La base de datos se inicializa automáticamente al iniciar el contenedor:
+```python
+from app import app, db
+with app.app_context():
+    db.create_all()
 ```
 
-## 📦 Dependencias Específicas
+## 🔍 Verificación
 
-### Flask y Extensiones
-- `Flask==3.1.1`
-- `Flask-SocketIO==5.3.6`
-- `Flask-SQLAlchemy==3.1.1`
-- `Flask-Login==0.6.3`
-
-### Socket.IO
-- `python-socketio==5.11.1`
-- `python-engineio==4.9.1`
-- `eventlet==0.35.2`
-
-### Utilidades
-- `requests==2.32.3`
-- `SQLAlchemy==2.0.28`
-
-## 🚀 Deploy en Render
-
-### Configuración Automática
-
-El archivo `render_ticketera.yaml` está configurado para:
-
-1. **Build Automático**: Instalación de dependencias
-2. **Inicialización de BD**: Creación automática de tablas
-3. **Variables de Entorno**: Configuración de producción
-4. **Health Checks**: Verificación de estado
-
-### Pasos para Deploy
-
-1. Conectar repositorio a Render
-2. Render detectará `render_ticketera.yaml`
-3. Configurar variables de entorno
-4. Deploy automático
-
-## 🔍 Troubleshooting
-
-### Problemas Comunes
-
-#### 1. Error de Conexión con Belgrano Ahorro
+### **Verificar que funciona**
 ```bash
-# Verificar que Belgrano Ahorro esté corriendo
-curl http://localhost:5000
+# Verificar contenedor
+docker ps
 
-# Verificar variables de entorno
-echo $BELGRANO_AHORRO_URL
-```
-
-#### 2. Error de Base de Datos
-```bash
-# Verificar permisos de archivos
-ls -la belgrano_tickets.db
-
-# Recrear base de datos
-rm belgrano_tickets.db
-docker-compose up --build
-```
-
-#### 3. Error de Puerto
-```bash
-# Verificar puertos en uso
-netstat -tulpn | grep :5001
-
-# Cambiar puerto en docker-compose.yml
-ports:
-  - "5002:5001"
-```
-
-### Logs de Debug
-
-```bash
-# Ver logs del contenedor
+# Ver logs
 docker logs belgrano-ticketera
 
+# Probar conexión
+curl http://localhost:5001
+```
+
+### **URLs de Acceso**
+- **Ticketera**: http://localhost:5001
+- **Belgrano Ahorro**: http://localhost:5000
+
+## 🛠️ Solución de Problemas
+
+### **Error: "start_ticketera.sh not found"**
+- **Causa**: El archivo no existe en el contexto de build
+- **Solución**: Usar comando directo en Dockerfile (ya corregido)
+
+### **Error: "Module not found"**
+- **Causa**: Dependencias no instaladas
+- **Solución**: Verificar `requirements_ticketera.txt`
+
+### **Error: "Database locked"**
+- **Causa**: Múltiples instancias accediendo a la BD
+- **Solución**: Usar volúmenes Docker para persistencia
+
+## 📈 Monitoreo
+
+### **Logs del Contenedor**
+```bash
 # Ver logs en tiempo real
 docker logs -f belgrano-ticketera
+
+# Ver logs de los últimos 100 líneas
+docker logs --tail 100 belgrano-ticketera
 ```
 
-## 📊 Monitoreo
-
-### Health Check
-
+### **Estado del Servicio**
 ```bash
-# Verificar estado del servicio
-curl http://localhost:5001/health
+# Verificar estado
+docker ps | grep belgrano-ticketera
 
-# Verificar conectividad con Belgrano Ahorro
-curl http://localhost:5001/status
+# Ver uso de recursos
+docker stats belgrano-ticketera
 ```
 
-### Métricas
+## 🔄 Actualizaciones
 
-- **Uptime**: Tiempo de funcionamiento
-- **Tickets Activos**: Número de tickets pendientes
-- **Usuarios Conectados**: Usuarios activos en el sistema
-- **Rendimiento**: Tiempo de respuesta de la API
-
-## 🔒 Seguridad
-
-### Configuraciones de Seguridad
-
-1. **Secret Key**: Configurada via variable de entorno
-2. **CORS**: Configurado para comunicación entre servicios
-3. **Autenticación**: Sistema de login con roles
-4. **Validación**: Validación de datos de entrada
-
-### Recomendaciones
-
-- Cambiar `SECRET_KEY` en producción
-- Configurar HTTPS en producción
-- Implementar rate limiting
-- Configurar backup de base de datos
-
-## 📈 Escalabilidad
-
-### Opciones de Escalado
-
-1. **Horizontal**: Múltiples instancias de la ticketera
-2. **Vertical**: Aumentar recursos del contenedor
-3. **Load Balancer**: Distribuir carga entre instancias
-
-### Configuración para Producción
-
-```yaml
-# docker-compose.prod.yml
-services:
-  belgrano-ticketera:
-    deploy:
-      replicas: 3
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-```
-
-## ✅ Verificación de Instalación
-
-### Script de Verificación
-
+### **Reconstruir después de cambios**
 ```bash
-# Ejecutar script de verificación
-python test_ticketera_docker.py
+# Detener servicios
+docker-compose down
+
+# Reconstruir
+docker-compose up --build
+
+# O solo la ticketera
+docker-compose up --build belgrano-ticketera
 ```
 
-### Checklist
+## ✅ Estado Final
 
-- [ ] Docker instalado y funcionando
-- [ ] Imagen construida correctamente
-- [ ] Contenedor ejecutándose
-- [ ] Puerto 5001 accesible
-- [ ] Base de datos inicializada
-- [ ] Conexión con Belgrano Ahorro
-- [ ] Panel de administración accesible
+- ✅ **Dockerfile**: Configurado y funcional
+- ✅ **docker-compose.yml**: Orquestación completa
+- ✅ **Scripts de inicio**: Para Windows y Linux
+- ✅ **Configuración Render**: Lista para producción
+- ✅ **Conexión con Belgrano Ahorro**: Configurada
+- ✅ **Bases de datos**: Inicialización automática
 
-## 📞 Soporte
-
-### Comandos Útiles
-
-```bash
-# Reiniciar servicios
-docker-compose restart
-
-# Ver estado de servicios
-docker-compose ps
-
-# Limpiar recursos
-docker-compose down --volumes
-
-# Actualizar imagen
-docker-compose pull
-```
-
-### Documentación Adicional
-
-- [Guía de Usuario de Belgrano Tickets](../GUIA_INICIALIZACION.md)
-- [Documentación de API](../DOCUMENTACION.md)
-- [Troubleshooting](../GUIA_MANTENIMIENTO.md)
+**La ticketera está lista para deploy independiente y conectada con Belgrano Ahorro.**

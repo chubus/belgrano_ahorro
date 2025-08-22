@@ -10,8 +10,6 @@ services:
     ports:
       - "5001:5001"
     volumes:
-      - ./instance:/app/belgrano_tickets/instance
-      - ./static:/app/belgrano_tickets/static
       - ./belgrano_tickets.db:/app/belgrano_tickets/belgrano_tickets.db
       - ../belgrano_ahorro.db:/app/belgrano_ahorro.db
     environment:
