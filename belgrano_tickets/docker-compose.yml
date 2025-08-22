@@ -4,8 +4,8 @@ services:
   # Belgrano Tickets - Servicio Independiente
   belgrano-ticketera:
     build:
-      context: ..
-      dockerfile: belgrano_tickets/Dockerfile
+      context: .
+      dockerfile: Dockerfile.corrected
     container_name: belgrano-ticketera
     ports:
       - "5001:5001"

@@ -1,0 +1,53 @@
+FROM python:3.12-slim
+
+# Instala dependencias del sistema necesarias
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libjpeg-dev \
+    zlib1g-dev \
+    libpng-dev \
+    libtiff-dev \
+    libwebp-dev \
+    sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Establece el directorio de trabajo
+WORKDIR /app
+
+# Copia los archivos de requisitos de la ticketera
+COPY requirements_ticketera.txt ./requirements_ticketera.txt
+
+# Instala las dependencias de Python
+RUN pip install --upgrade pip setuptools wheel
+RUN pip install -r requirements_ticketera.txt
+
+# Copia todo el código de la aplicación
+COPY . .
+
+# Crear directorios necesarios
+RUN mkdir -p instance belgrano_tickets/instance
+
+# Crear archivos de base de datos si no existen
+RUN touch belgrano_ahorro.db belgrano_tickets/belgrano_tickets.db
+
+# Configurar variables de entorno para la ticketera
+ENV FLASK_APP=belgrano_tickets/app.py
+ENV FLASK_ENV=production
+ENV PORT=5001
+ENV BELGRANO_AHORRO_URL=http://belgrano-ahorro:5000
+
+# Expone el puerto de la ticketera
+EXPOSE 5001
+
+# Crear script de inicio directamente en el contenedor
+RUN echo '#!/bin/bash' > /start_ticketera.sh && \
+    echo 'set -e' >> /start_ticketera.sh && \
+    echo 'echo "🚀 Iniciando Belgrano Tickets..."' >> /start_ticketera.sh && \
+    echo 'cd /app/belgrano_tickets' >> /start_ticketera.sh && \
+    echo 'python -c "from app import app, db; app.app_context().push(); db.create_all(); print(\"Base de datos inicializada\")"' >> /start_ticketera.sh && \
+    echo 'echo "🏃 Iniciando aplicación..."' >> /start_ticketera.sh && \
+    echo 'exec python app.py' >> /start_ticketera.sh && \
+    chmod +x /start_ticketera.sh
+
+# Comando para ejecutar la ticketera
+CMD ["/start_ticketera.sh"]
