@@ -2,6 +2,9 @@
 FROM python:3.12-slim
 
 # Instala las dependencias del sistema
+RUN pip install --upgrade pip setuptools wheel
+RUN pip install -r requirements_ticketera.txt
+
 RUN apt-get update && apt-get install -y \
     build-essential \
     libjpeg-dev \
@@ -27,3 +30,4 @@ RUN chmod +x start_ticketera.sh
 
 # El comando de inicio
 CMD ["/bin/bash", "start_ticketera.sh"]
+

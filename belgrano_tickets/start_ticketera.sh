@@ -3,6 +3,9 @@
 # Script de inicio para Belgrano Tickets en producción
 # Este script inicializa la base de datos y ejecuta la aplicación
 
+gunicorn --bind 0.0.0.0:$PORT app:app
+
+
 set -e  # Salir si hay algún error
 
 echo "🚀 Iniciando Belgrano Tickets..."
