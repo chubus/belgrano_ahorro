@@ -1,10 +1,8 @@
 # Usa una imagen base de Python
 FROM python:3.12-slim
 
-# Instala las dependencias del sistema
-RUN pip install --upgrade pip setuptools wheel
-RUN pip install -r requirements_ticketera.txt
-
+# Instala las dependencias del sistema necesarias
+# Esto se hace primero para aprovechar el cache de Docker.
 RUN apt-get update && apt-get install -y \
     build-essential \
     libjpeg-dev \
@@ -15,20 +13,22 @@ RUN apt-get update && apt-get install -y \
     sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Establece el directorio de trabajo
+# Establece el directorio de trabajo en el contenedor
 WORKDIR /app
 
-# Copia solo el archivo de requisitos e instálalo.
-# Esto es más eficiente ya que no invalida el cache si otros archivos cambian.
-COPY belgrano_tickets/requirements_ticketera.txt .
-RUN pip install --no-cache-dir -r requirements_ticketera.txt
-
-# Copia el resto de los archivos de la aplicación
+# Copia los archivos de la aplicación a la carpeta de trabajo
+# Esta es la línea más importante. Copia todos los archivos de la carpeta
+# "belgrano_tickets" a la raíz del contenedor.
 COPY belgrano_tickets/ ./
+
+# Instala las dependencias de Python
+# La carpeta "belgrano_tickets" ya está copiada, así que el archivo de requisitos
+# se encuentra en la raíz del contenedor.
+RUN pip install --upgrade pip setuptools wheel
+RUN pip install -r requirements_ticketera.txt
 
 # Asegúrate de que el script de inicio sea ejecutable
 RUN chmod +x start_ticketera.sh
 
 # El comando de inicio
 CMD ["/bin/bash", "start_ticketera.sh"]
-
