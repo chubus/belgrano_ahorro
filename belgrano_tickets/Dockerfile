@@ -18,12 +18,13 @@ RUN apt-get update && apt-get install -y \
 # Establece el directorio de trabajo
 WORKDIR /app
 
-# Copia los archivos de la aplicación
-COPY belgrano_tickets/ ./
+# Copia solo el archivo de requisitos e instálalo.
+# Esto es más eficiente ya que no invalida el cache si otros archivos cambian.
+COPY belgrano_tickets/requirements_ticketera.txt .
+RUN pip install --no-cache-dir -r requirements_ticketera.txt
 
-# Instala las dependencias de Python
-RUN pip install --upgrade pip setuptools wheel
-RUN pip install -r requirements_ticketera.txt
+# Copia el resto de los archivos de la aplicación
+COPY belgrano_tickets/ ./
 
 # Asegúrate de que el script de inicio sea ejecutable
 RUN chmod +x start_ticketera.sh
