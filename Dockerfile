@@ -28,11 +28,11 @@ COPY . .
 # Crear directorios necesarios
 RUN mkdir -p instance belgrano_tickets/instance
 
-# Inicializar base de datos si no existe
-RUN python -c "import os; import db; db.crear_base_datos() if not os.path.exists('belgrano_ahorro.db') else None"
+# Crear directorios necesarios
+RUN mkdir -p instance belgrano_tickets/instance
 
-# Inicializar base de datos de tickets si no existe
-RUN python -c "import os; os.chdir('belgrano_tickets'); import crear_db_simple if not os.path.exists('belgrano_tickets.db') else None"
+# Verificar que los archivos de base de datos existan
+RUN touch belgrano_ahorro.db belgrano_tickets/belgrano_tickets.db
 
 # Expone el puerto (5000 para Flask)
 EXPOSE 5000

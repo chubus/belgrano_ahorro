@@ -23,9 +23,7 @@ services:
     name: belgrano-ticketera
     env: python
     plan: free
-    buildCommand: |
-      pip install -r requirements.txt
-      cd belgrano_tickets && python crear_db_simple.py
+    buildCommand: pip install -r requirements.txt
     startCommand: cd belgrano_tickets && python app.py
     envVars:
       - key: PYTHON_VERSION

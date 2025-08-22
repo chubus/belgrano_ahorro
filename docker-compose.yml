@@ -23,13 +23,13 @@ services:
     volumes:
       - ./belgrano_tickets/instance:/app/belgrano_tickets/instance
       - ./belgrano_tickets/static:/app/belgrano_tickets/static
+      - ./belgrano_tickets/belgrano_tickets.db:/app/belgrano_tickets/belgrano_tickets.db
     environment:
       - FLASK_ENV=development
       - PORT=5001
     command: |
       bash -c "
         cd belgrano_tickets &&
-        python crear_db_simple.py &&
         python app.py
       "
     restart: unless-stopped
