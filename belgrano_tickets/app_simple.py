@@ -27,6 +27,14 @@ with app.app_context():
 
 login_manager = LoginManager(app)
 
+# Filtro personalizado para JSON
+@app.template_filter('from_json')
+def from_json_filter(value):
+    try:
+        return json.loads(value) if value else []
+    except (json.JSONDecodeError, TypeError):
+        return []
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
