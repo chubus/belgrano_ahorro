@@ -1,7 +1,7 @@
-# Usa una imagen base de Python
+# Usa una imagen base de Python optimizada para producción
 FROM python:3.12-slim
 
-# Instala las dependencias del sistema necesarias, incluyendo PortAudio
+# Instala las dependencias del sistema necesarias
 RUN apt-get update && apt-get install -y \
     build-essential \
     libjpeg-dev \
@@ -12,22 +12,40 @@ RUN apt-get update && apt-get install -y \
     sqlite3 \
     libasound-dev \
     portaudio19-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Establece el directorio de trabajo en el contenedor
+# Establece el directorio de trabajo
 WORKDIR /app
 
-# Copia los archivos de la aplicación a la carpeta de trabajo
-COPY belgrano_tickets/ ./belgrano_tickets/
+# Copia solo los archivos necesarios para la ticketera
+COPY app.py ./
+COPY models.py ./
+COPY config_ticketera.py ./
 COPY requirements_ticketera.txt ./
 COPY start_ticketera.sh ./
+COPY belgrano_client.py ./
+COPY templates/ ./templates/
+COPY static/ ./static/
 
-# Instala las dependencias de Python
-RUN pip install --upgrade pip setuptools wheel
-RUN pip install -r requirements_ticketera.txt
+# Instala las dependencias de Python de forma optimizada
+RUN pip install --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir -r requirements_ticketera.txt
 
-# Asegúrate de que el script de inicio sea ejecutable
+# Hace el script de inicio ejecutable
 RUN chmod +x start_ticketera.sh
 
-# El comando de inicio
-CMD ["/bin/bash", "start_ticketera.sh"]
+# Expone el puerto
+EXPOSE 5001
+
+# Variables de entorno por defecto
+ENV FLASK_APP=app.py
+ENV FLASK_ENV=production
+ENV PORT=5001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:5001/health || exit 1
+
+# Comando de inicio
+CMD ["./start_ticketera.sh"]
