@@ -26,7 +26,6 @@ COPY requirements_ticketera.txt ./
 COPY start_ticketera.sh ./
 COPY belgrano_client.py ./
 COPY templates/ ./templates/
-COPY static/ ./static/
 
 # Instala las dependencias de Python de forma optimizada
 RUN pip install --upgrade pip setuptools wheel \
