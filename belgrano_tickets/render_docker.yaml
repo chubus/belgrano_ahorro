@@ -25,5 +25,17 @@ services:
         value: true
       - key: BELGRANO_AHORRO_TIMEOUT
         value: 30
+      - key: GUNICORN_WORKERS
+        value: 2
+      - key: GUNICORN_TIMEOUT
+        value: 120
+      - key: AUTO_CREATE_USERS
+        value: true
+      - key: ADMIN_EMAIL
+        value: admin@belgrano.com
+      - key: ADMIN_PASSWORD
+        value: admin123
+      - key: FLOTA_PASSWORD
+        value: flota123
     healthCheckPath: /health
     autoDeploy: true

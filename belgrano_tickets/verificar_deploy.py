@@ -6,6 +6,7 @@ Script para verificar la configuración de deploy de Belgrano Tickets
 
 import os
 import sys
+import sqlite3
 from pathlib import Path
 
 def verificar_archivos_esenciales():
@@ -47,6 +48,88 @@ def verificar_archivos_esenciales():
     
     print("✅ Todos los archivos esenciales están presentes")
     return True
+
+def verificar_usuarios():
+    """Verificar que los usuarios estén creados en la base de datos"""
+    print("\n👥 Verificando usuarios en la base de datos...")
+    
+    db_path = Path('belgrano_tickets.db')
+    if not db_path.exists():
+        print("❌ Base de datos no encontrada")
+        return False
+    
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Verificar tabla user
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='user'")
+        if not cursor.fetchone():
+            print("❌ Tabla 'user' no encontrada")
+            conn.close()
+            return False
+        
+        # Contar usuarios
+        cursor.execute("SELECT COUNT(*) FROM user")
+        total_usuarios = cursor.fetchone()[0]
+        
+        # Verificar usuarios admin
+        cursor.execute("SELECT COUNT(*) FROM user WHERE role='admin'")
+        admin_count = cursor.fetchone()[0]
+        
+        # Verificar usuarios flota
+        cursor.execute("SELECT COUNT(*) FROM user WHERE role='flota'")
+        flota_count = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        print(f"✅ Base de datos encontrada con {total_usuarios} usuarios")
+        print(f"   👨‍💼 Admin: {admin_count}")
+        print(f"   🚚 Flota: {flota_count}")
+        
+        if admin_count == 0:
+            print("⚠️ No hay usuarios admin")
+            return False
+        
+        if flota_count == 0:
+            print("⚠️ No hay usuarios flota")
+            return False
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error al verificar usuarios: {e}")
+        return False
+
+def verificar_credenciales():
+    """Verificar que las credenciales estén configuradas"""
+    print("\n🔐 Verificando configuración de credenciales...")
+    
+    # Verificar variables de entorno en start_ticketera.sh
+    if Path('start_ticketera.sh').exists():
+        with open('start_ticketera.sh', 'r') as f:
+            contenido = f.read()
+        
+        elementos_credenciales = [
+            'admin@belgrano.com',
+            'admin123',
+            'flota123'
+        ]
+        
+        elementos_faltantes = []
+        for elemento in elementos_credenciales:
+            if elemento not in contenido:
+                elementos_faltantes.append(elemento)
+        
+        if elementos_faltantes:
+            print(f"⚠️ Elementos de credenciales faltantes: {elementos_faltantes}")
+            return False
+        
+        print("✅ Credenciales configuradas en start_ticketera.sh")
+        return True
+    
+    print("❌ start_ticketera.sh no encontrado")
+    return False
 
 def verificar_dockerfile():
     """Verificar que el Dockerfile esté correctamente configurado"""
@@ -171,6 +254,8 @@ def generar_reporte():
     
     verificaciones = [
         ("Archivos esenciales", verificar_archivos_esenciales),
+        ("Usuarios en BD", verificar_usuarios),
+        ("Credenciales", verificar_credenciales),
         ("Dockerfile", verificar_dockerfile),
         (".dockerignore", verificar_dockerignore),
         ("Requirements", verificar_requirements),
@@ -222,6 +307,9 @@ def main():
     if exito:
         print("\n✅ ¡Todo listo para deploy en Render!")
         print("💡 Usa uno de los archivos render_*.yaml para el deploy")
+        print("\n📋 Credenciales disponibles:")
+        print("   👨‍💼 Admin: admin@belgrano.com / admin123")
+        print("   🚚 Flota: flota1@belgrano.com / flota123 (y otros)")
     else:
         print("\n❌ Corrige los problemas antes de hacer deploy")
         sys.exit(1)
