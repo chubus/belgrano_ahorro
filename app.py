@@ -1554,6 +1554,22 @@ def procesar_paquete(paquete_id):
         flash(f'Error al procesar pedido: {resultado["mensaje"]}', 'danger')
         return redirect(url_for('comerciantes_paquetes'))
 
+@app.route("/ticketera")
+def ticketera():
+    """
+    RUTA PARA ACCEDER A LA TICKETERA
+    Redirige a la aplicación de tickets en puerto 5001
+    """
+    return redirect("http://localhost:5001")
+
+@app.route("/admin")
+def admin():
+    """
+    RUTA PARA ACCEDER AL PANEL DE ADMINISTRACIÓN
+    Redirige a la ticketera con credenciales de admin
+    """
+    return redirect("http://localhost:5001")
+
 # ==========================================
 # MANEJADORES DE ERRORES
 # ==========================================
