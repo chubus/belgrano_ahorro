@@ -1558,9 +1558,11 @@ def procesar_paquete(paquete_id):
 def ticketera():
     """
     RUTA PARA ACCEDER A LA TICKETERA
-    Redirige a la aplicación de tickets en puerto 5001
+    Redirige a la aplicación de tickets
     """
-    return redirect("http://localhost:5001")
+    # En desarrollo usa localhost, en producción usa la URL de Render
+    ticketera_url = os.environ.get('TICKETERA_URL', 'http://localhost:5001')
+    return redirect(ticketera_url)
 
 @app.route("/admin")
 def admin():
@@ -1568,7 +1570,9 @@ def admin():
     RUTA PARA ACCEDER AL PANEL DE ADMINISTRACIÓN
     Redirige a la ticketera con credenciales de admin
     """
-    return redirect("http://localhost:5001")
+    # En desarrollo usa localhost, en producción usa la URL de Render
+    ticketera_url = os.environ.get('TICKETERA_URL', 'http://localhost:5001')
+    return redirect(ticketera_url)
 
 # ==========================================
 # MANEJADORES DE ERRORES

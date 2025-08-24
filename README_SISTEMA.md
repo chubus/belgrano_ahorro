@@ -101,11 +101,39 @@ netstat -an | findstr :5000
 netstat -an | findstr :5001
 ```
 
+## 🚀 Deploy en Producción
+
+### 🌐 URLs de Producción
+- **Aplicación Principal**: https://belgrano-ahorro.onrender.com
+- **Ticketera**: https://belgrano-ticketera.onrender.com
+- **Acceso directo**: https://belgrano-ahorro.onrender.com/ticketera
+
+### 🔧 Configuración de Deploy
+El sistema está configurado para deploy automático en Render:
+- **render.yaml**: Configuración completa para ambas aplicaciones
+- **Variables de entorno**: Configuradas para producción
+- **Base de datos**: SQLite persistente en producción
+
+### 🔐 Credenciales de Producción
+- **Admin**: admin@belgranoahorro.com / admin123
+- **Flota**: repartidor1@belgranoahorro.com / flota123
+
+### 📋 Verificación de Deploy
+```bash
+python verificar_deploy_produccion.py
+```
+
 ## 🎉 ¡Listo para Usar!
 
+### Desarrollo Local
 Una vez iniciado el sistema:
 1. **Aplicación Principal**: http://localhost:5000
 2. **Ticketera**: http://localhost:5001
 3. **Acceso directo**: http://localhost:5000/ticketera
 
-¡El sistema está completamente funcional y listo para gestionar productos y tickets!
+### Producción
+1. **Aplicación Principal**: https://belgrano-ahorro.onrender.com
+2. **Ticketera**: https://belgrano-ticketera.onrender.com
+3. **Acceso directo**: https://belgrano-ahorro.onrender.com/ticketera
+
+¡El sistema está completamente funcional en desarrollo y producción!
