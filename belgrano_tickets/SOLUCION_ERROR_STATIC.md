@@ -188,3 +188,5 @@ COPY static/ ./static/
 **El error de Docker ha sido completamente resuelto. La ticketera está lista para deploy exitoso en Render.**
 
 **¡Problema solucionado!**
+
+
