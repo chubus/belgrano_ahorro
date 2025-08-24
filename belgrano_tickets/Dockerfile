@@ -18,7 +18,9 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copia los archivos de la aplicación a la carpeta de trabajo
-COPY belgrano_tickets/ ./
+COPY belgrano_tickets/ ./belgrano_tickets/
+COPY requirements_ticketera.txt ./
+COPY start_ticketera.sh ./
 
 # Instala las dependencias de Python
 RUN pip install --upgrade pip setuptools wheel
