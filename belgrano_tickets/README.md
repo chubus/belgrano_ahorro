@@ -22,7 +22,6 @@ services:
     name: belgrano-ticketera
     env: docker
     plan: free
-    dockerfilePath: ./Dockerfile.render
 ```
 
 #### **Opción 2: Python Nativo**

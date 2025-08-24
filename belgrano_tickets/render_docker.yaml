@@ -4,7 +4,6 @@ services:
     name: belgrano-ticketera
     env: docker
     plan: free
-    dockerfilePath: ./Dockerfile.render
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0

@@ -52,13 +52,7 @@ def verificar_dockerfile():
     """Verificar que el Dockerfile esté correctamente configurado"""
     print("\n🐳 Verificando Dockerfile...")
     
-    dockerfiles = ['Dockerfile', 'Dockerfile.render']
-    dockerfile_encontrado = None
-    
-    for dockerfile in dockerfiles:
-        if Path(dockerfile).exists():
-            dockerfile_encontrado = dockerfile
-            break
+    dockerfile_encontrado = 'Dockerfile' if Path('Dockerfile').exists() else None
     
     if not dockerfile_encontrado:
         print("❌ No se encontró ningún Dockerfile")
@@ -67,7 +61,7 @@ def verificar_dockerfile():
     print(f"✅ Dockerfile encontrado: {dockerfile_encontrado}")
     
     # Verificar contenido básico del Dockerfile
-    with open(dockerfile_encontrado, 'r') as f:
+    with open('Dockerfile', 'r') as f:
         contenido = f.read()
         
     elementos_requeridos = [
@@ -156,7 +150,7 @@ def verificar_configuracion_render():
     """Verificar archivos de configuración de Render"""
     print("\n⚙️ Verificando configuración de Render...")
     
-    archivos_render = ['render.yaml', 'render_ticketera.yaml', 'render_independiente.yaml', 'render_docker.yaml']
+    archivos_render = ['render_independiente.yaml', 'render_docker.yaml']
     archivos_encontrados = []
     
     for archivo in archivos_render:
