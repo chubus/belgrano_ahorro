@@ -21,60 +21,78 @@ from models import db, User, Ticket
 # Inicializar db con la app
 db.init_app(app)
 
+def inicializar_base_datos():
+    """Inicializar base de datos y usuarios por defecto"""
+    try:
+        print("🔧 Inicializando base de datos...")
+        db.create_all()
+        print("✅ Base de datos creada/verificada")
+        
+        # Verificar si ya existen usuarios
+        total_usuarios = User.query.count()
+        print(f"📊 Usuarios existentes en BD: {total_usuarios}")
+        
+        # Crear admin si no existe
+        admin_existe = User.query.filter_by(email='admin@belgranoahorro.com').first()
+        if not admin_existe:
+            print("🔧 Creando usuario admin...")
+            admin = User(
+                username='admin',
+                email='admin@belgranoahorro.com',
+                password=generate_password_hash('admin123'),
+                role='admin',
+                nombre='Administrador Principal'
+            )
+            db.session.add(admin)
+            print("✅ Usuario admin creado")
+        else:
+            print("✅ Usuario admin ya existe")
+        
+        # Crear usuarios de flota si no existen
+        flota_emails = [
+            'repartidor1@belgranoahorro.com',
+            'repartidor2@belgranoahorro.com',
+            'repartidor3@belgranoahorro.com',
+            'repartidor4@belgranoahorro.com',
+            'repartidor5@belgranoahorro.com'
+        ]
+        
+        flota_creados = 0
+        for i, email in enumerate(flota_emails, 1):
+            flota_existe = User.query.filter_by(email=email).first()
+            if not flota_existe:
+                print(f"🔧 Creando usuario flota {i}...")
+                flota = User(
+                    username=f'repartidor{i}',
+                    email=email,
+                    password=generate_password_hash('flota123'),
+                    role='flota',
+                    nombre=f'Repartidor {i}'
+                )
+                db.session.add(flota)
+                flota_creados += 1
+                print(f"✅ Usuario flota {i} creado")
+            else:
+                print(f"✅ Usuario flota {i} ya existe")
+        
+        # Commit de todos los cambios
+        db.session.commit()
+        print(f"🎉 Inicialización completada: {flota_creados} usuarios flota creados")
+        
+        # Verificar usuarios finales
+        usuarios_finales = User.query.all()
+        print(f"📋 Usuarios en BD después de inicialización:")
+        for usuario in usuarios_finales:
+            print(f"   - {usuario.email} (Role: {usuario.role})")
+        
+    except Exception as e:
+        print(f"❌ Error en inicialización: {e}")
+        db.session.rollback()
+        raise e
+
 # Crear contexto de aplicación para inicializar la base de datos
 with app.app_context():
-    db.create_all()
-    
-    # Inicializar usuarios por defecto si no existen
-    def inicializar_usuarios():
-        """Inicializar usuarios admin y flota por defecto"""
-        try:
-            # Verificar si ya existen usuarios
-            admin_existe = User.query.filter_by(email='admin@belgranoahorro.com').first()
-            if not admin_existe:
-                print("🔧 Creando usuario admin...")
-                admin = User(
-                    username='admin',
-                    email='admin@belgranoahorro.com',
-                    password=generate_password_hash('admin123'),
-                    role='admin',
-                    nombre='Administrador Principal'
-                )
-                db.session.add(admin)
-                print("✅ Usuario admin creado")
-            
-            # Crear usuarios de flota si no existen
-            flota_emails = [
-                'repartidor1@belgranoahorro.com',
-                'repartidor2@belgranoahorro.com',
-                'repartidor3@belgranoahorro.com',
-                'repartidor4@belgranoahorro.com',
-                'repartidor5@belgranoahorro.com'
-            ]
-            
-            for i, email in enumerate(flota_emails, 1):
-                flota_existe = User.query.filter_by(email=email).first()
-                if not flota_existe:
-                    print(f"🔧 Creando usuario flota {i}...")
-                    flota = User(
-                        username=f'repartidor{i}',
-                        email=email,
-                        password=generate_password_hash('flota123'),
-                        role='flota',
-                        nombre=f'Repartidor {i}'
-                    )
-                    db.session.add(flota)
-                    print(f"✅ Usuario flota {i} creado")
-            
-            db.session.commit()
-            print("🎉 Usuarios inicializados correctamente")
-            
-        except Exception as e:
-            print(f"❌ Error inicializando usuarios: {e}")
-            db.session.rollback()
-    
-    # Ejecutar inicialización
-    inicializar_usuarios()
+    inicializar_base_datos()
 
 login_manager = LoginManager(app)
 
@@ -114,10 +132,21 @@ def health_check():
     try:
         # Verificar que la base de datos esté funcionando
         user_count = User.query.count()
+        usuarios = User.query.all()
+        usuarios_info = []
+        for user in usuarios:
+            usuarios_info.append({
+                'id': user.id,
+                'email': user.email,
+                'role': user.role,
+                'nombre': user.nombre
+            })
+        
         return jsonify({
             'status': 'healthy',
             'database': 'connected',
             'users_count': user_count,
+            'users': usuarios_info,
             'message': 'Ticketera funcionando correctamente'
         }), 200
     except Exception as e:
@@ -125,6 +154,49 @@ def health_check():
             'status': 'unhealthy',
             'error': str(e)
         }), 500
+
+@app.route('/debug')
+def debug_info():
+    """Información de debug para verificar estado"""
+    try:
+        usuarios = User.query.all()
+        return jsonify({
+            'total_usuarios': len(usuarios),
+            'usuarios': [
+                {
+                    'id': u.id,
+                    'email': u.email,
+                    'role': u.role,
+                    'nombre': u.nombre,
+                    'username': u.username
+                } for u in usuarios
+            ],
+            'credenciales_admin': 'admin@belgranoahorro.com / admin123',
+            'credenciales_flota': 'repartidor1@belgranoahorro.com / flota123'
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/reinicializar')
+def reinicializar_usuarios():
+    """Forzar reinicialización de usuarios (solo para debug)"""
+    try:
+        # Eliminar todos los usuarios existentes
+        User.query.delete()
+        db.session.commit()
+        print("🗑️ Usuarios eliminados")
+        
+        # Ejecutar inicialización
+        inicializar_base_datos()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Usuarios reinicializados correctamente',
+            'credenciales_admin': 'admin@belgranoahorro.com / admin123',
+            'credenciales_flota': 'repartidor1@belgranoahorro.com / flota123'
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
