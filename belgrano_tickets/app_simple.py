@@ -12,6 +12,7 @@ app.config['SECRET_KEY'] = 'belgrano_tickets_secret_2025'
 # Configuración de base de datos - USAR RUTA ABSOLUTA
 import os
 db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'belgrano_tickets.db')
+print(f"🗄️ Ruta de base de datos: {db_path}")
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -101,6 +102,20 @@ with app.app_context():
     inicializar_base_datos()
 
 login_manager = LoginManager(app)
+
+# Middleware para verificar usuarios en cada request
+@app.before_request
+def verificar_usuarios():
+    """Verificar que existan usuarios en cada request"""
+    try:
+        # Solo verificar en rutas que no sean de debug
+        if not request.path.startswith('/debug') and not request.path.startswith('/health') and not request.path.startswith('/crear_'):
+            total_usuarios = User.query.count()
+            if total_usuarios == 0:
+                print("🚨 No hay usuarios en BD - Inicializando...")
+                inicializar_base_datos()
+    except Exception as e:
+        print(f"❌ Error verificando usuarios: {e}")
 
 # Filtro personalizado para JSON
 @app.template_filter('from_json')
@@ -267,6 +282,57 @@ def crear_flota_emergencia():
             'message': 'Flota creada/actualizada de emergencia',
             'email': 'repartidor1@belgranoahorro.com',
             'password': 'flota123'
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/crear_usuarios_directo')
+def crear_usuarios_directo():
+    """Crear usuarios directamente sin verificar"""
+    try:
+        # Eliminar todos los usuarios
+        User.query.delete()
+        db.session.commit()
+        
+        # Crear admin
+        admin = User(
+            username='admin',
+            email='admin@belgranoahorro.com',
+            password=generate_password_hash('admin123'),
+            role='admin',
+            nombre='Administrador Principal'
+        )
+        db.session.add(admin)
+        
+        # Crear flota
+        flota = User(
+            username='repartidor1',
+            email='repartidor1@belgranoahorro.com',
+            password=generate_password_hash('flota123'),
+            role='flota',
+            nombre='Repartidor 1'
+        )
+        db.session.add(flota)
+        
+        db.session.commit()
+        
+        # Verificar
+        usuarios = User.query.all()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Usuarios creados directamente',
+            'usuarios_creados': len(usuarios),
+            'admin': {
+                'email': 'admin@belgranoahorro.com',
+                'password': 'admin123',
+                'role': 'admin'
+            },
+            'flota': {
+                'email': 'repartidor1@belgranoahorro.com',
+                'password': 'flota123',
+                'role': 'flota'
+            }
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
