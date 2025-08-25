@@ -8,7 +8,7 @@ import os
 import json
 import logging
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user, login_required
 from flask_socketio import SocketIO
@@ -34,7 +34,15 @@ except Exception as e:
 
 # Configurar Flask-Login y SocketIO
 login_manager = LoginManager(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Configurar SocketIO solo si no estamos en producción o si es necesario
+try:
+    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+    SOCKETIO_AVAILABLE = True
+except Exception as e:
+    print(f"⚠️ SocketIO no disponible: {e}")
+    socketio = None
+    SOCKETIO_AVAILABLE = False
 
 # =================================================================
 # MODELOS
@@ -378,14 +386,19 @@ def crear_ticket_automatico(numero_pedido, usuario, carrito_items, total,
             print(f"   Total: ${total}")
             print(f"   Productos: {len(productos_ticket)} items")
             
-            socketio.emit('nuevo_ticket', {
-                'ticket_id': ticket_id,
-                'numero': numero_pedido,
-                'cliente_nombre': nombre_cliente,
-                'estado': 'pendiente',
-                'repartidor': ticket_data['repartidor'],
-                'prioridad': ticket_data['prioridad']
-            })
+            # Emitir evento SocketIO solo si está disponible
+            if SOCKETIO_AVAILABLE and socketio:
+                try:
+                    socketio.emit('nuevo_ticket', {
+                        'ticket_id': ticket_id,
+                        'numero': numero_pedido,
+                        'cliente_nombre': nombre_cliente,
+                        'estado': 'pendiente',
+                        'repartidor': ticket_data['repartidor'],
+                        'prioridad': ticket_data['prioridad']
+                    })
+                except Exception as e:
+                    print(f"⚠️ Error emitiendo evento SocketIO: {e}")
         else:
             print(f"⚠️ No se pudo crear ticket: {numero_pedido}")
             
@@ -548,6 +561,53 @@ def ticketera_flota():
     tickets = database.obtener_tickets_por_repartidor(repartidor)
     return render_template('ticketera/flota_panel.html', tickets=tickets, repartidor=repartidor)
 
+@app.route('/ticketera/gestion_flota')
+@login_required
+@role_required('admin')
+def ticketera_gestion_flota():
+    """Panel de gestión de flota para admin"""
+    # Obtener todos los usuarios con rol flota
+    try:
+        usuarios_flota = database.obtener_usuarios_por_rol('flota')
+    except Exception:
+        usuarios_flota = []
+    
+    # Repartidores lógicos (para asignación actual)
+    repartidores = ['Repartidor1', 'Repartidor2', 'Repartidor3', 'Repartidor4', 'Repartidor5']
+    
+    # Obtener estadísticas por repartidor
+    stats_repartidores = {}
+    for rep in repartidores:
+        try:
+            tickets_rep = database.obtener_tickets_por_repartidor(rep)
+        except Exception:
+            tickets_rep = []
+        stats_repartidores[rep] = {
+            'total': len(tickets_rep),
+            'pendientes': len([t for t in tickets_rep if t.get('estado') == 'pendiente']),
+            'en_camino': len([t for t in tickets_rep if t.get('estado') in ('en_camino', 'en-camino', 'en_proceso')]),
+            'entregados': len([t for t in tickets_rep if t.get('estado') in ('entregado', 'completado')])
+        }
+    
+    # Tickets con repartidor asignado
+    try:
+        tickets_asignados = database.obtener_tickets_asignados()
+    except Exception:
+        # Fallback: filtrar manualmente si no existe helper
+        try:
+            todos = database.obtener_todos_los_tickets()
+            tickets_asignados = [t for t in todos if t.get('repartidor')]
+        except Exception:
+            tickets_asignados = []
+    
+    return render_template(
+        'ticketera/gestion_flota.html',
+        repartidores=repartidores,
+        usuarios_flota=usuarios_flota,
+        tickets_asignados=tickets_asignados,
+        stats_repartidores=stats_repartidores
+    )
+
 # =================================================================
 # RUTAS DE API
 # =================================================================
@@ -615,8 +675,19 @@ def debug_credenciales():
 # =================================================================
 
 def inicializar_aplicacion():
+    """Inicializar la aplicación y crear tablas necesarias"""
     print("🚀 Iniciando Belgrano Ahorro Unificado...")
+    
+    # Crear tablas si no existen
+    try:
+        database.crear_tabla_tickets()
+        print("✅ Tabla de tickets verificada/creada")
+    except Exception as e:
+        print(f"⚠️ Error con tabla de tickets: {e}")
+    
+    # Inicializar usuarios del sistema
     inicializar_usuarios_sistema()
+    
     print("✅ Aplicación inicializada correctamente")
     print("📱 URLs disponibles:")
     print("   • Belgrano Ahorro: http://localhost:5000")
@@ -633,4 +704,9 @@ if __name__ == "__main__":
     debug = os.environ.get('FLASK_ENV') == 'development'
     
     print(f"🌐 Servidor iniciado en puerto {port}")
-    socketio.run(app, debug=debug, host='0.0.0.0', port=port)
+    
+    # Usar SocketIO si está disponible, sino usar Flask normal
+    if SOCKETIO_AVAILABLE and socketio:
+        socketio.run(app, debug=debug, host='0.0.0.0', port=port)
+    else:
+        app.run(debug=debug, host='0.0.0.0', port=port)

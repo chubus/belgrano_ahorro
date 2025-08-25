@@ -19,8 +19,8 @@ class SistemaCompleto:
         
     def iniciar_belgrano_ahorro(self):
         """Iniciar aplicación principal de Belgrano Ahorro"""
-        print("🚀 Iniciando Belgrano Ahorro...")
-        try:
+    print("🚀 Iniciando Belgrano Ahorro...")
+    try:
             proceso = subprocess.Popen(
                 [sys.executable, "app.py"],
                 stdout=subprocess.PIPE,
@@ -39,7 +39,7 @@ class SistemaCompleto:
         print("🚀 Iniciando Belgrano Tickets...")
         try:
             # Cambiar al directorio de belgrano_tickets
-            os.chdir("belgrano_tickets")
+        os.chdir("belgrano_tickets")
             
             proceso = subprocess.Popen(
                 [sys.executable, "app.py"],
@@ -56,7 +56,7 @@ class SistemaCompleto:
         except Exception as e:
             print(f"❌ Error iniciando Belgrano Tickets: {e}")
             # Volver al directorio original en caso de error
-            os.chdir("..")
+        os.chdir("..")
             return False
     
     def monitorear_procesos(self):
@@ -86,7 +86,7 @@ class SistemaCompleto:
             except subprocess.TimeoutExpired:
                 print(f"   ⚠️ {nombre} no respondió, forzando cierre...")
                 proceso.kill()
-            except Exception as e:
+    except Exception as e:
                 print(f"   ❌ Error deteniendo {nombre}: {e}")
     
     def iniciar_sistema(self):

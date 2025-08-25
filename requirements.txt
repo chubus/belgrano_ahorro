@@ -57,4 +57,7 @@ PySocks==1.7.1
 python-dotenv==1.1.0
 pytweening==1.2.0
 # pywhatkit==5.4  # Incompatible con Python 3.12, usa 5.3 si es necesario
-# pywin32==310  # Incompatible con Linux
+# pywin32==310  # Incompatible con LinuxFlask-Login==0.6.3
+Flask-SocketIO==5.3.6
+python-socketio==5.9.0
+python-engineio==4.7.1

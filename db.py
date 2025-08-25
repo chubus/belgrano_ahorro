@@ -680,3 +680,194 @@ def procesar_pedido_automatico_paquete(paquete_id):
     except Exception as e:
         logger.error(f"Error procesando pedido automático: {e}")
         return {'exito': False, 'mensaje': f'Error al procesar pedido: {str(e)}'}
+
+# ==========================================
+# FUNCIONES PARA TICKETS
+# ==========================================
+
+def crear_tabla_tickets():
+    """Crear tabla de tickets si no existe"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tickets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                numero VARCHAR(50) UNIQUE NOT NULL,
+                cliente_nombre VARCHAR(100) NOT NULL,
+                cliente_direccion TEXT,
+                cliente_telefono VARCHAR(20),
+                cliente_email VARCHAR(100),
+                productos TEXT NOT NULL,
+                estado VARCHAR(20) DEFAULT 'pendiente',
+                prioridad VARCHAR(20) DEFAULT 'normal',
+                indicaciones TEXT,
+                repartidor VARCHAR(50),
+                fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+                fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"Error creando tabla tickets: {e}")
+        return False
+
+def guardar_ticket(**kwargs):
+    """Guardar un nuevo ticket"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO tickets (
+                numero, cliente_nombre, cliente_direccion, cliente_telefono,
+                cliente_email, productos, estado, prioridad, indicaciones,
+                repartidor, fecha_creacion
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            kwargs.get('numero'),
+            kwargs.get('cliente_nombre'),
+            kwargs.get('cliente_direccion'),
+            kwargs.get('cliente_telefono'),
+            kwargs.get('cliente_email'),
+            kwargs.get('productos'),
+            kwargs.get('estado', 'pendiente'),
+            kwargs.get('prioridad', 'normal'),
+            kwargs.get('indicaciones'),
+            kwargs.get('repartidor'),
+            kwargs.get('fecha_creacion', datetime.now())
+        ))
+        
+        ticket_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return ticket_id
+    except Exception as e:
+        logger.error(f"Error guardando ticket: {e}")
+        return None
+
+def obtener_todos_los_tickets():
+    """Obtener todos los tickets"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, numero, cliente_nombre, cliente_direccion, cliente_telefono,
+                   cliente_email, productos, estado, prioridad, indicaciones,
+                   repartidor, fecha_creacion, fecha_actualizacion
+            FROM tickets
+            ORDER BY fecha_creacion DESC
+        ''')
+        
+        tickets = []
+        for row in cursor.fetchall():
+            tickets.append({
+                'id': row[0],
+                'numero': row[1],
+                'cliente_nombre': row[2],
+                'cliente_direccion': row[3],
+                'cliente_telefono': row[4],
+                'cliente_email': row[5],
+                'productos': row[6],
+                'estado': row[7],
+                'prioridad': row[8],
+                'indicaciones': row[9],
+                'repartidor': row[10],
+                'fecha_creacion': row[11],
+                'fecha_actualizacion': row[12]
+            })
+        
+        conn.close()
+        return tickets
+    except Exception as e:
+        logger.error(f"Error obteniendo tickets: {e}")
+        return []
+
+def obtener_tickets_por_repartidor(repartidor):
+    """Obtener tickets asignados a un repartidor"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, numero, cliente_nombre, cliente_direccion, cliente_telefono,
+                   cliente_email, productos, estado, prioridad, indicaciones,
+                   repartidor, fecha_creacion, fecha_actualizacion
+            FROM tickets
+            WHERE repartidor = ?
+            ORDER BY fecha_creacion DESC
+        ''', (repartidor,))
+        
+        tickets = []
+        for row in cursor.fetchall():
+            tickets.append({
+                'id': row[0],
+                'numero': row[1],
+                'cliente_nombre': row[2],
+                'cliente_direccion': row[3],
+                'cliente_telefono': row[4],
+                'cliente_email': row[5],
+                'productos': row[6],
+                'estado': row[7],
+                'prioridad': row[8],
+                'indicaciones': row[9],
+                'repartidor': row[10],
+                'fecha_creacion': row[11],
+                'fecha_actualizacion': row[12]
+            })
+        
+        conn.close()
+        return tickets
+    except Exception as e:
+        logger.error(f"Error obteniendo tickets por repartidor: {e}")
+        return []
+
+def obtener_usuarios_por_rol(rol):
+    """Obtener usuarios por rol"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, nombre, apellido, email, telefono, rol
+            FROM usuarios
+            WHERE rol = ?
+            ORDER BY nombre
+        ''', (rol,))
+        
+        usuarios = []
+        for row in cursor.fetchall():
+            usuarios.append({
+                'id': row[0],
+                'nombre': row[1],
+                'apellido': row[2],
+                'email': row[3],
+                'telefono': row[4],
+                'rol': row[5]
+            })
+        
+        conn.close()
+        return usuarios
+    except Exception as e:
+        logger.error(f"Error obteniendo usuarios por rol: {e}")
+        return []
+
+def contar_tickets():
+    """Contar total de tickets"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT COUNT(*) FROM tickets')
+        count = cursor.fetchone()[0]
+        
+        conn.close()
+        return count
+    except Exception as e:
+        logger.error(f"Error contando tickets: {e}")
+        return 0
