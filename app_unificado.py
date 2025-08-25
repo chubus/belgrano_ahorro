@@ -320,8 +320,8 @@ def procesar_pago():
         
         database.guardar_items_pedido(pedido_id, items_db)
         
-        # Crear ticket automáticamente
-        crear_ticket_automatico(numero_pedido, usuario, carrito_items, total, 
+        # Enviar pedido a la API de tickets
+        enviar_pedido_a_tickets(numero_pedido, usuario, carrito_items, total, 
                                metodo_pago, direccion, notas)
     
     session.pop('carrito', None)
@@ -333,77 +333,59 @@ def procesar_pago():
         flash('Error al procesar el pedido. Intenta nuevamente.', 'danger')
         return redirect(url_for('checkout'))
 
-def crear_ticket_automatico(numero_pedido, usuario, carrito_items, total, 
+def enviar_pedido_a_tickets(numero_pedido, usuario, carrito_items, total, 
                            metodo_pago, direccion, notas):
+    """Enviar pedido a la API de tickets externa"""
     try:
+        import requests
+        
+        # Preparar datos del cliente
         nombre_completo = usuario.get('nombre', 'Cliente')
         if usuario.get('apellido'):
             nombre_completo = f"{usuario['nombre']} {usuario['apellido']}"
         
-        es_comerciante = usuario.get('rol') == 'comerciante'
-        nombre_cliente = nombre_completo
-        
-        if es_comerciante:
-            comerciante = database.obtener_comerciante_por_usuario(usuario['id'])
-            if comerciante:
-                nombre_cliente = f"{comerciante['nombre_negocio']} - {nombre_completo}"
-                notas_completas = f"COMERCIANTE - Negocio: {comerciante['nombre_negocio']}. {notas or 'Sin indicaciones especiales'}"
-            else:
-                notas_completas = f"COMERCIANTE - {notas or 'Sin indicaciones especiales'}"
-        else:
-            notas_completas = notas or 'Sin indicaciones especiales'
-        
-        productos_ticket = []
+        # Preparar lista de productos
+        productos = []
         for item in carrito_items:
-            productos_ticket.append({
-                'nombre': item['producto']['nombre'],
-                'cantidad': item['cantidad'],
-                'precio': item['producto']['precio'],
-                'subtotal': item['subtotal']
-            })
+            productos.append(item['producto']['nombre'])
         
-        # Crear ticket en la base de datos
+        # Datos para enviar a la API
         ticket_data = {
-            'numero': numero_pedido,
-            'cliente_nombre': nombre_cliente,
-            'cliente_direccion': direccion,
-            'cliente_telefono': usuario.get('telefono', ''),
-            'cliente_email': usuario['email'],
-            'productos': json.dumps(productos_ticket),
-            'estado': 'pendiente',
-            'prioridad': 'alta' if es_comerciante else 'normal',
-            'indicaciones': notas_completas,
-            'repartidor': 'Repartidor1',  # Asignación simple
-            'fecha_creacion': datetime.now()
+            "cliente": nombre_completo,
+            "productos": productos,
+            "total": total,
+            "numero_pedido": numero_pedido,
+            "direccion": direccion,
+            "telefono": usuario.get('telefono', ''),
+            "email": usuario['email'],
+            "metodo_pago": metodo_pago,
+            "notas": notas or 'Sin indicaciones especiales'
         }
         
-        ticket_id = database.guardar_ticket(**ticket_data)
+        # URL de la API de tickets (ajustar según tu deploy)
+        api_url = "https://belgrano-tickets.onrender.com/api/tickets"
         
-        if ticket_id:
-            tipo_cliente = "Comerciante" if es_comerciante else "Cliente"
-            print(f"✅ Ticket creado automáticamente: {numero_pedido} ({tipo_cliente})")
-            print(f"   Cliente: {nombre_cliente}")
+        # Enviar request POST
+        response = requests.post(
+            api_url,
+            json=ticket_data,
+            headers={'Content-Type': 'application/json'},
+            timeout=10
+        )
+        
+        if response.status_code == 201:
+            print(f"✅ Pedido enviado exitosamente a tickets: {numero_pedido}")
+            print(f"   Cliente: {nombre_completo}")
             print(f"   Total: ${total}")
-            print(f"   Productos: {len(productos_ticket)} items")
-            
-            # Emitir evento SocketIO solo si está disponible
-            if SOCKETIO_AVAILABLE and socketio:
-                try:
-                    socketio.emit('nuevo_ticket', {
-                        'ticket_id': ticket_id,
-                        'numero': numero_pedido,
-                        'cliente_nombre': nombre_cliente,
-                        'estado': 'pendiente',
-                        'repartidor': ticket_data['repartidor'],
-                        'prioridad': ticket_data['prioridad']
-                    })
-                except Exception as e:
-                    print(f"⚠️ Error emitiendo evento SocketIO: {e}")
+            print(f"   Productos: {len(productos)} items")
         else:
-            print(f"⚠️ No se pudo crear ticket: {numero_pedido}")
+            print(f"⚠️ Error enviando pedido a tickets: {response.status_code}")
+            print(f"   Respuesta: {response.text}")
             
+    except requests.exceptions.RequestException as e:
+        print(f"⚠️ Error de conexión enviando pedido a tickets: {e}")
     except Exception as e:
-        print(f"⚠️ Error creando ticket automático: {e}")
+        print(f"⚠️ Error inesperado enviando pedido a tickets: {e}")
 
 @app.route('/confirmacion/<numero_pedido>')
 def confirmacion_pedido(numero_pedido):

@@ -1,0 +1,21 @@
+services:
+  # Belgrano Tickets - Sistema independiente de gestión de pedidos
+  - type: web
+    name: belgrano-tickets
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements_tickets.txt
+    startCommand: python app_tickets.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_APP
+        value: app_tickets.py
+      - key: PORT
+        value: 5001
+      - key: SECRET_KEY
+        value: belgrano_tickets_secret_2025
+    healthCheckPath: /health
+    autoDeploy: true
