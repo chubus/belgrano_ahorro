@@ -24,6 +24,57 @@ db.init_app(app)
 # Crear contexto de aplicación para inicializar la base de datos
 with app.app_context():
     db.create_all()
+    
+    # Inicializar usuarios por defecto si no existen
+    def inicializar_usuarios():
+        """Inicializar usuarios admin y flota por defecto"""
+        try:
+            # Verificar si ya existen usuarios
+            admin_existe = User.query.filter_by(email='admin@belgranoahorro.com').first()
+            if not admin_existe:
+                print("🔧 Creando usuario admin...")
+                admin = User(
+                    username='admin',
+                    email='admin@belgranoahorro.com',
+                    password=generate_password_hash('admin123'),
+                    role='admin',
+                    nombre='Administrador Principal'
+                )
+                db.session.add(admin)
+                print("✅ Usuario admin creado")
+            
+            # Crear usuarios de flota si no existen
+            flota_emails = [
+                'repartidor1@belgranoahorro.com',
+                'repartidor2@belgranoahorro.com',
+                'repartidor3@belgranoahorro.com',
+                'repartidor4@belgranoahorro.com',
+                'repartidor5@belgranoahorro.com'
+            ]
+            
+            for i, email in enumerate(flota_emails, 1):
+                flota_existe = User.query.filter_by(email=email).first()
+                if not flota_existe:
+                    print(f"🔧 Creando usuario flota {i}...")
+                    flota = User(
+                        username=f'repartidor{i}',
+                        email=email,
+                        password=generate_password_hash('flota123'),
+                        role='flota',
+                        nombre=f'Repartidor {i}'
+                    )
+                    db.session.add(flota)
+                    print(f"✅ Usuario flota {i} creado")
+            
+            db.session.commit()
+            print("🎉 Usuarios inicializados correctamente")
+            
+        except Exception as e:
+            print(f"❌ Error inicializando usuarios: {e}")
+            db.session.rollback()
+    
+    # Ejecutar inicialización
+    inicializar_usuarios()
 
 login_manager = LoginManager(app)
 
@@ -57,6 +108,24 @@ def home():
         return redirect(url_for('panel'))
     return redirect(url_for('login'))
 
+@app.route('/health')
+def health_check():
+    """Health check para Render"""
+    try:
+        # Verificar que la base de datos esté funcionando
+        user_count = User.query.count()
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected',
+            'users_count': user_count,
+            'message': 'Ticketera funcionando correctamente'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e)
+        }), 500
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -64,6 +133,12 @@ def login():
         password = request.form['password']
         
         print(f"🔐 Intento de login: {email}")
+        
+        # Debug: mostrar todos los usuarios en la base de datos
+        todos_usuarios = User.query.all()
+        print(f"📊 Total de usuarios en BD: {len(todos_usuarios)}")
+        for u in todos_usuarios:
+            print(f"   - {u.email} (Role: {u.role})")
         
         user = User.query.filter_by(email=email).first()
         

@@ -38,5 +38,5 @@ services:
         value: 5001
       - key: SECRET_KEY
         value: belgrano_tickets_secret_2025
-    healthCheckPath: /
+    healthCheckPath: /health
     autoDeploy: true
