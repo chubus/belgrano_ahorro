@@ -1,26 +1,35 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Aplicación Flask simplificada para Belgrano Tickets
+Sistema de gestión de tickets y repartidores
+"""
+
 import os
+import json
+from datetime import datetime
 from flask import Flask, render_template, redirect, url_for, request, flash, abort, jsonify
-from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user, login_required
+from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
-import json
 
-# Inicialización Flask y extensiones
+# Inicialización Flask
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'belgrano_tickets_secret_2025'
 
-# Configuración de base de datos - USAR RUTA ABSOLUTA
-import os
+# Configuración de base de datos
 db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'belgrano_tickets.db')
 print(f"🗄️ Ruta de base de datos: {db_path}")
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Importar db desde models
-from models import db, User, Ticket
+# Importar modelos
+from models import db, User, Ticket, Configuracion
 
-# Inicializar db con la app
+# Inicializar extensiones
 db.init_app(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
 
 def inicializar_base_datos():
     """Inicializar base de datos y usuarios por defecto"""
@@ -29,93 +38,131 @@ def inicializar_base_datos():
         db.create_all()
         print("✅ Base de datos creada/verificada")
         
-        # FORZAR CREACIÓN DE USUARIOS - ELIMINAR TODOS Y RECREAR
-        print("🗑️ Eliminando usuarios existentes para recrear...")
-        User.query.delete()
-        db.session.commit()
-        print("✅ Usuarios eliminados")
+        # Verificar si ya existen usuarios
+        total_usuarios = User.query.count()
+        print(f"📊 Usuarios existentes en BD: {total_usuarios}")
         
-        # Crear admin SIEMPRE
-        print("🔧 Creando usuario admin...")
-        admin = User(
-            username='admin',
-            email='admin@belgranoahorro.com',
-            password=generate_password_hash('admin123'),
-            role='admin',
-            nombre='Administrador Principal'
-        )
-        db.session.add(admin)
-        print("✅ Usuario admin creado")
-        
-        # Crear usuarios de flota SIEMPRE
-        flota_emails = [
-            'repartidor1@belgranoahorro.com',
-            'repartidor2@belgranoahorro.com',
-            'repartidor3@belgranoahorro.com',
-            'repartidor4@belgranoahorro.com',
-            'repartidor5@belgranoahorro.com'
-        ]
-        
-        for i, email in enumerate(flota_emails, 1):
-            print(f"🔧 Creando usuario flota {i}...")
-            flota = User(
-                username=f'repartidor{i}',
-                email=email,
-                password=generate_password_hash('flota123'),
-                role='flota',
-                nombre=f'Repartidor {i}'
+        if total_usuarios == 0:
+            print("🔧 Creando usuarios por defecto...")
+            
+            # Crear usuario admin
+            admin = User(
+                username='admin',
+                email='admin@belgranoahorro.com',
+                password=generate_password_hash('admin123'),
+                role='admin',
+                nombre='Administrador Principal',
+                activo=True,
+                fecha_creacion=datetime.utcnow()
             )
-            db.session.add(flota)
-            print(f"✅ Usuario flota {i} creado")
+            db.session.add(admin)
+            print("✅ Usuario admin creado")
+            
+            # Crear usuarios de flota
+            flota_usuarios = [
+                {
+                    'username': 'repartidor1',
+                    'email': 'repartidor1@belgranoahorro.com',
+                    'nombre': 'Repartidor 1',
+                    'password': 'flota123'
+                },
+                {
+                    'username': 'repartidor2',
+                    'email': 'repartidor2@belgranoahorro.com',
+                    'nombre': 'Repartidor 2',
+                    'password': 'flota123'
+                },
+                {
+                    'username': 'repartidor3',
+                    'email': 'repartidor3@belgranoahorro.com',
+                    'nombre': 'Repartidor 3',
+                    'password': 'flota123'
+                },
+                {
+                    'username': 'repartidor4',
+                    'email': 'repartidor4@belgranoahorro.com',
+                    'nombre': 'Repartidor 4',
+                    'password': 'flota123'
+                },
+                {
+                    'username': 'repartidor5',
+                    'email': 'repartidor5@belgranoahorro.com',
+                    'nombre': 'Repartidor 5',
+                    'password': 'flota123'
+                }
+            ]
+            
+            for flota_data in flota_usuarios:
+                flota = User(
+                    username=flota_data['username'],
+                    email=flota_data['email'],
+                    password=generate_password_hash(flota_data['password']),
+                    role='flota',
+                    nombre=flota_data['nombre'],
+                    activo=True,
+                    fecha_creacion=datetime.utcnow()
+                )
+                db.session.add(flota)
+                print(f"✅ Usuario {flota_data['nombre']} creado")
+            
+            # Crear configuraciones por defecto
+            configuraciones = [
+                {
+                    'clave': 'sistema_nombre',
+                    'valor': 'Belgrano Tickets',
+                    'descripcion': 'Nombre del sistema'
+                },
+                {
+                    'clave': 'version',
+                    'valor': '2.0.0',
+                    'descripcion': 'Versión del sistema'
+                }
+            ]
+            
+            for config_data in configuraciones:
+                config = Configuracion(
+                    clave=config_data['clave'],
+                    valor=config_data['valor'],
+                    descripcion=config_data['descripcion'],
+                    fecha_actualizacion=datetime.utcnow()
+                )
+                db.session.add(config)
+            
+            # Commit de todos los cambios
+            db.session.commit()
+            print("🎉 Inicialización completada exitosamente")
+            
+            # Verificar usuarios finales
+            usuarios_finales = User.query.all()
+            print(f"📋 Usuarios en BD después de inicialización:")
+            for usuario in usuarios_finales:
+                print(f"   - {usuario.email} (Role: {usuario.role})")
+            
+            # Verificar que las contraseñas funcionan
+            print("🔐 Verificando contraseñas...")
+            admin_test = User.query.filter_by(email='admin@belgranoahorro.com').first()
+            if admin_test and check_password_hash(admin_test.password, 'admin123'):
+                print("✅ Contraseña admin verificada correctamente")
+            else:
+                print("❌ ERROR: Contraseña admin no funciona")
+            
+            flota_test = User.query.filter_by(email='repartidor1@belgranoahorro.com').first()
+            if flota_test and check_password_hash(flota_test.password, 'flota123'):
+                print("✅ Contraseña flota verificada correctamente")
+            else:
+                print("❌ ERROR: Contraseña flota no funciona")
         
-        # Commit de todos los cambios
-        db.session.commit()
-        print("🎉 Inicialización completada - TODOS los usuarios recreados")
-        
-        # Verificar usuarios finales
-        usuarios_finales = User.query.all()
-        print(f"📋 Usuarios en BD después de inicialización:")
-        for usuario in usuarios_finales:
-            print(f"   - {usuario.email} (Role: {usuario.role})")
-        
-        # Verificar que las contraseñas funcionan
-        print("🔐 Verificando contraseñas...")
-        admin_test = User.query.filter_by(email='admin@belgranoahorro.com').first()
-        if admin_test and check_password_hash(admin_test.password, 'admin123'):
-            print("✅ Contraseña admin verificada correctamente")
         else:
-            print("❌ ERROR: Contraseña admin no funciona")
-        
-        flota_test = User.query.filter_by(email='repartidor1@belgranoahorro.com').first()
-        if flota_test and check_password_hash(flota_test.password, 'flota123'):
-            print("✅ Contraseña flota verificada correctamente")
-        else:
-            print("❌ ERROR: Contraseña flota no funciona")
+            print("✅ Usuarios ya existen")
         
     except Exception as e:
         print(f"❌ Error en inicialización: {e}")
         db.session.rollback()
         raise e
 
-# Crear contexto de aplicación para inicializar la base de datos
+# Inicializar base de datos al arrancar
 with app.app_context():
     inicializar_base_datos()
-
-login_manager = LoginManager(app)
-
-# Middleware para verificar usuarios en cada request
-@app.before_request
-def verificar_usuarios():
-    """Verificar que existan usuarios en cada request"""
-    try:
-        # Solo verificar en rutas que no sean de debug
-        if not request.path.startswith('/debug') and not request.path.startswith('/health') and not request.path.startswith('/crear_'):
-            total_usuarios = User.query.count()
-            if total_usuarios == 0:
-                print("🚨 No hay usuarios en BD - Inicializando...")
-                inicializar_base_datos()
-    except Exception as e:
-        print(f"❌ Error verificando usuarios: {e}")
 
 # Filtro personalizado para JSON
 @app.template_filter('from_json')
@@ -134,11 +181,25 @@ def role_required(role):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            if not hasattr(current_user, 'role') or current_user.role != role:
+            if not current_user.is_authenticated or current_user.role != role:
                 abort(403)
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+# Middleware para verificar usuarios en cada request
+@app.before_request
+def verificar_usuarios():
+    """Verificar que existan usuarios en cada request"""
+    try:
+        # Solo verificar en rutas que no sean de debug
+        if not request.path.startswith('/debug') and not request.path.startswith('/health') and not request.path.startswith('/crear_'):
+            total_usuarios = User.query.count()
+            if total_usuarios == 0:
+                print("🚨 No hay usuarios en BD - Inicializando...")
+                inicializar_base_datos()
+    except Exception as e:
+        print(f"❌ Error verificando usuarios: {e}")
 
 # Rutas principales
 @app.route('/')
@@ -181,16 +242,30 @@ def debug_info():
     """Información de debug para verificar estado"""
     try:
         usuarios = User.query.all()
+        tickets = Ticket.query.all()
+        configs = Configuracion.query.all()
+        
         return jsonify({
             'total_usuarios': len(usuarios),
+            'total_tickets': len(tickets),
+            'total_configs': len(configs),
             'usuarios': [
                 {
                     'id': u.id,
                     'email': u.email,
                     'role': u.role,
                     'nombre': u.nombre,
-                    'username': u.username
+                    'username': u.username,
+                    'activo': u.activo
                 } for u in usuarios
+            ],
+            'tickets': [
+                {
+                    'id': t.id,
+                    'numero': t.numero,
+                    'estado': t.estado,
+                    'cliente_nombre': t.cliente_nombre
+                } for t in tickets
             ],
             'credenciales_admin': 'admin@belgranoahorro.com / admin123',
             'credenciales_flota': 'repartidor1@belgranoahorro.com / flota123'
@@ -200,7 +275,7 @@ def debug_info():
 
 @app.route('/reinicializar')
 def reinicializar_usuarios():
-    """Forzar reinicialización de usuarios (solo para debug)"""
+    """Forzar reinicialización de usuarios"""
     try:
         # Eliminar todos los usuarios existentes
         User.query.delete()
@@ -221,7 +296,7 @@ def reinicializar_usuarios():
 
 @app.route('/crear_admin_emergencia')
 def crear_admin_emergencia():
-    """Crear admin de emergencia si todo falla"""
+    """Crear admin de emergencia"""
     try:
         # Verificar si admin existe
         admin = User.query.filter_by(email='admin@belgranoahorro.com').first()
@@ -242,7 +317,9 @@ def crear_admin_emergencia():
                 email='admin@belgranoahorro.com',
                 password=generate_password_hash('admin123'),
                 role='admin',
-                nombre='Administrador Principal'
+                nombre='Administrador Principal',
+                activo=True,
+                fecha_creacion=datetime.utcnow()
             )
             db.session.add(admin)
             db.session.commit()
@@ -257,7 +334,7 @@ def crear_admin_emergencia():
 
 @app.route('/crear_flota_emergencia')
 def crear_flota_emergencia():
-    """Crear flota de emergencia si todo falla"""
+    """Crear flota de emergencia"""
     try:
         # Crear repartidor 1
         flota = User.query.filter_by(email='repartidor1@belgranoahorro.com').first()
@@ -272,7 +349,9 @@ def crear_flota_emergencia():
                 email='repartidor1@belgranoahorro.com',
                 password=generate_password_hash('flota123'),
                 role='flota',
-                nombre='Repartidor 1'
+                nombre='Repartidor 1',
+                activo=True,
+                fecha_creacion=datetime.utcnow()
             )
             db.session.add(flota)
             db.session.commit()
@@ -300,7 +379,9 @@ def crear_usuarios_directo():
             email='admin@belgranoahorro.com',
             password=generate_password_hash('admin123'),
             role='admin',
-            nombre='Administrador Principal'
+            nombre='Administrador Principal',
+            activo=True,
+            fecha_creacion=datetime.utcnow()
         )
         db.session.add(admin)
         
@@ -310,7 +391,9 @@ def crear_usuarios_directo():
             email='repartidor1@belgranoahorro.com',
             password=generate_password_hash('flota123'),
             role='flota',
-            nombre='Repartidor 1'
+            nombre='Repartidor 1',
+            activo=True,
+            fecha_creacion=datetime.utcnow()
         )
         db.session.add(flota)
         
@@ -356,6 +439,12 @@ def login():
         if user:
             print(f"✅ Usuario encontrado: {user.nombre} (ID: {user.id})")
             print(f"   Role: {user.role}")
+            print(f"   Activo: {user.activo}")
+            
+            if not user.activo:
+                print("❌ Usuario inactivo")
+                flash('Usuario inactivo', 'danger')
+                return render_template('login.html')
             
             if check_password_hash(user.password, password):
                 print("✅ Contraseña correcta - Login exitoso")
@@ -406,16 +495,20 @@ def detalle_ticket(ticket_id):
 def cambiar_estado_ticket(ticket_id):
     """Cambiar estado de un ticket"""
     ticket = Ticket.query.get_or_404(ticket_id)
-    nuevo_estado = request.form.get('estado')
     
     # Verificar permisos
     if current_user.role == 'flota' and ticket.asignado_a != current_user.id:
         abort(403)
     
-    if nuevo_estado in ['pendiente', 'en_proceso', 'completado', 'cancelado']:
+    nuevo_estado = request.form.get('estado')
+    if nuevo_estado in ['pendiente', 'en_proceso', 'entregado', 'cancelado']:
         ticket.estado = nuevo_estado
+        
+        if nuevo_estado == 'entregado':
+            ticket.fecha_entrega = datetime.utcnow()
+        
         db.session.commit()
-        flash(f'Estado del ticket {ticket.numero} cambiado a {nuevo_estado}', 'success')
+        flash(f'Estado del ticket cambiado a {nuevo_estado}', 'success')
     
     return redirect(url_for('detalle_ticket', ticket_id=ticket_id))
 
@@ -423,105 +516,77 @@ def cambiar_estado_ticket(ticket_id):
 @login_required
 @role_required('admin')
 def asignar_ticket(ticket_id):
-    """Asignar ticket a un repartidor (solo admin)"""
+    """Asignar ticket a un repartidor"""
     ticket = Ticket.query.get_or_404(ticket_id)
     repartidor_id = request.form.get('repartidor_id')
     
     if repartidor_id:
-        ticket.asignado_a = int(repartidor_id)
-        db.session.commit()
-        flash(f'Ticket {ticket.numero} asignado exitosamente', 'success')
+        repartidor = User.query.filter_by(id=repartidor_id, role='flota').first()
+        if repartidor:
+            ticket.asignado_a = repartidor.id
+            ticket.repartidor_nombre = repartidor.nombre
+            ticket.fecha_asignacion = datetime.utcnow()
+            db.session.commit()
+            flash(f'Ticket asignado a {repartidor.nombre}', 'success')
     
     return redirect(url_for('detalle_ticket', ticket_id=ticket_id))
 
+@app.route('/ticket/<int:ticket_id>/agregar_nota', methods=['POST'])
+@login_required
+def agregar_nota_ticket(ticket_id):
+    """Agregar nota a un ticket"""
+    ticket = Ticket.query.get_or_404(ticket_id)
+    
+    # Verificar permisos
+    if current_user.role == 'flota' and ticket.asignado_a != current_user.id:
+        abort(403)
+    
+    nota = request.form.get('nota')
+    if nota:
+        if ticket.notas_repartidor:
+            ticket.notas_repartidor += f"\n{datetime.utcnow().strftime('%Y-%m-%d %H:%M')}: {nota}"
+        else:
+            ticket.notas_repartidor = f"{datetime.utcnow().strftime('%Y-%m-%d %H:%M')}: {nota}"
+        
+        db.session.commit()
+        flash('Nota agregada correctamente', 'success')
+    
+    return redirect(url_for('detalle_ticket', ticket_id=ticket_id))
+
+# Rutas de gestión (solo admin)
 @app.route('/gestion_usuarios')
 @login_required
 @role_required('admin')
 def gestion_usuarios():
-    """Gestionar usuarios (solo admin)"""
     usuarios = User.query.all()
     return render_template('gestion_usuarios.html', usuarios=usuarios)
 
-@app.route('/crear_usuario', methods=['GET', 'POST'])
+@app.route('/gestion_flota')
 @login_required
 @role_required('admin')
-def crear_usuario():
-    """Crear nuevo usuario (solo admin)"""
-    if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        nombre = request.form.get('nombre')
-        role = request.form.get('role')
-        password = request.form.get('password')
-        
-        # Validaciones
-        if not all([username, email, nombre, role, password]):
-            flash('Todos los campos son obligatorios', 'danger')
-            return redirect(url_for('crear_usuario'))
-        
-        # Verificar si el username ya existe
-        if User.query.filter_by(username=username).first():
-            flash('El nombre de usuario ya existe', 'danger')
-            return redirect(url_for('crear_usuario'))
-        
-        # Verificar si el email ya existe
-        if User.query.filter_by(email=email).first():
-            flash('El email ya está registrado', 'danger')
-            return redirect(url_for('crear_usuario'))
-        
-        # Crear usuario
-        nuevo_usuario = User(
-            username=username,
-            email=email,
-            nombre=nombre,
-            role=role,
-            password=generate_password_hash(password)
-        )
-        
-        db.session.add(nuevo_usuario)
-        db.session.commit()
-        
-        flash(f'Usuario {nombre} creado exitosamente', 'success')
-        return redirect(url_for('gestion_usuarios'))
-    
-    return render_template('crear_usuario.html')
+def gestion_flota():
+    repartidores = User.query.filter_by(role='flota').all()
+    tickets = Ticket.query.all()
+    return render_template('gestion_flota.html', repartidores=repartidores, tickets=tickets)
 
-@app.route('/cambiar_password', methods=['GET', 'POST'])
+@app.route('/reportes')
 @login_required
-def cambiar_password():
-    """Cambiar contraseña del usuario actual"""
-    if request.method == 'POST':
-        password_actual = request.form.get('password_actual')
-        nueva_password = request.form.get('nueva_password')
-        confirmar_password = request.form.get('confirmar_password')
-        
-        # Validaciones
-        if not check_password_hash(current_user.password, password_actual):
-            flash('La contraseña actual es incorrecta', 'danger')
-            return redirect(url_for('cambiar_password'))
-        
-        if nueva_password != confirmar_password:
-            flash('Las contraseñas nuevas no coinciden', 'danger')
-            return redirect(url_for('cambiar_password'))
-        
-        if len(nueva_password) < 6:
-            flash('La nueva contraseña debe tener al menos 6 caracteres', 'danger')
-            return redirect(url_for('cambiar_password'))
-        
-        # Actualizar contraseña
-        current_user.password = generate_password_hash(nueva_password)
-        db.session.commit()
-        
-        flash('Contraseña cambiada exitosamente', 'success')
-        return redirect(url_for('panel'))
+@role_required('admin')
+def reportes():
+    total_tickets = Ticket.query.count()
+    tickets_pendientes = Ticket.query.filter_by(estado='pendiente').count()
+    tickets_en_proceso = Ticket.query.filter_by(estado='en_proceso').count()
+    tickets_entregados = Ticket.query.filter_by(estado='entregado').count()
     
-    return render_template('cambiar_password.html')
+    return render_template('reportes.html', 
+                         total_tickets=total_tickets,
+                         tickets_pendientes=tickets_pendientes,
+                         tickets_en_proceso=tickets_en_proceso,
+                         tickets_entregados=tickets_entregados)
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
     print("🚀 Iniciando aplicación de tickets simplificada en puerto 5001...")
-    print("📱 Abre tu navegador en: http://localhost:5001")
-    print("🔐 Credenciales admin: admin@belgranoahorro.com / admin123")
-    print("🔐 Credenciales flota: repartidor1@belgranoahorro.com / flota123")
+    print("🔐 Credenciales disponibles:")
+    print("   • Admin: admin@belgranoahorro.com / admin123")
+    print("   • Flota: repartidor1@belgranoahorro.com / flota123")
     app.run(debug=True, host='0.0.0.0', port=5001)
