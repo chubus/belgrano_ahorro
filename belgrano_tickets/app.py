@@ -61,29 +61,42 @@ def home():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '').strip()
         
         print(f"🔐 Intento de login: {email}")
         
+        # Validaciones básicas
+        if not email or not password:
+            flash('Por favor complete todos los campos', 'warning')
+            return render_template('login.html')
+        
+        # Buscar usuario por email
         user = User.query.filter_by(email=email).first()
         
         if user:
             print(f"✅ Usuario encontrado: {user.nombre} (ID: {user.id})")
             print(f"   Role: {user.role}")
-            print(f"   Password hash: {user.password[:
-                  50]}...")
+            print(f"   Activo: {user.activo}")
             
+            # Verificar si el usuario está activo
+            if not user.activo:
+                print("❌ Usuario inactivo")
+                flash('Usuario inactivo. Contacte al administrador.', 'danger')
+                return render_template('login.html')
+            
+            # Verificar contraseña
             if check_password_hash(user.password, password):
                 print("✅ Contraseña correcta - Login exitoso")
                 login_user(user)
+                flash(f'Bienvenido, {user.nombre}!', 'success')
                 return redirect(url_for('panel'))
             else:
                 print("❌ Contraseña incorrecta")
-                flash('Contraseña incorrecta', 'danger')
+                flash('Email o contraseña incorrectos', 'danger')
         else:
             print(f"❌ Usuario no encontrado: {email}")
-            flash('Usuario no encontrado', 'danger')
+            flash('Email o contraseña incorrectos', 'danger')
     
     return render_template('login.html')
 
@@ -92,6 +105,43 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+@app.route('/debug/credenciales')
+def debug_credenciales():
+    """Ruta de debug para verificar credenciales (solo en desarrollo)"""
+    try:
+        usuarios = User.query.all()
+        credenciales = []
+        
+        for user in usuarios:
+            credenciales.append({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'nombre': user.nombre,
+                'role': user.role,
+                'activo': user.activo,
+                'password_hash': user.password[:50] + '...' if user.password else 'None'
+            })
+        
+        return jsonify({
+            'status': 'success',
+            'total_usuarios': len(usuarios),
+            'usuarios': credenciales,
+            'credenciales_admin': {
+                'email': 'admin@belgranoahorro.com',
+                'password': 'admin123'
+            },
+            'credenciales_flota': {
+                'email': 'repartidor1@belgranoahorro.com',
+                'password': 'flota123'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
 
 @app.route('/panel')
 @login_required
