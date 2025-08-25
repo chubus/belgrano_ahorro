@@ -25,6 +25,61 @@ db.init_app(app)
 # Crear contexto de aplicación para inicializar la base de datos
 with app.app_context():
     db.create_all()
+    
+    # Inicializar usuarios automáticamente si no existen
+    def inicializar_usuarios_automaticamente():
+        """Inicializar usuarios automáticamente si no existen"""
+        try:
+            usuarios_existentes = User.query.count()
+            if usuarios_existentes == 0:
+                print("🔧 No hay usuarios en BD - Creando usuarios automáticamente...")
+                
+                # Usuario Admin
+                admin = User(
+                    username='admin',
+                    email='admin@belgranoahorro.com',
+                    password=generate_password_hash('admin123'),
+                    role='admin',
+                    nombre='Administrador Principal',
+                    activo=True
+                )
+                db.session.add(admin)
+                print("✅ Usuario admin creado: admin@belgranoahorro.com / admin123")
+                
+                # Usuarios Flota
+                flota_usuarios = [
+                    ('repartidor1', 'repartidor1@belgranoahorro.com', 'Repartidor 1'),
+                    ('repartidor2', 'repartidor2@belgranoahorro.com', 'Repartidor 2'),
+                    ('repartidor3', 'repartidor3@belgranoahorro.com', 'Repartidor 3'),
+                    ('repartidor4', 'repartidor4@belgranoahorro.com', 'Repartidor 4'),
+                    ('repartidor5', 'repartidor5@belgranoahorro.com', 'Repartidor 5')
+                ]
+                
+                for username, email, nombre in flota_usuarios:
+                    flota = User(
+                        username=username,
+                        email=email,
+                        password=generate_password_hash('flota123'),
+                        role='flota',
+                        nombre=nombre,
+                        activo=True
+                    )
+                    db.session.add(flota)
+                    print(f"✅ Usuario flota creado: {email} / flota123")
+                
+                db.session.commit()
+                print("🎉 Usuarios inicializados automáticamente")
+                return True
+            else:
+                print(f"✅ Ya existen {usuarios_existentes} usuarios en la BD")
+                return False
+        except Exception as e:
+            print(f"❌ Error inicializando usuarios: {e}")
+            db.session.rollback()
+            return False
+    
+    # Ejecutar inicialización automática
+    inicializar_usuarios_automaticamente()
 login_manager = LoginManager(app)
 socketio = SocketIO(app)
 
@@ -138,6 +193,93 @@ def debug_credenciales():
             }
         })
     except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+@app.route('/debug/reparar_credenciales', methods=['POST'])
+def reparar_credenciales_debug():
+    """Ruta para reparar credenciales en producción"""
+    try:
+        # Verificar si es producción
+        if app.config.get('ENV') == 'production':
+            # Solo permitir en producción si hay un token secreto
+            token = request.headers.get('X-Repair-Token')
+            if token != 'belgrano_repair_2025':
+                return jsonify({'error': 'Token no válido'}), 403
+        
+        # Ejecutar reparación
+        from werkzeug.security import generate_password_hash
+        
+        # Buscar o crear usuario admin
+        admin = User.query.filter_by(email='admin@belgranoahorro.com').first()
+        
+        if admin:
+            admin.password = generate_password_hash('admin123')
+            admin.activo = True
+            admin.role = 'admin'
+            admin.nombre = 'Administrador Principal'
+        else:
+            admin = User(
+                username='admin',
+                email='admin@belgranoahorro.com',
+                password=generate_password_hash('admin123'),
+                role='admin',
+                nombre='Administrador Principal',
+                activo=True
+            )
+            db.session.add(admin)
+        
+        # Verificar usuarios flota
+        flota_emails = [
+            'repartidor1@belgranoahorro.com',
+            'repartidor2@belgranoahorro.com',
+            'repartidor3@belgranoahorro.com',
+            'repartidor4@belgranoahorro.com',
+            'repartidor5@belgranoahorro.com'
+        ]
+        
+        flota_nombres = [
+            'Repartidor 1',
+            'Repartidor 2',
+            'Repartidor 3',
+            'Repartidor 4',
+            'Repartidor 5'
+        ]
+        
+        for i, email in enumerate(flota_emails):
+            flota_user = User.query.filter_by(email=email).first()
+            
+            if flota_user:
+                flota_user.password = generate_password_hash('flota123')
+                flota_user.activo = True
+                flota_user.role = 'flota'
+                flota_user.nombre = flota_nombres[i]
+            else:
+                flota_user = User(
+                    username=f'repartidor{i+1}',
+                    email=email,
+                    password=generate_password_hash('flota123'),
+                    role='flota',
+                    nombre=flota_nombres[i],
+                    activo=True
+                )
+                db.session.add(flota_user)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Credenciales reparadas exitosamente',
+            'credenciales': {
+                'admin': 'admin@belgranoahorro.com / admin123',
+                'flota': 'repartidor1@belgranoahorro.com / flota123'
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
         return jsonify({
             'status': 'error',
             'error': str(e)

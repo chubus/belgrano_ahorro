@@ -32,7 +32,7 @@ services:
       - key: AUTO_CREATE_USERS
         value: true
       - key: ADMIN_EMAIL
-        value: admin@belgrano.com
+        value: admin@belgranoahorro.com
       - key: ADMIN_PASSWORD
         value: admin123
       - key: FLOTA_PASSWORD

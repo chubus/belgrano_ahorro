@@ -56,18 +56,18 @@ def crear_usuarios_iniciales():
         cursor.execute('''
             INSERT INTO user (username, email, password, role, nombre)
             VALUES (?, ?, ?, ?, ?)
-        ''', ('admin', 'admin@belgrano.com', admin_password, 'admin', 'Administrador Principal'))
+        ''', ('admin', 'admin@belgranoahorro.com', admin_password, 'admin', 'Administrador Principal'))
         print('Usuario admin creado')
     except sqlite3.IntegrityError:
         print('Usuario admin ya existe')
     
     # Usuarios Flota
     usuarios_flota = [
-        ('flota1', 'flota1@belgrano.com', 'Conductor Flota 1'),
-        ('flota2', 'flota2@belgrano.com', 'Conductor Flota 2'),
-        ('flota3', 'flota3@belgrano.com', 'Conductor Flota 3'),
-        ('flota4', 'flota4@belgrano.com', 'Conductor Flota 4'),
-        ('flota5', 'flota5@belgrano.com', 'Conductor Flota 5')
+        ('repartidor1', 'repartidor1@belgranoahorro.com', 'Repartidor 1'),
+        ('repartidor2', 'repartidor2@belgranoahorro.com', 'Repartidor 2'),
+        ('repartidor3', 'repartidor3@belgranoahorro.com', 'Repartidor 3'),
+        ('repartidor4', 'repartidor4@belgranoahorro.com', 'Repartidor 4'),
+        ('repartidor5', 'repartidor5@belgranoahorro.com', 'Repartidor 5')
     ]
     
     flota_password = generate_password_hash('flota123')
@@ -110,8 +110,8 @@ echo "   App: $FLASK_APP"
 
 # Mostrar credenciales de acceso
 echo "Credenciales de acceso disponibles:"
-echo "   Admin: admin@belgrano.com / admin123"
-echo "   Flota: flota1@belgrano.com / flota123 (y otros 4 usuarios flota)"
+echo "   Admin: admin@belgranoahorro.com / admin123"
+echo "   Flota: repartidor1@belgranoahorro.com / flota123 (y otros 4 usuarios flota)"
 
 # Iniciar la aplicacion
 echo "Iniciando aplicacion en puerto $PORT..."
