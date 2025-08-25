@@ -4,6 +4,7 @@ from flask_login import LoginManager, UserMixin, current_user, login_user, logou
 from flask_socketio import SocketIO
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 import json
 
 # Inicialización Flask y extensiones
@@ -196,6 +197,30 @@ def debug_credenciales():
         return jsonify({
             'status': 'error',
             'error': str(e)
+        }), 500
+
+@app.route('/health')
+def health_check():
+    """Health check para verificar que la aplicación esté funcionando"""
+    try:
+        # Verificar que la base de datos esté funcionando
+        total_tickets = Ticket.query.count()
+        total_usuarios = User.query.count()
+        
+        return jsonify({
+            'status': 'healthy',
+            'service': 'Belgrano Tickets',
+            'timestamp': datetime.now().isoformat(),
+            'database': 'connected',
+            'total_tickets': total_tickets,
+            'total_usuarios': total_usuarios,
+            'version': '2.0.0'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
         }), 500
 
 @app.route('/debug/reparar_credenciales', methods=['POST'])

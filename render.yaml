@@ -1,42 +1,21 @@
 services:
-  # Belgrano Ahorro - E-commerce Principal
+  # Belgrano Ahorro Unificado - E-commerce + Ticketera
   - type: web
-    name: belgrano-ahorro
+    name: belgrano-ahorro-unificado
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
+    startCommand: python app_unificado.py
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
       - key: FLASK_ENV
         value: production
       - key: FLASK_APP
-        value: app.py
+        value: app_unificado.py
       - key: PORT
         value: 5000
-      - key: TICKETERA_URL
-        value: https://belgrano-ticketera.onrender.com
-    healthCheckPath: /
-    autoDeploy: true
-
-  # Belgrano Tickets - Panel de Administración
-  - type: web
-    name: belgrano-ticketera
-    env: python
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: cd belgrano_tickets && python app_simple.py
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.12.0
-      - key: FLASK_ENV
-        value: production
-      - key: FLASK_APP
-        value: belgrano_tickets/app_simple.py
-      - key: PORT
-        value: 5001
       - key: SECRET_KEY
-        value: belgrano_tickets_secret_2025
+        value: belgrano_ahorro_unificado_secret_2025
     healthCheckPath: /health
     autoDeploy: true

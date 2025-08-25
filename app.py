@@ -1135,20 +1135,23 @@ def procesar_pago():
             else:
                 notas_completas = notas or 'Sin indicaciones especiales'
             
+            # Preparar productos para el ticket
+            productos_ticket = []
+            for item in carrito_items:
+                productos_ticket.append({
+                    'nombre': item['producto']['nombre'],
+                    'cantidad': item['cantidad'],
+                    'precio': item['producto']['precio'],
+                    'subtotal': item['subtotal']
+                })
+            
             ticket_data = {
                 'numero': numero_pedido,
                 'cliente_nombre': nombre_cliente,
                 'direccion': direccion,
                 'telefono': usuario.get('telefono', ''),
                 'email': usuario['email'],
-                'productos': [
-                    {
-                        'nombre': item['producto']['nombre'],
-                        'cantidad': item['cantidad'],
-                        'precio': item['producto']['precio'],
-                        'subtotal': item['subtotal']
-                    } for item in carrito_items
-                ],
+                'productos': productos_ticket,
                 'total': total,
                 'metodo_pago': metodo_pago,
                 'fecha': datetime.now().isoformat(),
@@ -1163,6 +1166,9 @@ def procesar_pago():
                 if resultado:
                     tipo_cliente = "Comerciante" if es_comerciante else "Cliente"
                     print(f"✅ Ticket enviado a Belgrano Tickets: {numero_pedido} ({tipo_cliente})")
+                    print(f"   Cliente: {nombre_cliente}")
+                    print(f"   Total: ${total}")
+                    print(f"   Productos: {len(productos_ticket)} items")
                 else:
                     print(f"⚠️ No se pudo enviar ticket a Belgrano Tickets: {numero_pedido}")
             else:
@@ -1172,6 +1178,8 @@ def procesar_pago():
             print("⚠️ Módulo de integración no disponible")
         except Exception as e:
             print(f"⚠️ Error en integración con Belgrano Tickets: {e}")
+            import traceback
+            traceback.print_exc()
         
         flash(f'¡Pedido confirmado! Número: {numero_pedido}', 'success')
         return redirect(url_for('confirmacion_pedido', numero_pedido=numero_pedido))
