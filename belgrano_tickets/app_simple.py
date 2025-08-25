@@ -28,27 +28,25 @@ def inicializar_base_datos():
         db.create_all()
         print("✅ Base de datos creada/verificada")
         
-        # Verificar si ya existen usuarios
-        total_usuarios = User.query.count()
-        print(f"📊 Usuarios existentes en BD: {total_usuarios}")
+        # FORZAR CREACIÓN DE USUARIOS - ELIMINAR TODOS Y RECREAR
+        print("🗑️ Eliminando usuarios existentes para recrear...")
+        User.query.delete()
+        db.session.commit()
+        print("✅ Usuarios eliminados")
         
-        # Crear admin si no existe
-        admin_existe = User.query.filter_by(email='admin@belgranoahorro.com').first()
-        if not admin_existe:
-            print("🔧 Creando usuario admin...")
-            admin = User(
-                username='admin',
-                email='admin@belgranoahorro.com',
-                password=generate_password_hash('admin123'),
-                role='admin',
-                nombre='Administrador Principal'
-            )
-            db.session.add(admin)
-            print("✅ Usuario admin creado")
-        else:
-            print("✅ Usuario admin ya existe")
+        # Crear admin SIEMPRE
+        print("🔧 Creando usuario admin...")
+        admin = User(
+            username='admin',
+            email='admin@belgranoahorro.com',
+            password=generate_password_hash('admin123'),
+            role='admin',
+            nombre='Administrador Principal'
+        )
+        db.session.add(admin)
+        print("✅ Usuario admin creado")
         
-        # Crear usuarios de flota si no existen
+        # Crear usuarios de flota SIEMPRE
         flota_emails = [
             'repartidor1@belgranoahorro.com',
             'repartidor2@belgranoahorro.com',
@@ -57,33 +55,41 @@ def inicializar_base_datos():
             'repartidor5@belgranoahorro.com'
         ]
         
-        flota_creados = 0
         for i, email in enumerate(flota_emails, 1):
-            flota_existe = User.query.filter_by(email=email).first()
-            if not flota_existe:
-                print(f"🔧 Creando usuario flota {i}...")
-                flota = User(
-                    username=f'repartidor{i}',
-                    email=email,
-                    password=generate_password_hash('flota123'),
-                    role='flota',
-                    nombre=f'Repartidor {i}'
-                )
-                db.session.add(flota)
-                flota_creados += 1
-                print(f"✅ Usuario flota {i} creado")
-            else:
-                print(f"✅ Usuario flota {i} ya existe")
+            print(f"🔧 Creando usuario flota {i}...")
+            flota = User(
+                username=f'repartidor{i}',
+                email=email,
+                password=generate_password_hash('flota123'),
+                role='flota',
+                nombre=f'Repartidor {i}'
+            )
+            db.session.add(flota)
+            print(f"✅ Usuario flota {i} creado")
         
         # Commit de todos los cambios
         db.session.commit()
-        print(f"🎉 Inicialización completada: {flota_creados} usuarios flota creados")
+        print("🎉 Inicialización completada - TODOS los usuarios recreados")
         
         # Verificar usuarios finales
         usuarios_finales = User.query.all()
         print(f"📋 Usuarios en BD después de inicialización:")
         for usuario in usuarios_finales:
             print(f"   - {usuario.email} (Role: {usuario.role})")
+        
+        # Verificar que las contraseñas funcionan
+        print("🔐 Verificando contraseñas...")
+        admin_test = User.query.filter_by(email='admin@belgranoahorro.com').first()
+        if admin_test and check_password_hash(admin_test.password, 'admin123'):
+            print("✅ Contraseña admin verificada correctamente")
+        else:
+            print("❌ ERROR: Contraseña admin no funciona")
+        
+        flota_test = User.query.filter_by(email='repartidor1@belgranoahorro.com').first()
+        if flota_test and check_password_hash(flota_test.password, 'flota123'):
+            print("✅ Contraseña flota verificada correctamente")
+        else:
+            print("❌ ERROR: Contraseña flota no funciona")
         
     except Exception as e:
         print(f"❌ Error en inicialización: {e}")
@@ -194,6 +200,73 @@ def reinicializar_usuarios():
             'message': 'Usuarios reinicializados correctamente',
             'credenciales_admin': 'admin@belgranoahorro.com / admin123',
             'credenciales_flota': 'repartidor1@belgranoahorro.com / flota123'
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/crear_admin_emergencia')
+def crear_admin_emergencia():
+    """Crear admin de emergencia si todo falla"""
+    try:
+        # Verificar si admin existe
+        admin = User.query.filter_by(email='admin@belgranoahorro.com').first()
+        if admin:
+            # Actualizar contraseña
+            admin.password = generate_password_hash('admin123')
+            db.session.commit()
+            return jsonify({
+                'status': 'success',
+                'message': 'Admin actualizado',
+                'email': 'admin@belgranoahorro.com',
+                'password': 'admin123'
+            }), 200
+        else:
+            # Crear admin nuevo
+            admin = User(
+                username='admin',
+                email='admin@belgranoahorro.com',
+                password=generate_password_hash('admin123'),
+                role='admin',
+                nombre='Administrador Principal'
+            )
+            db.session.add(admin)
+            db.session.commit()
+            return jsonify({
+                'status': 'success',
+                'message': 'Admin creado de emergencia',
+                'email': 'admin@belgranoahorro.com',
+                'password': 'admin123'
+            }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/crear_flota_emergencia')
+def crear_flota_emergencia():
+    """Crear flota de emergencia si todo falla"""
+    try:
+        # Crear repartidor 1
+        flota = User.query.filter_by(email='repartidor1@belgranoahorro.com').first()
+        if flota:
+            # Actualizar contraseña
+            flota.password = generate_password_hash('flota123')
+            db.session.commit()
+        else:
+            # Crear flota nuevo
+            flota = User(
+                username='repartidor1',
+                email='repartidor1@belgranoahorro.com',
+                password=generate_password_hash('flota123'),
+                role='flota',
+                nombre='Repartidor 1'
+            )
+            db.session.add(flota)
+            db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Flota creada/actualizada de emergencia',
+            'email': 'repartidor1@belgranoahorro.com',
+            'password': 'flota123'
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
