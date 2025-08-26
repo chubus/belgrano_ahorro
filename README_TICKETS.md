@@ -1,8 +1,8 @@
-# 🎫 Belgrano Tickets - Sistema de Gestión de Pedidos
+# 🎫 Belgrano Tickets - Sistema Independiente
 
 ## 📋 Descripción
 
-Sistema independiente para la gestión de tickets de pedidos recibidos desde Belgrano Ahorro vía API HTTP.
+Sistema de gestión de tickets de pedidos recibidos desde Belgrano Ahorro vía API HTTP. Este es un repositorio independiente que se comunica con el sistema principal.
 
 ## 🏗️ Arquitectura
 
@@ -16,13 +16,13 @@ Sistema independiente para la gestión de tickets de pedidos recibidos desde Bel
 
 ### **Render.com**
 1. Conectar repositorio a Render.com
-2. Configuración automática desde `render_tickets.yaml`
+2. Configuración automática desde `render.yaml`
 3. URL: `https://belgrano-tickets.onrender.com`
 
 ### **Local**
 ```bash
-pip install -r requirements_tickets.txt
-python app_tickets.py
+pip install -r requirements_ticketera.txt
+python app.py
 ```
 
 ## 📡 API Endpoints
@@ -49,8 +49,8 @@ Recibe tickets desde Belgrano Ahorro
 - `201 Created`: `{"msg": "ticket registrado", "ticket_id": 123}`
 - `400 Bad Request`: `{"error": "Campo requerido: cliente"}`
 
-### **GET /api/tickets** (Admin)
-Obtiene todos los tickets (requiere autenticación admin)
+### **GET /api/tickets**
+Obtiene todos los tickets
 
 ### **GET /health**
 Health check para Render.com
@@ -88,13 +88,13 @@ Belgrano Ahorro → POST /api/tickets → Belgrano Tickets → Panel Web
 
 ```
 belgrano-tickets/
-├── app_tickets.py              # Aplicación principal
-├── requirements_tickets.txt     # Dependencias
-├── render_tickets.yaml         # Configuración Render
-├── templates_tickets/          # Plantillas HTML
-│   ├── login.html
-│   └── tickets.html
-└── README.md                   # Este archivo
+├── app.py                    # Aplicación principal
+├── models.py                 # Modelos de base de datos
+├── requirements_ticketera.txt # Dependencias
+├── render.yaml              # Configuración Render
+├── templates/               # Plantillas HTML
+├── static/                  # Archivos estáticos
+└── README_TICKETS.md        # Este archivo
 ```
 
 ## 🎯 Estado del Sistema
@@ -102,4 +102,3 @@ belgrano-tickets/
 - **Versión**: 1.0.0
 - **Estado**: Listo para producción
 - **Integración**: API HTTP con Belgrano Ahorro
-

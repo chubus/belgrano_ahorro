@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Script para iniciar el sistema completo: Belgrano Ahorro + Belgrano Tickets
+Script para iniciar el sistema completo: Belgrano Ahorro + Ticketera
 """
 
 import subprocess
@@ -10,157 +10,153 @@ import sys
 import os
 import signal
 import threading
-from datetime import datetime
 
-class SistemaCompleto:
-    def __init__(self):
-        self.procesos = []
-        self.detener = False
-        
-    def iniciar_belgrano_ahorro(self):
-        """Iniciar aplicación principal de Belgrano Ahorro"""
+def iniciar_belgrano_ahorro():
+    """Iniciar Belgrano Ahorro en puerto 5000"""
     print("🚀 Iniciando Belgrano Ahorro...")
     try:
-            proceso = subprocess.Popen(
-                [sys.executable, "app.py"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            self.procesos.append(("Belgrano Ahorro", proceso))
-            print("✅ Belgrano Ahorro iniciado en puerto 5000")
-            return True
-        except Exception as e:
-            print(f"❌ Error iniciando Belgrano Ahorro: {e}")
-            return False
-    
-    def iniciar_belgrano_tickets(self):
-        """Iniciar aplicación de Belgrano Tickets"""
-        print("🚀 Iniciando Belgrano Tickets...")
-        try:
-            # Cambiar al directorio de belgrano_tickets
-        os.chdir("belgrano_tickets")
-            
-            proceso = subprocess.Popen(
-                [sys.executable, "app.py"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            self.procesos.append(("Belgrano Tickets", proceso))
-            print("✅ Belgrano Tickets iniciado en puerto 5001")
-            
-            # Volver al directorio original
-            os.chdir("..")
-            return True
-        except Exception as e:
-            print(f"❌ Error iniciando Belgrano Tickets: {e}")
-            # Volver al directorio original en caso de error
-        os.chdir("..")
-            return False
-    
-    def monitorear_procesos(self):
-        """Monitorear los procesos en segundo plano"""
-        while not self.detener:
-            for nombre, proceso in self.procesos:
-                if proceso.poll() is not None:
-                    print(f"⚠️ {nombre} se detuvo inesperadamente")
-                    # Intentar reiniciar
-                    if nombre == "Belgrano Ahorro":
-                        self.iniciar_belgrano_ahorro()
-                    elif nombre == "Belgrano Tickets":
-                        self.iniciar_belgrano_tickets()
-            time.sleep(5)
-    
-    def detener_procesos(self):
-        """Detener todos los procesos"""
-        print("\n🛑 Deteniendo procesos...")
-        self.detener = True
-        
-        for nombre, proceso in self.procesos:
-            try:
-                print(f"   Deteniendo {nombre}...")
-                proceso.terminate()
-                proceso.wait(timeout=5)
-                print(f"   ✅ {nombre} detenido")
-            except subprocess.TimeoutExpired:
-                print(f"   ⚠️ {nombre} no respondió, forzando cierre...")
-                proceso.kill()
+        process = subprocess.Popen(
+            [sys.executable, "app.py"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        print("✅ Belgrano Ahorro iniciado en puerto 5000")
+        return process
     except Exception as e:
-                print(f"   ❌ Error deteniendo {nombre}: {e}")
+        print(f"❌ Error iniciando Belgrano Ahorro: {e}")
+        return None
+
+def iniciar_ticketera():
+    """Iniciar Ticketera en puerto 5001"""
+    print("🎫 Iniciando Ticketera...")
+    try:
+        # Cambiar al directorio de la ticketera
+        ticketera_dir = "belgrano_tickets"
+        if os.path.exists(ticketera_dir):
+            os.chdir(ticketera_dir)
+            process = subprocess.Popen(
+                [sys.executable, "app.py"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            os.chdir("..")  # Volver al directorio original
+            print("✅ Ticketera iniciada en puerto 5001")
+            return process
+        else:
+            print(f"❌ Directorio {ticketera_dir} no encontrado")
+            return None
+    except Exception as e:
+        print(f"❌ Error iniciando Ticketera: {e}")
+        return None
+
+def verificar_servicios():
+    """Verificar que ambos servicios estén funcionando"""
+    import requests
     
-    def iniciar_sistema(self):
-        """Iniciar el sistema completo"""
-        print("🎯 INICIANDO SISTEMA COMPLETO - BELGRANO AHORRO + TICKETS")
-        print("=" * 60)
-        print(f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print()
-        
-        # Iniciar aplicaciones
-        if not self.iniciar_belgrano_ahorro():
-            print("❌ No se pudo iniciar Belgrano Ahorro")
-            return False
-        
-        time.sleep(2)  # Esperar un poco entre aplicaciones
-        
-        if not self.iniciar_belgrano_tickets():
-            print("❌ No se pudo iniciar Belgrano Tickets")
-            self.detener_procesos()
-            return False
-        
-        # Iniciar monitoreo en segundo plano
-        monitor_thread = threading.Thread(target=self.monitorear_procesos, daemon=True)
-        monitor_thread.start()
-        
-        print()
-        print("🎉 SISTEMA INICIADO EXITOSAMENTE")
-        print("=" * 40)
-        print("📱 URLs disponibles:")
-        print("   • Belgrano Ahorro: http://localhost:5000")
-        print("   • Belgrano Tickets: http://localhost:5001")
-        print()
-        print("🔐 Credenciales Belgrano Tickets:")
-        print("   • Admin: admin@belgranoahorro.com / admin123")
-        print("   • Flota: repartidor1@belgranoahorro.com / flota123")
-        print()
-        print("🔄 Integración automática activada:")
-        print("   • Los pedidos de Belgrano Ahorro se envían automáticamente a Belgrano Tickets")
-        print("   • Los tickets se crean con prioridad alta para comerciantes")
-        print("   • Asignación automática de repartidores")
-        print()
-        print("⏹️  Presiona Ctrl+C para detener el sistema")
-        print("=" * 60)
-        
-        try:
-            # Mantener el script ejecutándose
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("\n🛑 Señal de interrupción recibida")
-            self.detener_procesos()
-            print("✅ Sistema detenido correctamente")
-            return True
+    print("\n🔍 Verificando servicios...")
+    
+    # Verificar Belgrano Ahorro
+    try:
+        response = requests.get("http://localhost:5000", timeout=5)
+        if response.status_code == 200:
+            print("✅ Belgrano Ahorro funcionando")
+        else:
+            print("⚠️ Belgrano Ahorro no responde correctamente")
+    except:
+        print("❌ Belgrano Ahorro no está disponible")
+    
+    # Verificar Ticketera
+    try:
+        response = requests.get("http://localhost:5001/health", timeout=5)
+        if response.status_code == 200:
+            print("✅ Ticketera funcionando")
+        else:
+            print("⚠️ Ticketera no responde correctamente")
+    except:
+        print("❌ Ticketera no está disponible")
+
+def mostrar_urls():
+    """Mostrar URLs del sistema"""
+    print("\n🌐 URLs del Sistema:")
+    print("=" * 40)
+    print("🛒 Belgrano Ahorro: http://localhost:5000")
+    print("🎫 Ticketera: http://localhost:5001")
+    print("📡 API Ticketera: http://localhost:5001/api/tickets")
+    print("🏥 Health Check: http://localhost:5001/health")
+    
+    print("\n🔐 Credenciales Ticketera:")
+    print("- Admin: admin@belgranoahorro.com / admin123")
+    print("- Flota: repartidor1@belgranoahorro.com / flota123")
+    
+    print("\n📋 Flujo de Integración:")
+    print("1. Cliente hace pedido en Belgrano Ahorro")
+    print("2. Belgrano Ahorro envía automáticamente a Ticketera")
+    print("3. Ticketera recibe y crea ticket")
+    print("4. Ticket visible en panel de administración")
 
 def main():
     """Función principal"""
-    sistema = SistemaCompleto()
+    print("🎯 SISTEMA COMPLETO - BELGRANO AHORRO + TICKETERA")
+    print("=" * 60)
     
-    # Configurar manejo de señales
-    def signal_handler(signum, frame):
-        print("\n🛑 Señal recibida, deteniendo sistema...")
-        sistema.detener_procesos()
-        sys.exit(0)
+    # Iniciar Belgrano Ahorro
+    ahorro_process = iniciar_belgrano_ahorro()
+    if not ahorro_process:
+        print("❌ No se pudo iniciar Belgrano Ahorro")
+        return
     
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    # Esperar un poco
+    time.sleep(3)
     
-    # Iniciar sistema
+    # Iniciar Ticketera
+    ticketera_process = iniciar_ticketera()
+    if not ticketera_process:
+        print("❌ No se pudo iniciar Ticketera")
+        ahorro_process.terminate()
+        return
+    
+    # Esperar a que ambos servicios estén listos
+    print("\n⏳ Esperando que los servicios estén listos...")
+    time.sleep(5)
+    
+    # Verificar servicios
+    verificar_servicios()
+    
+    # Mostrar URLs
+    mostrar_urls()
+    
+    print("\n🎉 Sistema completo iniciado exitosamente!")
+    print("Presiona Ctrl+C para detener ambos servicios")
+    
     try:
-        sistema.iniciar_sistema()
-    except Exception as e:
-        print(f"❌ Error en el sistema: {e}")
-        sistema.detener_procesos()
-        return False
+        # Mantener los procesos ejecutándose
+        while True:
+            time.sleep(1)
+            
+            # Verificar si algún proceso se cerró
+            if ahorro_process.poll() is not None:
+                print("❌ Belgrano Ahorro se cerró inesperadamente")
+                break
+                
+            if ticketera_process.poll() is not None:
+                print("❌ Ticketera se cerró inesperadamente")
+                break
+                
+    except KeyboardInterrupt:
+        print("\n🛑 Deteniendo servicios...")
+        
+        # Terminar procesos
+        if ahorro_process:
+            ahorro_process.terminate()
+            print("✅ Belgrano Ahorro detenido")
+            
+        if ticketera_process:
+            ticketera_process.terminate()
+            print("✅ Ticketera detenida")
+            
+        print("👋 Sistema completo detenido")
 
 if __name__ == "__main__":
     main()

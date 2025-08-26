@@ -1,21 +1,21 @@
 services:
-  # Belgrano Ahorro Unificado - E-commerce + Ticketera
+  # Belgrano Tickets - Sistema independiente de gestión de pedidos
   - type: web
-    name: belgrano-ahorro-unificado
+    name: belgrano-tickets
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python app_unificado.py
+    buildCommand: pip install -r requirements_ticketera.txt
+    startCommand: python app.py
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
       - key: FLASK_ENV
         value: production
       - key: FLASK_APP
-        value: app_unificado.py
+        value: app.py
       - key: PORT
-        value: 5000
+        value: 5001
       - key: SECRET_KEY
-        value: belgrano_ahorro_unificado_secret_2025
+        value: belgrano_tickets_secret_2025
     healthCheckPath: /health
     autoDeploy: true

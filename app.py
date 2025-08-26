@@ -29,6 +29,7 @@
 import json
 import logging
 import os
+import requests
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
@@ -1103,83 +1104,8 @@ def procesar_pago():
     session.pop('carrito', None)
     
     if pedido_id:
-        # INTEGRACIÓN CON BELGRANO TICKETS
-        try:
-            from integracion_belgrano_tickets import BelgranoTicketsAPI
-            
-            # Preparar datos para enviar a Belgrano Tickets
-            # Obtener nombre completo del usuario (manejar caso sin apellido)
-            nombre_completo = usuario.get('nombre', 'Cliente')
-            if usuario.get('apellido'):
-                nombre_completo = f"{usuario['nombre']} {usuario['apellido']}"
-            
-            # Verificar si es un comerciante
-            es_comerciante = usuario.get('rol') == 'comerciante'
-            nombre_cliente = nombre_completo
-            
-            if es_comerciante:
-                # Obtener información del comerciante
-                comerciante = database.obtener_comerciante_por_usuario(usuario['id'])
-                if comerciante:
-                    nombre_cliente = f"{comerciante['nombre_negocio']} - {nombre_completo}"
-                    # Agregar información comercial a las indicaciones
-                    indicaciones_comerciales = f"COMERCIANTE - Negocio: {comerciante['nombre_negocio']}"
-                    if comerciante.get('tipo_negocio'):
-                        indicaciones_comerciales += f", Tipo: {comerciante['tipo_negocio']}"
-                    if comerciante.get('cuit'):
-                        indicaciones_comerciales += f", CUIT: {comerciante['cuit']}"
-                    
-                    notas_completas = f"{indicaciones_comerciales}. {notas or 'Sin indicaciones especiales'}"
-                else:
-                    notas_completas = f"COMERCIANTE - {notas or 'Sin indicaciones especiales'}"
-            else:
-                notas_completas = notas or 'Sin indicaciones especiales'
-            
-            # Preparar productos para el ticket
-            productos_ticket = []
-            for item in carrito_items:
-                productos_ticket.append({
-                    'nombre': item['producto']['nombre'],
-                    'cantidad': item['cantidad'],
-                    'precio': item['producto']['precio'],
-                    'subtotal': item['subtotal']
-                })
-            
-            ticket_data = {
-                'numero': numero_pedido,
-                'cliente_nombre': nombre_cliente,
-                'direccion': direccion,
-                'telefono': usuario.get('telefono', ''),
-                'email': usuario['email'],
-                'productos': productos_ticket,
-                'total': total,
-                'metodo_pago': metodo_pago,
-                'fecha': datetime.now().isoformat(),
-                'indicaciones': notas_completas,
-                'tipo_cliente': 'comerciante' if es_comerciante else 'cliente'
-            }
-            
-            # Enviar ticket a Belgrano Tickets
-            api = BelgranoTicketsAPI()
-            if api.verificar_conexion():
-                resultado = api.enviar_ticket(ticket_data)
-                if resultado:
-                    tipo_cliente = "Comerciante" if es_comerciante else "Cliente"
-                    print(f"✅ Ticket enviado a Belgrano Tickets: {numero_pedido} ({tipo_cliente})")
-                    print(f"   Cliente: {nombre_cliente}")
-                    print(f"   Total: ${total}")
-                    print(f"   Productos: {len(productos_ticket)} items")
-                else:
-                    print(f"⚠️ No se pudo enviar ticket a Belgrano Tickets: {numero_pedido}")
-            else:
-                print(f"⚠️ Belgrano Tickets no está disponible")
-                
-        except ImportError:
-            print("⚠️ Módulo de integración no disponible")
-        except Exception as e:
-            print(f"⚠️ Error en integración con Belgrano Tickets: {e}")
-            import traceback
-            traceback.print_exc()
+        # ENVIAR PEDIDO AUTOMÁTICAMENTE A LA TICKETERA
+        enviar_pedido_a_ticketera(numero_pedido, usuario, carrito_items, total, metodo_pago, direccion, notas)
         
         flash(f'¡Pedido confirmado! Número: {numero_pedido}', 'success')
         return redirect(url_for('confirmacion_pedido', numero_pedido=numero_pedido))
@@ -1581,6 +1507,185 @@ def admin():
     # En desarrollo usa localhost, en producción usa la URL de Render
     ticketera_url = os.environ.get('TICKETERA_URL', 'http://localhost:5001')
     return redirect(ticketera_url)
+
+# ==========================================
+# FUNCIÓN DE INTEGRACIÓN CON BELGRANO TICKETS
+# ==========================================
+
+def enviar_pedido_a_ticketera(numero_pedido, usuario, carrito_items, total, metodo_pago, direccion, notas):
+    """
+    Enviar pedido automáticamente a la Ticketera vía API
+    
+    PARÁMETROS:
+    - numero_pedido: número único del pedido
+    - usuario: datos del usuario que hizo el pedido
+    - carrito_items: lista de productos en el carrito
+    - total: monto total del pedido
+    - metodo_pago: método de pago seleccionado
+    - direccion: dirección de entrega
+    - notas: notas adicionales del pedido
+    
+    RETORNA:
+    - True si se envió exitosamente, False en caso contrario
+    """
+    try:
+        # URL de la API de la Ticketera (configurable)
+        ticketera_url = os.environ.get('TICKETERA_URL', 'http://localhost:5001')
+        api_url = f"{ticketera_url}/api/tickets"
+        
+        # Preparar nombre completo del cliente
+        nombre_completo = usuario.get('nombre', 'Cliente')
+        if usuario.get('apellido'):
+            nombre_completo = f"{usuario['nombre']} {usuario['apellido']}"
+        
+        # Preparar lista de productos
+        productos = []
+        for item in carrito_items:
+            producto = item['producto']
+            productos.append(f"{producto['nombre']} x{item['cantidad']}")
+        
+        # Preparar datos para enviar a la API
+        ticket_data = {
+            "cliente": nombre_completo,
+            "productos": productos,
+            "total": total,
+            "numero_pedido": numero_pedido,
+            "direccion": direccion,
+            "telefono": usuario.get('telefono', ''),
+            "email": usuario['email'],
+            "metodo_pago": metodo_pago,
+            "notas": notas or 'Sin indicaciones especiales'
+        }
+        
+        # Enviar request POST a la API
+        response = requests.post(
+            api_url,
+            json=ticket_data,
+            headers={'Content-Type': 'application/json'},
+            timeout=10
+        )
+        
+        if response.status_code == 201:
+            print(f"✅ Pedido enviado exitosamente a Ticketera: {numero_pedido}")
+            print(f"   Cliente: {nombre_completo}")
+            print(f"   Total: ${total}")
+            print(f"   Productos: {len(productos)} items")
+            return True
+        else:
+            print(f"⚠️ Error enviando pedido a Ticketera: {response.status_code}")
+            print(f"   Respuesta: {response.text}")
+            return False
+            
+    except requests.exceptions.ConnectionError:
+        print(f"⚠️ No se puede conectar a la Ticketera en {api_url}")
+        print("   Verifica que la Ticketera esté ejecutándose")
+        return False
+    except requests.exceptions.Timeout:
+        print(f"⚠️ Timeout al conectar con la Ticketera")
+        return False
+    except Exception as e:
+        print(f"⚠️ Error inesperado enviando pedido a Ticketera: {e}")
+        return False
+
+# ==========================================
+# API ENDPOINTS PARA INTEGRACIÓN
+# ==========================================
+
+@app.route('/api/tickets', methods=['POST'])
+def api_crear_ticket():
+    """Endpoint público para recibir tickets desde Belgrano Ahorro"""
+    try:
+        data = request.get_json()
+        
+        # Validar datos requeridos
+        if not data:
+            return jsonify({'error': 'Datos JSON requeridos'}), 400
+        
+        required_fields = ['cliente', 'productos', 'total']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Campo requerido: {field}'}), 400
+        
+        # Validar tipos de datos
+        if not isinstance(data['cliente'], str):
+            return jsonify({'error': 'cliente debe ser string'}), 400
+        
+        if not isinstance(data['productos'], list):
+            return jsonify({'error': 'productos debe ser lista'}), 400
+        
+        if not isinstance(data['total'], (int, float)):
+            return jsonify({'error': 'total debe ser número'}), 400
+        
+        # Generar número de pedido si no viene
+        if 'numero_pedido' not in data:
+            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+            random_suffix = secrets.token_hex(3).upper()
+            data['numero_pedido'] = f"TICK-{timestamp}-{random_suffix}"
+        
+        # Guardar ticket en la base de datos
+        ticket_data = {
+            'numero_pedido': data['numero_pedido'],
+            'cliente': data['cliente'],
+            'productos': json.dumps(data['productos']),
+            'total': data['total'],
+            'direccion': data.get('direccion', ''),
+            'telefono': data.get('telefono', ''),
+            'email': data.get('email', ''),
+            'metodo_pago': data.get('metodo_pago', ''),
+            'notas': data.get('notas', ''),
+            'estado': 'pendiente',
+            'prioridad': 'normal',
+            'repartidor': 'Repartidor1'
+        }
+        
+        # Usar la función de guardar ticket existente
+        from models import guardar_ticket
+        ticket_id = guardar_ticket(ticket_data)
+        
+        if ticket_id:
+            print(f"✅ Ticket recibido y guardado: {data['numero_pedido']}")
+            print(f"   Cliente: {data['cliente']}")
+            print(f"   Total: ${data['total']}")
+            print(f"   Productos: {len(data['productos'])} items")
+            
+            return jsonify({'msg': 'ticket registrado', 'ticket_id': ticket_id}), 201
+        else:
+            return jsonify({'error': 'Error guardando ticket'}), 500
+            
+    except Exception as e:
+        print(f"Error en API crear ticket: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/tickets', methods=['GET'])
+def api_obtener_tickets():
+    """Obtener todos los tickets (solo admin)"""
+    try:
+        from models import obtener_todos_los_tickets
+        tickets = obtener_todos_los_tickets()
+        return jsonify({'tickets': tickets}), 200
+    except Exception as e:
+        return jsonify({'error': 'Error obteniendo tickets'}), 500
+
+@app.route('/health')
+def health_check():
+    """Health check para Render.com"""
+    try:
+        from models import contar_tickets
+        total_tickets = contar_tickets()
+        return jsonify({
+            'status': 'healthy',
+            'service': 'Belgrano Tickets',
+            'timestamp': datetime.now().isoformat(),
+            'database': 'connected',
+            'total_tickets': total_tickets,
+            'version': '1.0.0'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 # ==========================================
 # MANEJADORES DE ERRORES
