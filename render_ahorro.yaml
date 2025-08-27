@@ -13,10 +13,10 @@ services:
       - key: RENDER_ENVIRONMENT
         value: production
       - key: TICKETERA_URL
-        value: https://belgrano-tickets.onrender.com
+        value: https://ticketerabelgrano.onrender.com
       - key: BELGRANO_AHORRO_API_KEY
         value: belgrano_ahorro_api_key_2025
       - key: SECRET_KEY
         generateValue: true
-    healthCheckPath: /test
+    healthCheckPath: /healthz
     autoDeploy: true

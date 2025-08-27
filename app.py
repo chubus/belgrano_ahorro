@@ -78,7 +78,7 @@ BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ah
 
 # URLs de producción (Render.com)
 if os.environ.get('RENDER_ENVIRONMENT') == 'production':
-    TICKETERA_URL = os.environ.get('TICKETERA_URL', 'https://belgrano-tickets.onrender.com')
+    TICKETERA_URL = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com')
     BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
 
 print(f"🔗 Configuración API:")
@@ -1255,7 +1255,71 @@ def test():
     RUTA DE PRUEBA - Para verificar que la app funciona
     Esta función se ejecuta cuando alguien visita http://localhost:5000/test
     """
-    return "¡La aplicación funciona correctamente!"
+    return jsonify({
+        "status": "ok",
+        "message": "Belgrano Ahorro está funcionando correctamente",
+        "timestamp": datetime.now().isoformat()
+    })
+
+@app.route("/healthz")
+def healthz():
+    """Endpoint de health check para monitoreo"""
+    try:
+        # Verificar conexión a base de datos
+        conn = get_db_connection()
+        conn.execute("SELECT 1")
+        conn.close()
+        db_status = "healthy"
+    except Exception as e:
+        db_status = f"unhealthy: {str(e)}"
+    
+    return jsonify({
+        "status": "healthy",
+        "service": "belgrano-ahorro",
+        "database": db_status,
+        "ticketera_url": TICKETERA_URL,
+        "timestamp": datetime.now().isoformat()
+    })
+
+@app.route("/api/pedido/confirmar/<numero_pedido>", methods=['POST'])
+def confirmar_ticket(numero_pedido):
+    """Endpoint para confirmar que un ticket fue creado exitosamente"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Datos JSON requeridos'}), 400
+        
+        ticket_id = data.get('ticket_id')
+        estado = data.get('estado', 'confirmado')
+        
+        # Actualizar pedido con confirmación
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE pedidos 
+            SET ticket_confirmado = 1,
+                ticket_estado = ?,
+                fecha_confirmacion = CURRENT_TIMESTAMP
+            WHERE numero = ?
+        """, (estado, numero_pedido))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return jsonify({'error': 'Pedido no encontrado'}), 404
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Ticket {numero_pedido} confirmado exitosamente',
+            'ticket_id': ticket_id,
+            'estado': estado
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Error confirmando ticket: {str(e)}'}), 500
 
 @app.route("/contacto", methods=['GET', 'POST'])
 def contacto():
@@ -1549,9 +1613,8 @@ def admin():
     RUTA PARA ACCEDER AL PANEL DE ADMINISTRACIÓN
     Redirige a la ticketera con credenciales de admin
     """
-    # En desarrollo usa localhost, en producción usa la URL de Render
-    ticketera_url = os.environ.get('TICKETERA_URL', 'http://localhost:5001')
-    return redirect(ticketera_url)
+    # Usar variable global configurada
+    return redirect(TICKETERA_URL)
 
 # ==========================================
 # FUNCIÓN DE INTEGRACIÓN CON BELGRANO TICKETS
@@ -1559,7 +1622,7 @@ def admin():
 
 def enviar_pedido_a_ticketera(numero_pedido, usuario, carrito_items, total, metodo_pago, direccion, notas):
     """
-    Enviar pedido automáticamente a la Ticketera vía API
+    Enviar pedido automáticamente a la Ticketera vía API con manejo robusto de errores
     
     PARÁMETROS:
     - numero_pedido: número único del pedido
@@ -1571,7 +1634,7 @@ def enviar_pedido_a_ticketera(numero_pedido, usuario, carrito_items, total, meto
     - notas: notas adicionales del pedido
     
     RETORNA:
-    - True si se envió exitosamente, False en caso contrario
+    - dict con datos del ticket creado si se envió exitosamente, None en caso contrario
     """
     try:
         # URL de la API de la Ticketera (usar variable global)
@@ -1612,62 +1675,82 @@ def enviar_pedido_a_ticketera(numero_pedido, usuario, carrito_items, total, meto
         # Enviar request POST a la API con reintentos y API Key
         headers = {
             'Content-Type': 'application/json',
-            'X-API-Key': BELGRANO_AHORRO_API_KEY
+            'X-API-Key': BELGRANO_AHORRO_API_KEY,
+            'User-Agent': 'BelgranoAhorro/1.0.0'
         }
 
         max_retries = 3
         backoff_seconds = [1, 2, 4]
         last_response = None
+        last_error = None
+        
         for attempt in range(max_retries):
             try:
-                response = requests.post(
-                    api_url,
-                    json=ticket_data,
+                print(f"🔄 Intento {attempt + 1}/{max_retries} enviando a {api_url}")
+        response = requests.post(
+            api_url,
+            json=ticket_data,
                     headers=headers,
-                    timeout=10
+                    timeout=15
                 )
                 last_response = response
                 if response.status_code in (200, 201):
+                    print(f"✅ Petición exitosa en intento {attempt + 1}")
                     break
-            except requests.exceptions.RequestException as re:
-                last_response = None
+                else:
+                    print(f"⚠️ Status {response.status_code} en intento {attempt + 1}")
+            except requests.exceptions.Timeout:
+                last_error = f"Timeout en intento {attempt + 1}"
+                print(f"⏰ {last_error}")
+            except requests.exceptions.ConnectionError:
+                last_error = f"Error de conexión en intento {attempt + 1}"
+                print(f"🔌 {last_error}")
+            except Exception as e:
+                last_error = f"Error inesperado en intento {attempt + 1}: {str(e)}"
+                print(f"❌ {last_error}")
+            
             # Backoff
             if attempt < max_retries - 1:
+                print(f"⏳ Esperando {backoff_seconds[attempt]}s antes del siguiente intento...")
                 time.sleep(backoff_seconds[attempt])
         
         if last_response is not None and last_response.status_code in (200, 201):
             # Procesar respuesta exitosa
             try:
                 ticket_response = last_response.json()
-                print(f"✅ Pedido enviado exitosamente a Ticketera: {numero_pedido}")
-                print(f"   Cliente: {nombre_completo}")
-                print(f"   Total: ${total}")
-                print(f"   Productos: {len(productos)} items")
+            print(f"✅ Pedido enviado exitosamente a Ticketera: {numero_pedido}")
+            print(f"   Cliente: {nombre_completo}")
+            print(f"   Total: ${total}")
+            print(f"   Productos: {len(productos)} items")
                 print(f"   Ticket ID: {ticket_response.get('ticket_id', 'N/A')}")
                 
                 # Actualizar base de datos de Ahorro con información del ticket
                 actualizar_pedido_con_ticket(numero_pedido, ticket_response)
                 
                 return ticket_response
-            except json.JSONDecodeError:
-                print(f"⚠️ Respuesta no válida de Ticketera: {last_response.text}")
+            except json.JSONDecodeError as e:
+                print(f"⚠️ Error parseando respuesta JSON: {e}")
+                print(f"   Respuesta recibida: {last_response.text}")
                 return None
         else:
             status = last_response.status_code if last_response is not None else 'no_response'
             body = last_response.text if last_response is not None else 'no_body'
-            print(f"⚠️ Error enviando pedido a Ticketera: {status}")
-            print(f"   Respuesta: {body}")
+            error_msg = last_error if last_error else f"Status {status}"
+            print(f"❌ Error enviando pedido a Ticketera: {error_msg}")
+            if last_response:
+                print(f"   Status: {status}")
+                print(f"   Respuesta: {body}")
             return None
             
     except requests.exceptions.ConnectionError:
-        print(f"⚠️ No se puede conectar a la Ticketera en {api_url}")
+        print(f"❌ No se puede conectar a la Ticketera en {api_url}")
         print("   Verifica que la Ticketera esté ejecutándose")
         return None
     except requests.exceptions.Timeout:
-        print(f"⚠️ Timeout al conectar con la Ticketera")
+        print(f"⏰ Timeout al conectar con la Ticketera")
         return None
     except Exception as e:
-        print(f"⚠️ Error inesperado enviando pedido a Ticketera: {e}")
+        print(f"💥 Error inesperado enviando pedido a Ticketera: {e}")
         return None
 
 def actualizar_pedido_con_ticket(numero_pedido, ticket_response):
