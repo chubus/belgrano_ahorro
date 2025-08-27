@@ -1636,28 +1636,70 @@ def enviar_pedido_a_ticketera(numero_pedido, usuario, carrito_items, total, meto
                 time.sleep(backoff_seconds[attempt])
         
         if last_response is not None and last_response.status_code in (200, 201):
-            print(f"✅ Pedido enviado exitosamente a Ticketera: {numero_pedido}")
-            print(f"   Cliente: {nombre_completo}")
-            print(f"   Total: ${total}")
-            print(f"   Productos: {len(productos)} items")
-            return True
+            # Procesar respuesta exitosa
+            try:
+                ticket_response = last_response.json()
+                print(f"✅ Pedido enviado exitosamente a Ticketera: {numero_pedido}")
+                print(f"   Cliente: {nombre_completo}")
+                print(f"   Total: ${total}")
+                print(f"   Productos: {len(productos)} items")
+                print(f"   Ticket ID: {ticket_response.get('ticket_id', 'N/A')}")
+                
+                # Actualizar base de datos de Ahorro con información del ticket
+                actualizar_pedido_con_ticket(numero_pedido, ticket_response)
+                
+                return ticket_response
+            except json.JSONDecodeError:
+                print(f"⚠️ Respuesta no válida de Ticketera: {last_response.text}")
+                return None
         else:
             status = last_response.status_code if last_response is not None else 'no_response'
             body = last_response.text if last_response is not None else 'no_body'
             print(f"⚠️ Error enviando pedido a Ticketera: {status}")
             print(f"   Respuesta: {body}")
-            return False
+            return None
             
     except requests.exceptions.ConnectionError:
         print(f"⚠️ No se puede conectar a la Ticketera en {api_url}")
         print("   Verifica que la Ticketera esté ejecutándose")
-        return False
+        return None
     except requests.exceptions.Timeout:
         print(f"⚠️ Timeout al conectar con la Ticketera")
-        return False
+        return None
     except Exception as e:
         print(f"⚠️ Error inesperado enviando pedido a Ticketera: {e}")
-        return False
+        return None
+
+def actualizar_pedido_con_ticket(numero_pedido, ticket_response):
+    """
+    Actualizar la base de datos de Ahorro con la información del ticket creado
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Actualizar pedido con información del ticket
+        cursor.execute("""
+            UPDATE pedidos 
+            SET ticket_id = ?, 
+                ticket_estado = ?, 
+                ticket_fecha_creacion = ?,
+                fecha_actualizacion = CURRENT_TIMESTAMP
+            WHERE numero = ?
+        """, (
+            ticket_response.get('ticket_id'),
+            ticket_response.get('estado', 'pendiente'),
+            ticket_response.get('fecha_creacion'),
+            numero_pedido
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"✅ Pedido {numero_pedido} actualizado con información del ticket")
+        
+    except Exception as e:
+        print(f"⚠️ Error actualizando pedido con ticket: {e}")
 
 # ==========================================
 # REGISTRAR API BLUEPRINT
