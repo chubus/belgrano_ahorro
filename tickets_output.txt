@@ -1,0 +1,68 @@
+INFO:api_client:Cliente API inicializado para: http://localhost:5000
+Cliente API de Belgrano Ahorro inicializado
+Ya existen 6 usuarios en la BD
+Iniciando aplicación de tickets en puerto 5001...
+ * Serving Flask app 'app'
+ * Debug mode: on
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://192.168.0.9:5001
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+INFO:api_client:Cliente API inicializado para: http://localhost:5000
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 139-734-340
+INFO:werkzeug: * Detected change in 'C:\\Users\\rey_a\\Documents\\Belgrano_ahorro-back\\belgrano_tickets\\app.py', reloading
+Cliente API de Belgrano Ahorro inicializado
+Ya existen 6 usuarios en la BD
+Iniciando aplicación de tickets en puerto 5001...
+INFO:werkzeug: * Restarting with stat
+INFO:api_client:Cliente API inicializado para: http://localhost:5000
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 139-734-340
+INFO:werkzeug: * Detected change in 'C:\\Users\\rey_a\\Documents\\Belgrano_ahorro-back\\belgrano_tickets\\app.py', reloading
+Cliente API de Belgrano Ahorro inicializado
+Ya existen 6 usuarios en la BD
+Iniciando aplicación de tickets en puerto 5001...
+INFO:werkzeug: * Restarting with stat
+INFO:api_client:Cliente API inicializado para: http://localhost:5000
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 139-734-340
+INFO:werkzeug: * Detected change in 'C:\\Users\\rey_a\\Documents\\Belgrano_ahorro-back\\belgrano_tickets\\app.py', reloading
+Cliente API de Belgrano Ahorro inicializado
+Ya existen 6 usuarios en la BD
+Iniciando aplicación de tickets en puerto 5001...
+INFO:werkzeug: * Restarting with stat
+INFO:api_client:Cliente API inicializado para: http://localhost:5000
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 139-734-340
+INFO:werkzeug: * Detected change in 'C:\\Users\\rey_a\\Documents\\Belgrano_ahorro-back\\belgrano_tickets\\app.py', reloading
+Cliente API de Belgrano Ahorro inicializado
+Ya existen 6 usuarios en la BD
+Iniciando aplicación de tickets en puerto 5001...
+INFO:werkzeug: * Restarting with stat
+INFO:api_client:Cliente API inicializado para: http://localhost:5000
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 139-734-340
+INFO:werkzeug: * Detected change in 'C:\\Users\\rey_a\\Documents\\Belgrano_ahorro-back\\belgrano_tickets\\app.py', reloading
+Cliente API de Belgrano Ahorro inicializado
+Ya existen 6 usuarios en la BD
+Iniciando aplicación de tickets en puerto 5001...
+INFO:werkzeug: * Restarting with stat
+INFO:api_client:Cliente API inicializado para: http://localhost:5000
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 139-734-340
+INFO:werkzeug: * Detected change in 'C:\\Users\\rey_a\\Documents\\Belgrano_ahorro-back\\belgrano_tickets\\app.py', reloading
+Cliente API de Belgrano Ahorro inicializado
+Ya existen 6 usuarios en la BD
+Iniciando aplicación de tickets en puerto 5001...
+INFO:werkzeug: * Restarting with stat
+Traceback (most recent call last):
+  File "C:\Users\rey_a\Documents\Belgrano_ahorro-back\belgrano_tickets\app.py", line 40, in <module>
+    print(f"\U0001f517 Configuración API:")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f517' in position 0: character maps to <undefined>

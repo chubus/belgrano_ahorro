@@ -16,8 +16,8 @@ class BelgranoAhorroAPIClient:
     """Cliente para consumir la API de Belgrano Ahorro"""
     
     def __init__(self, base_url=None, api_key=None):
-        self.base_url = base_url or os.environ.get('BELGRANO_AHORRO_URL', 'http://localhost:5000')
-        self.api_key = api_key or os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
+        self.base_url = base_url or BELGRANO_AHORRO_URL
+        self.api_key = api_key or BELGRANO_AHORRO_API_KEY
         self.timeout = 30
         self.session = requests.Session()
         
@@ -126,12 +126,12 @@ class BelgranoAhorroAPIClient:
 
 def create_api_client():
     """Crear instancia del cliente API"""
-    return BelgranoAhorroAPIClient()
+    return BelgranoAhorroAPIClient(BELGRANO_AHORRO_URL, BELGRANO_AHORRO_API_KEY)
 
 def test_api_connection():
     """Probar conexión con la API de Belgrano Ahorro"""
     try:
-        client = create_api_client()
+        client = BelgranoAhorroAPIClient(BELGRANO_AHORRO_URL, BELGRANO_AHORRO_API_KEY)
         health = client.health_check()
         
         if health.get('status') == 'healthy':

@@ -69,6 +69,22 @@ app.config['ENV'] = os.environ.get('FLASK_ENV', 'development')
 # Registrar manejadores de errores
 register_error_handlers(app)
 
+# ==========================================
+# CONFIGURACIÓN DE COMUNICACIÓN API
+# ==========================================
+# Variables de entorno para comunicación entre servicios
+TICKETERA_URL = os.environ.get('TICKETERA_URL', 'http://localhost:5001')
+BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
+
+# URLs de producción (Render.com)
+if os.environ.get('RENDER_ENVIRONMENT') == 'production':
+    TICKETERA_URL = os.environ.get('TICKETERA_URL', 'https://belgrano-tickets.onrender.com')
+    BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
+
+print(f"🔗 Configuración API:")
+print(f"   TICKETERA_URL: {TICKETERA_URL}")
+print(f"   API_KEY: {BELGRANO_AHORRO_API_KEY[:10]}...")
+
 # =================================================================
 # FUNCIONES DE BÚSQUEDA Y FILTRADO DE PRODUCTOS
 # =================================================================
@@ -1558,9 +1574,8 @@ def enviar_pedido_a_ticketera(numero_pedido, usuario, carrito_items, total, meto
     - True si se envió exitosamente, False en caso contrario
     """
     try:
-        # URL de la API de la Ticketera (configurable)
-        ticketera_url = os.environ.get('TICKETERA_URL', 'http://localhost:5001')
-        api_url = f"{ticketera_url}/api/tickets"
+        # URL de la API de la Ticketera (usar variable global)
+        api_url = f"{TICKETERA_URL}/api/tickets"
         
         # Preparar nombre completo del cliente
         nombre_completo = usuario.get('nombre', 'Cliente')
@@ -1594,23 +1609,43 @@ def enviar_pedido_a_ticketera(numero_pedido, usuario, carrito_items, total, meto
         print(f"   URL: {api_url}")
         print(f"   Datos: {json.dumps(ticket_data, indent=2)}")
         
-        # Enviar request POST a la API
-        response = requests.post(
-            api_url,
-            json=ticket_data,
-            headers={'Content-Type': 'application/json'},
-            timeout=10
-        )
+        # Enviar request POST a la API con reintentos y API Key
+        headers = {
+            'Content-Type': 'application/json',
+            'X-API-Key': BELGRANO_AHORRO_API_KEY
+        }
+
+        max_retries = 3
+        backoff_seconds = [1, 2, 4]
+        last_response = None
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    api_url,
+                    json=ticket_data,
+                    headers=headers,
+                    timeout=10
+                )
+                last_response = response
+                if response.status_code in (200, 201):
+                    break
+            except requests.exceptions.RequestException as re:
+                last_response = None
+            # Backoff
+            if attempt < max_retries - 1:
+                time.sleep(backoff_seconds[attempt])
         
-        if response.status_code == 201:
+        if last_response is not None and last_response.status_code in (200, 201):
             print(f"✅ Pedido enviado exitosamente a Ticketera: {numero_pedido}")
             print(f"   Cliente: {nombre_completo}")
             print(f"   Total: ${total}")
             print(f"   Productos: {len(productos)} items")
             return True
         else:
-            print(f"⚠️ Error enviando pedido a Ticketera: {response.status_code}")
-            print(f"   Respuesta: {response.text}")
+            status = last_response.status_code if last_response is not None else 'no_response'
+            body = last_response.text if last_response is not None else 'no_body'
+            print(f"⚠️ Error enviando pedido a Ticketera: {status}")
+            print(f"   Respuesta: {body}")
             return False
             
     except requests.exceptions.ConnectionError:

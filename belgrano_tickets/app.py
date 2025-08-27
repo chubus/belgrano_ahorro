@@ -25,13 +25,31 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Importar db desde models
 from models import db, User, Ticket
 
+# ==========================================
+# CONFIGURACIÓN DE COMUNICACIÓN API
+# ==========================================
+# Variables de entorno para comunicación entre servicios
+BELGRANO_AHORRO_URL = os.environ.get('BELGRANO_AHORRO_URL', 'http://localhost:5000')
+BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
+
+# URLs de producción (Render.com)
+if os.environ.get('RENDER_ENVIRONMENT') == 'production':
+    BELGRANO_AHORRO_URL = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgrano-ahorro.onrender.com')
+    BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
+
+print(f"🔗 Configuración API:")
+print(f"   BELGRANO_AHORRO_URL: {BELGRANO_AHORRO_URL}")
+print(f"   API_KEY: {BELGRANO_AHORRO_API_KEY[:10]}...")
+
+# ==========================================
+
 # Importar cliente API
 try:
     from api_client import create_api_client, test_api_connection
     api_client = create_api_client()
-    print("✅ Cliente API de Belgrano Ahorro inicializado")
+    print("Cliente API de Belgrano Ahorro inicializado")
 except ImportError as e:
-    print(f"⚠️ No se pudo inicializar el cliente API: {e}")
+    print(f"No se pudo inicializar el cliente API: {e}")
     api_client = None
 
 # Inicializar db con la app
@@ -47,7 +65,7 @@ with app.app_context():
         try:
             usuarios_existentes = User.query.count()
             if usuarios_existentes == 0:
-                print("🔧 No hay usuarios en BD - Creando usuarios automáticamente...")
+                print("No hay usuarios en BD - Creando usuarios automáticamente...")
                 
                 # Usuario Admin
                 admin = User(
@@ -59,7 +77,7 @@ with app.app_context():
                     activo=True
                 )
                 db.session.add(admin)
-                print("✅ Usuario admin creado: admin@belgranoahorro.com / admin123")
+                print("Usuario admin creado: admin@belgranoahorro.com / admin123")
                 
                 # Usuarios Flota
                 flota_usuarios = [
@@ -80,16 +98,16 @@ with app.app_context():
                         activo=True
                     )
                     db.session.add(flota)
-                    print(f"✅ Usuario flota creado: {email} / flota123")
+                    print(f"Usuario flota creado: {email} / flota123")
                 
                 db.session.commit()
-                print("🎉 Usuarios inicializados automáticamente")
+                print("Usuarios inicializados automáticamente")
                 return True
             else:
-                print(f"✅ Ya existen {usuarios_existentes} usuarios en la BD")
+                print(f"Ya existen {usuarios_existentes} usuarios en la BD")
                 return False
         except Exception as e:
-            print(f"❌ Error inicializando usuarios: {e}")
+            print(f"Error inicializando usuarios: {e}")
             db.session.rollback()
             return False
     
@@ -134,7 +152,7 @@ def login():
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '').strip()
         
-        print(f"🔐 Intento de login: {email}")
+        print(f"Intento de login: {email}")
         
         # Validaciones básicas
         if not email or not password:
@@ -145,27 +163,27 @@ def login():
         user = User.query.filter_by(email=email).first()
         
         if user:
-            print(f"✅ Usuario encontrado: {user.nombre} (ID: {user.id})")
+            print(f"Usuario encontrado: {user.nombre} (ID: {user.id})")
             print(f"   Role: {user.role}")
             print(f"   Activo: {user.activo}")
             
             # Verificar si el usuario está activo
             if not user.activo:
-                print("❌ Usuario inactivo")
+                print("Usuario inactivo")
                 flash('Usuario inactivo. Contacte al administrador.', 'danger')
                 return render_template('login.html')
             
             # Verificar contraseña
             if check_password_hash(user.password, password):
-                print("✅ Contraseña correcta - Login exitoso")
+                print("Contraseña correcta - Login exitoso")
                 login_user(user)
                 flash(f'Bienvenido, {user.nombre}!', 'success')
                 return redirect(url_for('panel'))
             else:
-                print("❌ Contraseña incorrecta")
+                print("Contraseña incorrecta")
                 flash('Email o contraseña incorrectos', 'danger')
         else:
-            print(f"❌ Usuario no encontrado: {email}")
+            print(f"Usuario no encontrado: {email}")
             flash('Email o contraseña incorrectos', 'danger')
     
     return render_template('login.html')
@@ -359,12 +377,17 @@ def recibir_ticket_externo():
     Endpoint para recibir tickets desde la aplicación principal de Belgrano Ahorro
     """
     try:
+        # Autenticación por API Key
+        api_key_header = request.headers.get('X-API-Key')
+        if not api_key_header or api_key_header != BELGRANO_AHORRO_API_KEY:
+            return jsonify({'error': 'API key inválida'}), 401
+
         data = request.get_json()
-        print(f"📥 Datos recibidos en Ticketera:")
+        print(f"Datos recibidos en Ticketera:")
         print(f"   Datos: {json.dumps(data, indent=2)}")
         
         if not data:
-            print("❌ No se recibieron datos")
+            print("No se recibieron datos")
             return jsonify({'error': 'Datos no recibidos'}), 400
         
         # Determinar prioridad basada en tipo de cliente
@@ -375,9 +398,16 @@ def recibir_ticket_externo():
         if tipo_cliente == 'comerciante' and prioridad != 'alta':
             prioridad = 'alta'
         
+        # Idempotencia: si ya existe un ticket con el mismo numero, devolverlo
+        numero_ticket = data.get('numero', data.get('numero_pedido'))
+        if numero_ticket:
+            existente = Ticket.query.filter_by(numero=numero_ticket).first()
+            if existente:
+                return jsonify({'exito': True, 'ticket_id': existente.id, 'idempotent': True}), 200
+
         # Crear el ticket con los datos recibidos
         ticket = Ticket(
-            numero=data.get('numero', data.get('numero_pedido', f'TICKET-{datetime.now().strftime("%Y%m%d%H%M%S")}')),
+            numero=numero_ticket or f'TICKET-{datetime.now().strftime("%Y%m%d%H%M%S")}',
             cliente_nombre=data.get('cliente_nombre', data.get('cliente', 'Cliente')),
             cliente_direccion=data.get('cliente_direccion', data.get('direccion', 'Sin dirección')),
             cliente_telefono=data.get('cliente_telefono', data.get('telefono', 'Sin teléfono')),
@@ -394,9 +424,9 @@ def recibir_ticket_externo():
         # Asignar automáticamente a un repartidor aleatorio
         repartidor_asignado = asignar_repartidor_automatico(ticket)
         if repartidor_asignado:
-            ticket.repartidor = repartidor_asignado
+            ticket.repartidor_nombre = repartidor_asignado
             db.session.commit()
-            print(f"✅ Ticket asignado automáticamente a {repartidor_asignado}")
+            print(f"Ticket asignado automáticamente a {repartidor_asignado}")
         
         # Emitir evento WebSocket para actualización en tiempo real
         socketio.emit('nuevo_ticket', {
@@ -404,18 +434,18 @@ def recibir_ticket_externo():
             'numero': ticket.numero,
             'cliente_nombre': ticket.cliente_nombre,
             'estado': ticket.estado,
-            'repartidor': ticket.repartidor,
+            'repartidor': ticket.repartidor_nombre,
             'prioridad': ticket.prioridad,
             'tipo_cliente': tipo_cliente
         })
         
         # Mensaje de log más detallado
         tipo_cliente_str = "COMERCIANTE" if tipo_cliente == 'comerciante' else "CLIENTE"
-        print(f"✅ Ticket recibido exitosamente: {ticket.numero} - {ticket.cliente_nombre} ({tipo_cliente_str}) - Prioridad: {ticket.prioridad}")
-        return jsonify({'exito': True, 'ticket_id': ticket.id, 'repartidor_asignado': ticket.repartidor})
+        print(f"Ticket recibido exitosamente: {ticket.numero} - {ticket.cliente_nombre} ({tipo_cliente_str}) - Prioridad: {ticket.prioridad}")
+        return jsonify({'exito': True, 'ticket_id': ticket.id, 'repartidor_asignado': ticket.repartidor_nombre})
         
     except Exception as e:
-        print(f"❌ Error al procesar ticket: {e}")
+        print(f"Error al procesar ticket: {e}")
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
@@ -434,7 +464,7 @@ def asignar_repartidor_automatico(ticket):
     for repartidor in repartidores:
         # Contar tickets de prioridad máxima para este repartidor
         tickets_prioridad_maxima = Ticket.query.filter_by(
-            repartidor=repartidor, 
+            repartidor_nombre=repartidor, 
             prioridad='alta'
         ).count()
         
@@ -497,12 +527,12 @@ def gestion_flota():
     repartidores = ['Repartidor1', 'Repartidor2', 'Repartidor3', 'Repartidor4', 'Repartidor5']
     
     # Obtener tickets con repartidores asignados
-    tickets_asignados = Ticket.query.filter(Ticket.repartidor.isnot(None)).all()
+    tickets_asignados = Ticket.query.filter(Ticket.repartidor_nombre.isnot(None)).all()
     
     # Estadísticas por repartidor
     stats_repartidores = {}
     for rep in repartidores:
-        tickets_rep = Ticket.query.filter_by(repartidor=rep).all()
+        tickets_rep = Ticket.query.filter_by(repartidor_nombre=rep).all()
         stats_repartidores[rep] = {
             'total': len(tickets_rep),
             'pendientes': len([t for t in tickets_rep if t.estado == 'pendiente']),
@@ -531,7 +561,7 @@ def reportes():
     tickets_por_repartidor = {}
     repartidores = ['Repartidor1', 'Repartidor2', 'Repartidor3', 'Repartidor4', 'Repartidor5']
     for rep in repartidores:
-        tickets_por_repartidor[rep] = Ticket.query.filter_by(repartidor=rep).count()
+        tickets_por_repartidor[rep] = Ticket.query.filter_by(repartidor_nombre=rep).count()
     
     return render_template('reportes.html',
                          total_tickets=total_tickets,
@@ -953,5 +983,5 @@ def test_ahorro_api():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    print("🚀 Iniciando aplicación de tickets en puerto 5001...")
+    print("Iniciando aplicación de tickets en puerto 5001...")
     socketio.run(app, debug=True, host='0.0.0.0', port=5001)

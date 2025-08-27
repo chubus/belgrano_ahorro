@@ -3,20 +3,20 @@ services:
     name: belgrano-tickets
     env: python
     plan: free
-    buildCommand: pip install -r belgrano_tickets/requirements_ticketera.txt
+    buildCommand: pip install -r belgrano_tickets/requirements.txt
     startCommand: cd belgrano_tickets && python app.py
     envVars:
       - key: PYTHON_VERSION
-        value: 3.12.0
+        value: 3.9.16
       - key: FLASK_ENV
         value: production
-      - key: FLASK_APP
-        value: belgrano_tickets/app.py
-      - key: PORT
-        value: 5001
-      - key: SECRET_KEY
-        value: belgrano_tickets_secret_2025
+      - key: RENDER_ENVIRONMENT
+        value: production
       - key: BELGRANO_AHORRO_URL
         value: https://belgrano-ahorro.onrender.com
+      - key: BELGRANO_AHORRO_API_KEY
+        value: belgrano_ahorro_api_key_2025
+      - key: SECRET_KEY
+        generateValue: true
     healthCheckPath: /health
     autoDeploy: true
