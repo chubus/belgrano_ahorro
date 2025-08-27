@@ -25,6 +25,15 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Importar db desde models
 from models import db, User, Ticket
 
+# Importar cliente API
+try:
+    from api_client import create_api_client, test_api_connection
+    api_client = create_api_client()
+    print("✅ Cliente API de Belgrano Ahorro inicializado")
+except ImportError as e:
+    print(f"⚠️ No se pudo inicializar el cliente API: {e}")
+    api_client = None
+
 # Inicializar db con la app
 db.init_app(app)
 
@@ -217,11 +226,21 @@ def health_check():
         total_tickets = Ticket.query.count()
         total_usuarios = User.query.count()
         
+        # Verificar conexión con API de Belgrano Ahorro
+        ahorro_api_status = "unknown"
+        if api_client:
+            try:
+                health = api_client.health_check()
+                ahorro_api_status = health.get('status', 'unknown')
+            except:
+                ahorro_api_status = "disconnected"
+        
         return jsonify({
             'status': 'healthy',
             'service': 'Belgrano Tickets',
             'timestamp': datetime.now().isoformat(),
             'database': 'connected',
+            'ahorro_api': ahorro_api_status,
             'total_tickets': total_tickets,
             'total_usuarios': total_usuarios,
             'version': '2.0.0'
@@ -724,6 +743,212 @@ def cambiar_password():
         return redirect(url_for('panel'))
     
     return render_template('cambiar_password.html')
+
+# ==========================================
+# ENDPOINTS PARA CONSUMIR API DE BELGRANO AHORRO
+# ==========================================
+
+@app.route('/api/ahorro/productos', methods=['GET'])
+@login_required
+@role_required('admin')
+def get_productos_ahorro():
+    """Obtener productos desde Belgrano Ahorro"""
+    try:
+        if not api_client:
+            return jsonify({
+                'status': 'error',
+                'error': 'Cliente API no disponible'
+            }), 500
+        
+        categoria = request.args.get('categoria')
+        productos = api_client.get_productos(categoria)
+        
+        return jsonify({
+            'status': 'success',
+            'productos': productos,
+            'timestamp': datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo productos de Ahorro: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/api/ahorro/pedido/<numero_pedido>', methods=['GET'])
+@login_required
+def get_pedido_ahorro(numero_pedido):
+    """Obtener pedido específico desde Belgrano Ahorro"""
+    try:
+        if not api_client:
+            return jsonify({
+                'status': 'error',
+                'error': 'Cliente API no disponible'
+            }), 500
+        
+        pedido = api_client.get_pedido(numero_pedido)
+        
+        if not pedido:
+            return jsonify({
+                'status': 'error',
+                'error': 'Pedido no encontrado'
+            }), 404
+        
+        return jsonify({
+            'status': 'success',
+            'pedido': pedido,
+            'timestamp': datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo pedido {numero_pedido} de Ahorro: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/api/ahorro/pedido/<numero_pedido>/estado', methods=['PUT'])
+@login_required
+def actualizar_estado_pedido_ahorro(numero_pedido):
+    """Actualizar estado de pedido en Belgrano Ahorro"""
+    try:
+        if not api_client:
+            return jsonify({
+                'status': 'error',
+                'error': 'Cliente API no disponible'
+            }), 500
+        
+        data = request.get_json()
+        nuevo_estado = data.get('estado')
+        
+        if not nuevo_estado:
+            return jsonify({
+                'status': 'error',
+                'error': 'Estado requerido'
+            }), 400
+        
+        success = api_client.actualizar_estado_pedido(numero_pedido, nuevo_estado)
+        
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': f'Estado actualizado a {nuevo_estado}',
+                'numero_pedido': numero_pedido,
+                'estado': nuevo_estado,
+                'timestamp': datetime.now().isoformat()
+            }), 200
+        else:
+            return jsonify({
+                'status': 'error',
+                'error': 'No se pudo actualizar el estado'
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"Error actualizando estado del pedido {numero_pedido}: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/api/ahorro/sync/tickets', methods=['POST'])
+@login_required
+@role_required('admin')
+def sync_tickets_to_ahorro():
+    """Sincronizar tickets hacia Belgrano Ahorro"""
+    try:
+        if not api_client:
+            return jsonify({
+                'status': 'error',
+                'error': 'Cliente API no disponible'
+            }), 500
+        
+        # Obtener todos los tickets
+        tickets = Ticket.query.all()
+        tickets_data = []
+        
+        for ticket in tickets:
+            tickets_data.append({
+                'numero_pedido': ticket.numero_pedido,
+                'ticket_id': ticket.id,
+                'estado': ticket.estado,
+                'repartidor': ticket.repartidor,
+                'fecha_creacion': ticket.fecha_creacion.isoformat() if ticket.fecha_creacion else None,
+                'fecha_actualizacion': ticket.fecha_actualizacion.isoformat() if ticket.fecha_actualizacion else None,
+                'datos_completos': {
+                    'id': ticket.id,
+                    'numero_pedido': ticket.numero_pedido,
+                    'cliente': ticket.cliente,
+                    'productos': ticket.productos,
+                    'total': ticket.total,
+                    'estado': ticket.estado,
+                    'repartidor': ticket.repartidor,
+                    'fecha_creacion': ticket.fecha_creacion.isoformat() if ticket.fecha_creacion else None,
+                    'fecha_actualizacion': ticket.fecha_actualizacion.isoformat() if ticket.fecha_actualizacion else None
+                }
+            })
+        
+        success = api_client.sync_tickets_to_ahorro(tickets_data)
+        
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': f'{len(tickets_data)} tickets sincronizados',
+                'tickets_synced': len(tickets_data),
+                'timestamp': datetime.now().isoformat()
+            }), 200
+        else:
+            return jsonify({
+                'status': 'error',
+                'error': 'Error en la sincronización'
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"Error sincronizando tickets: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/api/ahorro/test', methods=['GET'])
+@login_required
+@role_required('admin')
+def test_ahorro_api():
+    """Probar conexión con API de Belgrano Ahorro"""
+    try:
+        if not api_client:
+            return jsonify({
+                'status': 'error',
+                'error': 'Cliente API no disponible'
+            }), 500
+        
+        # Probar health check
+        health = api_client.health_check()
+        
+        # Probar obtención de productos
+        productos = api_client.get_productos()
+        
+        return jsonify({
+            'status': 'success',
+            'health_check': health,
+            'productos_test': {
+                'status': 'success' if productos else 'error',
+                'total': len(productos.get('productos', [])) if productos else 0
+            },
+            'timestamp': datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error probando API de Ahorro: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 if __name__ == "__main__":
     with app.app_context():

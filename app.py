@@ -1625,12 +1625,24 @@ def enviar_pedido_a_ticketera(numero_pedido, usuario, carrito_items, total, meto
         return False
 
 # ==========================================
-# API ENDPOINTS PARA INTEGRACIÓN
+# REGISTRAR API BLUEPRINT
+# ==========================================
+
+# Importar y registrar la API
+try:
+    from api_belgrano_ahorro import register_api_blueprint
+    register_api_blueprint(app)
+    print("✅ API de Belgrano Ahorro registrada en /api/v1")
+except ImportError as e:
+    print(f"⚠️ No se pudo registrar la API: {e}")
+
+# ==========================================
+# API ENDPOINTS PARA INTEGRACIÓN (LEGACY)
 # ==========================================
 
 @app.route('/api/tickets', methods=['POST'])
 def api_crear_ticket():
-    """Endpoint público para recibir tickets desde Belgrano Ahorro"""
+    """Endpoint público para recibir tickets desde Belgrano Ahorro (LEGACY)"""
     try:
         data = request.get_json()
         
