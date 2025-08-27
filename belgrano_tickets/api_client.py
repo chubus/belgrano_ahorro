@@ -15,9 +15,11 @@ logger = logging.getLogger(__name__)
 class BelgranoAhorroAPIClient:
     """Cliente para consumir la API de Belgrano Ahorro"""
     
-    def __init__(self, base_url=None, api_key=None):
-        self.base_url = base_url or BELGRANO_AHORRO_URL
-        self.api_key = api_key or BELGRANO_AHORRO_API_KEY
+    def __init__(self, base_url, api_key):
+        if not base_url or not api_key:
+            raise ValueError("base_url y api_key son requeridos")
+        self.base_url = base_url
+        self.api_key = api_key
         self.timeout = 30
         self.session = requests.Session()
         

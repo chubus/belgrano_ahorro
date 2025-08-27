@@ -1687,9 +1687,9 @@ def enviar_pedido_a_ticketera(numero_pedido, usuario, carrito_items, total, meto
         for attempt in range(max_retries):
             try:
                 print(f"🔄 Intento {attempt + 1}/{max_retries} enviando a {api_url}")
-        response = requests.post(
-            api_url,
-            json=ticket_data,
+                response = requests.post(
+                    api_url,
+                    json=ticket_data,
                     headers=headers,
                     timeout=15
                 )
@@ -1718,10 +1718,10 @@ def enviar_pedido_a_ticketera(numero_pedido, usuario, carrito_items, total, meto
             # Procesar respuesta exitosa
             try:
                 ticket_response = last_response.json()
-            print(f"✅ Pedido enviado exitosamente a Ticketera: {numero_pedido}")
-            print(f"   Cliente: {nombre_completo}")
-            print(f"   Total: ${total}")
-            print(f"   Productos: {len(productos)} items")
+                print(f"✅ Pedido enviado exitosamente a Ticketera: {numero_pedido}")
+                print(f"   Cliente: {nombre_completo}")
+                print(f"   Total: ${total}")
+                print(f"   Productos: {len(productos)} items")
                 print(f"   Ticket ID: {ticket_response.get('ticket_id', 'N/A')}")
                 
                 # Actualizar base de datos de Ahorro con información del ticket
