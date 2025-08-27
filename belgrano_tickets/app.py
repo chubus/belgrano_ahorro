@@ -6,6 +6,11 @@ from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import json
+import logging
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Inicialización Flask y extensiones
 app = Flask(__name__)
@@ -82,7 +87,7 @@ with app.app_context():
     # Ejecutar inicialización automática
     inicializar_usuarios_automaticamente()
 login_manager = LoginManager(app)
-socketio = SocketIO(app)
+socketio = SocketIO(app, async_mode='threading')
 
 # Filtro personalizado para JSON
 @app.template_filter('from_json')
@@ -163,8 +168,13 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/debug/credenciales')
+@login_required
 def debug_credenciales():
     """Ruta de debug para verificar credenciales (solo en desarrollo)"""
+    # Solo permitir en desarrollo
+    if app.config.get('ENV') == 'production':
+        logger.warning(f"Intento de acceso a debug en producción desde {request.remote_addr}")
+        return jsonify({'error': 'Endpoint no disponible en producción'}), 404
     try:
         usuarios = User.query.all()
         credenciales = []
@@ -331,7 +341,11 @@ def recibir_ticket_externo():
     """
     try:
         data = request.get_json()
+        print(f"📥 Datos recibidos en Ticketera:")
+        print(f"   Datos: {json.dumps(data, indent=2)}")
+        
         if not data:
+            print("❌ No se recibieron datos")
             return jsonify({'error': 'Datos no recibidos'}), 400
         
         # Determinar prioridad basada en tipo de cliente
@@ -344,15 +358,15 @@ def recibir_ticket_externo():
         
         # Crear el ticket con los datos recibidos
         ticket = Ticket(
-            numero=data.get('numero'),
-            cliente_nombre=data.get('cliente_nombre'),
-            cliente_direccion=data.get('cliente_direccion'),
-            cliente_telefono=data.get('cliente_telefono'),
-            cliente_email=data.get('cliente_email'),
+            numero=data.get('numero', data.get('numero_pedido', f'TICKET-{datetime.now().strftime("%Y%m%d%H%M%S")}')),
+            cliente_nombre=data.get('cliente_nombre', data.get('cliente', 'Cliente')),
+            cliente_direccion=data.get('cliente_direccion', data.get('direccion', 'Sin dirección')),
+            cliente_telefono=data.get('cliente_telefono', data.get('telefono', 'Sin teléfono')),
+            cliente_email=data.get('cliente_email', data.get('email', 'sin@email.com')),
             productos=json.dumps(data.get('productos', [])),
             estado=data.get('estado', 'pendiente'),
             prioridad=prioridad,
-            indicaciones=data.get('indicaciones', '')
+            indicaciones=data.get('indicaciones', data.get('notas', ''))
         )
         
         db.session.add(ticket)

@@ -1,0 +1,16 @@
+{
+  "fecha_verificacion": "2025-08-27T02:32:44.603231",
+  "resultados": {
+    "ahorro_status": false,
+    "tickets_status": false,
+    "api_integration": false,
+    "errors": [
+      "Ahorro status code: 404",
+      "Tickets status code: 404"
+    ]
+  },
+  "configuracion": {
+    "ahorro_url": "https://belgrano-ahorro.onrender.com",
+    "tickets_url": "https://belgrano-tickets.onrender.com"
+  }
+}

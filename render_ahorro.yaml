@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: belgrano-ahorro
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_APP
+        value: app.py
+      - key: PORT
+        value: 5000
+      - key: SECRET_KEY
+        value: belgrano_ahorro_secret_key_2025
+      - key: TICKETERA_URL
+        value: https://belgrano-tickets.onrender.com
+    healthCheckPath: /test
+    autoDeploy: true

@@ -1,0 +1,13 @@
+{
+  "fecha_inicializacion": "2025-08-27T02:32:30.020333",
+  "resultados": {
+    "ahorro_inicializado": true,
+    "tickets_inicializado": true,
+    "errores": []
+  },
+  "archivos_creados": [
+    "belgrano_ahorro.db",
+    "belgrano_tickets.db"
+  ],
+  "errores": []
+}

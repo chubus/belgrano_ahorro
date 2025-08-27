@@ -42,11 +42,18 @@ import hashlib
 try:
     import db as database
     print("✅ Módulo db importado correctamente")
-    print("DEBUG: database =", database)
-    print("DEBUG: database.crear_usuario =", getattr(database, 'crear_usuario', None))
 except Exception as e:
     print(f"❌ Error importando db: {e}")
     raise  # Detén la app si el import falla
+
+# Importar middleware de autenticación y manejo de errores
+try:
+    from auth_middleware import login_required, admin_required, flota_required, validate_input_data, production_only, rate_limit
+    from error_handlers import register_error_handlers, ValidationError, AuthenticationError, AuthorizationError
+    print("✅ Middleware de autenticación importado correctamente")
+except Exception as e:
+    print(f"❌ Error importando middleware: {e}")
+    raise
 
 # Configurar logging para ver mensajes de debug
 logging.basicConfig(level=logging.INFO)
@@ -55,6 +62,12 @@ logger = logging.getLogger(__name__)
 # Crear la instancia de Flask
 app = Flask(__name__)
 app.secret_key = 'belgrano_ahorro_secret_key_2025'  # Clave secreta para sesiones
+
+# Configurar entorno
+app.config['ENV'] = os.environ.get('FLASK_ENV', 'development')
+
+# Registrar manejadores de errores
+register_error_handlers(app)
 
 # =================================================================
 # FUNCIONES DE BÚSQUEDA Y FILTRADO DE PRODUCTOS
@@ -390,6 +403,7 @@ def sanitizar_codigo(codigo):
 # ==========================================
 
 @app.route("/login", methods=['GET', 'POST'])
+@rate_limit(max_requests=5, window=300)  # 5 intentos por 5 minutos
 def login():
     """
     RUTA DE LOGIN - Página de inicio de sesión
@@ -404,9 +418,16 @@ def login():
         # Debug logs
         logger.info(f"Intento de login - Email: {email}")
         
+        # Validación de campos
         if not email or not password:
             logger.warning("Login fallido - Campos incompletos")
             flash('Por favor completa todos los campos', 'danger')
+            return render_template('login.html')
+        
+        # Validación de formato de email
+        if not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+            logger.warning(f"Login fallido - Email inválido: {email}")
+            flash('Por favor ingresa un email válido', 'danger')
             return render_template('login.html')
         
         # Verificar credenciales
@@ -438,6 +459,7 @@ def login():
     return render_template('login.html')
 
 @app.route("/register", methods=['GET', 'POST'])
+@rate_limit(max_requests=3, window=600)  # 3 intentos por 10 minutos
 def register():
     """
     RUTA DE REGISTRO - Nueva página de registro con validación mejorada
@@ -458,10 +480,16 @@ def register():
         # Debug logs
         logger.info(f"Intento de registro - Email: {email}, Nombre: {nombre}, Apellido: {apellido}")
         
-        # Validaciones
+        # Validaciones mejoradas
         if not all([nombre, apellido, email, password, confirmar_password]):
             logger.warning("Registro fallido - Campos obligatorios incompletos")
             flash('Por favor completa todos los campos obligatorios', 'danger')
+            return render_template('register.html')
+        
+        # Validación de formato de email
+        if not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
+            logger.warning(f"Registro fallido - Email inválido: {email}")
+            flash('Por favor ingresa un email válido', 'danger')
             return render_template('register.html')
         
         # Validar términos y condiciones
@@ -1499,6 +1527,7 @@ def ticketera():
     return redirect(ticketera_url)
 
 @app.route("/admin")
+@admin_required
 def admin():
     """
     RUTA PARA ACCEDER AL PANEL DE ADMINISTRACIÓN
@@ -1546,16 +1575,24 @@ def enviar_pedido_a_ticketera(numero_pedido, usuario, carrito_items, total, meto
         
         # Preparar datos para enviar a la API
         ticket_data = {
-            "cliente": nombre_completo,
+            "numero": numero_pedido,
+            "cliente_nombre": nombre_completo,
+            "cliente_direccion": direccion,
+            "cliente_telefono": usuario.get('telefono', ''),
+            "cliente_email": usuario['email'],
             "productos": productos,
             "total": total,
-            "numero_pedido": numero_pedido,
-            "direccion": direccion,
-            "telefono": usuario.get('telefono', ''),
-            "email": usuario['email'],
             "metodo_pago": metodo_pago,
-            "notas": notas or 'Sin indicaciones especiales'
+            "indicaciones": notas or 'Sin indicaciones especiales',
+            "estado": "pendiente",
+            "prioridad": "normal",
+            "tipo_cliente": "cliente"
         }
+        
+        # Log de datos que se van a enviar
+        print(f"📤 Enviando datos a Ticketera:")
+        print(f"   URL: {api_url}")
+        print(f"   Datos: {json.dumps(ticket_data, indent=2)}")
         
         # Enviar request POST a la API
         response = requests.post(
@@ -1686,6 +1723,47 @@ def health_check():
             'error': str(e),
             'timestamp': datetime.now().isoformat()
         }), 500
+
+# ==========================================
+# FUNCIÓN GESTIÓN FLOTA CORREGIDA
+# ==========================================
+
+@app.route('/gestion_flota')
+@flota_required
+def gestion_flota_corregida():
+    
+    try:
+        # Obtener todos los repartidores disponibles
+        repartidores = ['Repartidor1', 'Repartidor2', 'Repartidor3', 'Repartidor4', 'Repartidor5']
+        
+        # Obtener tickets usando la función de base de datos
+        from models import obtener_todos_los_tickets
+        todos_tickets = obtener_todos_los_tickets()
+        tickets_asignados = [t for t in todos_tickets if t.get('repartidor')]
+        
+        # Estadísticas por repartidor
+        stats_repartidores = {}
+        for rep in repartidores:
+            tickets_rep = [t for t in todos_tickets if t.get('repartidor') == rep]
+            stats_repartidores[rep] = {
+                'total': len(tickets_rep),
+                'pendientes': len([t for t in tickets_rep if t.get('estado') == 'pendiente']),
+                'en_camino': len([t for t in tickets_rep if t.get('estado') in ['en-camino', 'en_camino']]),
+                'entregados': len([t for t in tickets_rep if t.get('estado') in ['entregado', 'completado']])
+            }
+        
+        return render_template('gestion_flota.html', 
+                             repartidores=repartidores, 
+                             tickets_asignados=tickets_asignados,
+                             stats_repartidores=stats_repartidores)
+    except Exception as e:
+        print(f"Error en gestion_flota: {e}")
+        # Fallback con datos mínimos
+        repartidores = ['Repartidor1', 'Repartidor2', 'Repartidor3', 'Repartidor4', 'Repartidor5']
+        return render_template('gestion_flota.html', 
+                             repartidores=repartidores, 
+                             tickets_asignados=[],
+                             stats_repartidores={})
 
 # ==========================================
 # MANEJADORES DE ERRORES
