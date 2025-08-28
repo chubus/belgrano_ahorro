@@ -1673,7 +1673,8 @@ def admin():
 
 def enviar_pedido_a_ticketera(numero_pedido, usuario, carrito_items, total, metodo_pago, direccion, notas):
     """
-    Enviar pedido automáticamente a la Ticketera vía API con manejo robusto de errores
+    Enviar pedido automáticamente a la Ticketera vía API con conexión sólida
+    Usa la versión mejorada para mayor confiabilidad
     
     PARÁMETROS:
     - numero_pedido: número único del pedido
@@ -1687,122 +1688,8 @@ def enviar_pedido_a_ticketera(numero_pedido, usuario, carrito_items, total, meto
     RETORNA:
     - dict con datos del ticket creado si se envió exitosamente, None en caso contrario
     """
-    try:
-        # URL de la API de la Ticketera (usar variable global)
-        api_url = f"{TICKETERA_URL}/api/tickets"
-        
-        # Preparar nombre completo del cliente
-        nombre_completo = usuario.get('nombre', 'Cliente')
-        if usuario.get('apellido'):
-            nombre_completo = f"{usuario['nombre']} {usuario['apellido']}"
-        
-        # Preparar lista de productos
-        productos = []
-        for item in carrito_items:
-            producto = item['producto']
-            productos.append(f"{producto['nombre']} x{item['cantidad']}")
-        
-        # Preparar datos para enviar a la API
-        ticket_data = {
-            "numero": numero_pedido,
-            "cliente_nombre": nombre_completo,
-            "cliente_direccion": direccion,
-            "cliente_telefono": usuario.get('telefono', ''),
-            "cliente_email": usuario['email'],
-            "productos": productos,
-            "total": total,
-            "metodo_pago": metodo_pago,
-            "indicaciones": notas or 'Sin indicaciones especiales',
-            "estado": "pendiente",
-            "prioridad": "normal",
-            "tipo_cliente": "cliente"
-        }
-        
-        # Log de datos que se van a enviar
-        print(f"📤 Enviando datos a Ticketera:")
-        print(f"   URL: {api_url}")
-        print(f"   Datos: {json.dumps(ticket_data, indent=2)}")
-        
-        # Enviar request POST a la API con reintentos y API Key
-        headers = {
-            'Content-Type': 'application/json',
-            'X-API-Key': BELGRANO_AHORRO_API_KEY,
-            'User-Agent': 'BelgranoAhorro/1.0.0'
-        }
-
-        max_retries = 3
-        backoff_seconds = [1, 2, 4]
-        last_response = None
-        last_error = None
-        
-        for attempt in range(max_retries):
-            try:
-                print(f"🔄 Intento {attempt + 1}/{max_retries} enviando a {api_url}")
-                response = requests.post(
-                    api_url,
-                    json=ticket_data,
-                    headers=headers,
-                    timeout=15
-                )
-                last_response = response
-                if response.status_code in (200, 201):
-                    print(f"✅ Petición exitosa en intento {attempt + 1}")
-                    break
-                else:
-                    print(f"⚠️ Status {response.status_code} en intento {attempt + 1}")
-            except requests.exceptions.Timeout:
-                last_error = f"Timeout en intento {attempt + 1}"
-                print(f"⏰ {last_error}")
-            except requests.exceptions.ConnectionError:
-                last_error = f"Error de conexión en intento {attempt + 1}"
-                print(f"🔌 {last_error}")
-            except Exception as e:
-                last_error = f"Error inesperado en intento {attempt + 1}: {str(e)}"
-                print(f"❌ {last_error}")
-            
-            # Backoff
-            if attempt < max_retries - 1:
-                print(f"⏳ Esperando {backoff_seconds[attempt]}s antes del siguiente intento...")
-                time.sleep(backoff_seconds[attempt])
-        
-        if last_response is not None and last_response.status_code in (200, 201):
-            # Procesar respuesta exitosa
-            try:
-                ticket_response = last_response.json()
-                print(f"✅ Pedido enviado exitosamente a Ticketera: {numero_pedido}")
-                print(f"   Cliente: {nombre_completo}")
-                print(f"   Total: ${total}")
-                print(f"   Productos: {len(productos)} items")
-                print(f"   Ticket ID: {ticket_response.get('ticket_id', 'N/A')}")
-                
-                # Actualizar base de datos de Ahorro con información del ticket
-                actualizar_pedido_con_ticket(numero_pedido, ticket_response)
-                
-                return ticket_response
-            except json.JSONDecodeError as e:
-                print(f"⚠️ Error parseando respuesta JSON: {e}")
-                print(f"   Respuesta recibida: {last_response.text}")
-                return None
-        else:
-            status = last_response.status_code if last_response is not None else 'no_response'
-            body = last_response.text if last_response is not None else 'no_body'
-            error_msg = last_error if last_error else f"Status {status}"
-            print(f"❌ Error enviando pedido a Ticketera: {error_msg}")
-            if last_response:
-                print(f"   Status: {status}")
-                print(f"   Respuesta: {body}")
-            return None
-            
-    except requests.exceptions.ConnectionError:
-        print(f"❌ No se puede conectar a la Ticketera en {api_url}")
-        print("   Verifica que la Ticketera esté ejecutándose")
-        return None
-    except requests.exceptions.Timeout:
-        print(f"⏰ Timeout al conectar con la Ticketera")
-        return None
-    except Exception as e:
-        print(f"💥 Error inesperado enviando pedido a Ticketera: {e}")
-        return None
+    # Usar la versión mejorada para mayor confiabilidad
+    return enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, total, metodo_pago, direccion, notas)
 
 def actualizar_pedido_con_ticket(numero_pedido, ticket_response):
     """
@@ -1834,6 +1721,211 @@ def actualizar_pedido_con_ticket(numero_pedido, ticket_response):
         
     except Exception as e:
         print(f"⚠️ Error actualizando pedido con ticket: {e}")
+
+def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, total, metodo_pago, direccion, notas=None):
+    """
+    Enviar pedido a la Ticketera con conexión sólida y sin pérdida
+    Versión mejorada con mejor manejo de errores y reintentos
+    """
+    try:
+        # Obtener URL de la API desde variables de entorno
+        api_url = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com')
+        if not api_url.endswith('/api/tickets'):
+            api_url = f"{api_url}/api/tickets"
+        
+        # Obtener datos del usuario con validación
+        nombre_completo = f"{usuario.get('nombre', '')} {usuario.get('apellido', '')}".strip()
+        if not nombre_completo:
+            nombre_completo = usuario.get('email', 'Cliente')
+        
+        # Preparar lista de productos con más detalles
+        productos = []
+        for item in carrito_items:
+            producto = item['producto']
+            productos.append(f"{producto['nombre']} x{item['cantidad']} - ${producto.get('precio', 0)}")
+        
+        # Preparar datos para enviar a la API con validación
+        ticket_data = {
+            "numero": numero_pedido,
+            "cliente_nombre": nombre_completo,
+            "cliente_direccion": direccion or "Dirección no especificada",
+            "cliente_telefono": usuario.get('telefono', ''),
+            "cliente_email": usuario['email'],
+            "productos": productos,
+            "total": float(total),  # Asegurar que sea float
+            "metodo_pago": metodo_pago,
+            "indicaciones": notas or 'Sin indicaciones especiales',
+            "estado": "pendiente",
+            "prioridad": "normal",
+            "tipo_cliente": "cliente",
+            "fecha_creacion": datetime.now().isoformat(),
+            "origen": "belgrano_ahorro"
+        }
+        
+        # Validar datos antes de enviar
+        if not ticket_data["cliente_nombre"] or not ticket_data["cliente_email"]:
+            print("❌ Datos de cliente incompletos")
+            return None
+        
+        if not productos:
+            print("❌ No hay productos en el carrito")
+            return None
+        
+        # Log de datos que se van a enviar
+        print(f"📤 Enviando pedido a Ticketera:")
+        print(f"   URL: {api_url}")
+        print(f"   Pedido: {numero_pedido}")
+        print(f"   Cliente: {nombre_completo}")
+        print(f"   Total: ${total}")
+        print(f"   Productos: {len(productos)} items")
+        
+        # Headers mejorados
+        headers = {
+            'Content-Type': 'application/json',
+            'X-API-Key': BELGRANO_AHORRO_API_KEY,
+            'User-Agent': 'BelgranoAhorro/1.0.0',
+            'X-Request-ID': f"{numero_pedido}-{int(time.time())}",
+            'X-Origin': 'belgrano_ahorro'
+        }
+
+        # Configuración de reintentos mejorada
+        max_retries = 5
+        backoff_seconds = [1, 2, 4, 8, 16]  # Backoff exponencial más agresivo
+        last_response = None
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                print(f"🔄 Intento {attempt + 1}/{max_retries} enviando a Ticketera...")
+                
+                # Verificar conectividad antes de enviar
+                if attempt > 0:
+                    try:
+                        health_check = requests.get(f"{api_url.replace('/api/tickets', '/healthz')}", timeout=5)
+                        if health_check.status_code != 200:
+                            print(f"⚠️ Health check falló en intento {attempt + 1}")
+                    except:
+                        print(f"⚠️ No se pudo verificar health check en intento {attempt + 1}")
+                
+                response = requests.post(
+                    api_url,
+                    json=ticket_data,
+                    headers=headers,
+                    timeout=20  # Timeout aumentado
+                )
+                last_response = response
+                
+                if response.status_code in (200, 201):
+                    print(f"✅ Petición exitosa en intento {attempt + 1}")
+                    break
+                elif response.status_code == 401:
+                    print(f"❌ Error de autenticación (API Key inválida)")
+                    return None
+                elif response.status_code == 400:
+                    print(f"❌ Error en datos enviados: {response.text}")
+                    return None
+                else:
+                    print(f"⚠️ Status {response.status_code} en intento {attempt + 1}")
+                    print(f"   Response: {response.text[:200]}...")
+                    
+            except requests.exceptions.Timeout:
+                last_error = f"Timeout en intento {attempt + 1}"
+                print(f"⏰ {last_error}")
+            except requests.exceptions.ConnectionError:
+                last_error = f"Error de conexión en intento {attempt + 1}"
+                print(f"🔌 {last_error}")
+            except requests.exceptions.RequestException as e:
+                last_error = f"Error de request en intento {attempt + 1}: {str(e)}"
+                print(f"🌐 {last_error}")
+            except Exception as e:
+                last_error = f"Error inesperado en intento {attempt + 1}: {str(e)}"
+                print(f"❌ {last_error}")
+            
+            # Backoff exponencial
+            if attempt < max_retries - 1:
+                wait_time = backoff_seconds[attempt]
+                print(f"⏳ Esperando {wait_time}s antes del siguiente intento...")
+                time.sleep(wait_time)
+        
+        # Procesar resultado final
+        if last_response is not None and last_response.status_code in (200, 201):
+            try:
+                ticket_response = last_response.json()
+                print(f"🎉 Pedido enviado exitosamente a Ticketera!")
+                print(f"   Ticket ID: {ticket_response.get('ticket_id', 'N/A')}")
+                print(f"   Número: {ticket_response.get('numero', 'N/A')}")
+                print(f"   Estado: {ticket_response.get('estado', 'N/A')}")
+                print(f"   Repartidor: {ticket_response.get('repartidor_asignado', 'N/A')}")
+                
+                # Actualizar base de datos de Ahorro con información del ticket
+                actualizar_pedido_con_ticket(numero_pedido, ticket_response)
+                
+                # Log de éxito
+                print(f"✅ Comunicación completada: Pedido {numero_pedido} → Ticket {ticket_response.get('ticket_id')}")
+                
+                return ticket_response
+                
+            except json.JSONDecodeError as e:
+                print(f"⚠️ Error parseando respuesta JSON: {e}")
+                print(f"   Respuesta recibida: {last_response.text}")
+                return None
+        else:
+            # Error final después de todos los reintentos
+            status = last_response.status_code if last_response is not None else 'no_response'
+            body = last_response.text if last_response is not None else 'no_body'
+            error_msg = last_error if last_error else f"Status {status}"
+            
+            print(f"💥 Error final enviando pedido a Ticketera después de {max_retries} intentos")
+            print(f"   Error: {error_msg}")
+            if last_response:
+                print(f"   Status: {status}")
+                print(f"   Respuesta: {body[:500]}...")
+            
+            # Guardar pedido pendiente para reintento posterior
+            guardar_pedido_pendiente(numero_pedido, ticket_data, error_msg)
+            
+            return None
+            
+    except Exception as e:
+        print(f"💥 Error crítico enviando pedido a Ticketera: {e}")
+        import traceback
+        print(f"   Traceback: {traceback.format_exc()}")
+        return None
+
+def guardar_pedido_pendiente(numero_pedido, ticket_data, error_msg):
+    """
+    Guardar pedido pendiente para reintento posterior
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Crear tabla si no existe
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pedidos_pendientes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                numero_pedido VARCHAR(50) UNIQUE NOT NULL,
+                datos_ticket TEXT NOT NULL,
+                error_ultimo_intento TEXT,
+                fecha_ultimo_intento DATETIME DEFAULT CURRENT_TIMESTAMP,
+                intentos INTEGER DEFAULT 1,
+                fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        cursor.execute("""
+            INSERT OR REPLACE INTO pedidos_pendientes 
+            (numero_pedido, datos_ticket, error_ultimo_intento, fecha_ultimo_intento, intentos)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, 1)
+        """, (numero_pedido, json.dumps(ticket_data), error_msg))
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"💾 Pedido {numero_pedido} guardado para reintento posterior")
+        
+    except Exception as e:
+        print(f"⚠️ Error guardando pedido pendiente: {e}")
 
 # ==========================================
 # REGISTRAR API BLUEPRINT
