@@ -46,6 +46,14 @@ except Exception as e:
     print(f"❌ Error importando db: {e}")
     raise  # Detén la app si el import falla
 
+# Función para obtener conexión a la base de datos
+def get_db_connection():
+    """Obtener conexión a la base de datos"""
+    import sqlite3
+    conn = sqlite3.connect('belgrano_ahorro.db')
+    conn.row_factory = sqlite3.Row
+    return conn
+
 # Importar middleware de autenticación y manejo de errores
 try:
     from auth_middleware import login_required, admin_required, flota_required, validate_input_data, production_only, rate_limit
