@@ -1352,7 +1352,7 @@ def confirmar_ticket(numero_pedido):
             SET ticket_confirmado = 1,
                 ticket_estado = ?,
                 fecha_confirmacion = CURRENT_TIMESTAMP
-            WHERE numero = ?
+            WHERE numero_pedido = ?
         """, (estado, numero_pedido))
         
         if cursor.rowcount == 0:
