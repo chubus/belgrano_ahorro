@@ -37,6 +37,7 @@ import uuid
 import re
 import secrets
 import hashlib
+import time
 
 # Importar base de datos con manejo de errores
 try:
@@ -1288,6 +1289,48 @@ def healthz():
         "ticketera_url": TICKETERA_URL,
         "timestamp": datetime.now().isoformat()
     })
+
+@app.route("/api/actualizar-db", methods=['POST'])
+def actualizar_base_datos_produccion():
+    """Endpoint para actualizar la base de datos en producción"""
+    try:
+        # Verificar API key para seguridad
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'belgrano_ahorro_api_key_2025':
+            return jsonify({'error': 'API key inválida'}), 401
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verificar columnas existentes
+        cursor.execute("PRAGMA table_info(pedidos)")
+        columns = [col[1] for col in cursor.fetchall()]
+        
+        # Agregar columnas si no existen
+        columnas_a_agregar = [
+            ('ticket_confirmado', 'INTEGER DEFAULT 0'),
+            ('ticket_estado', 'VARCHAR(20) DEFAULT "pendiente"'),
+            ('fecha_confirmacion', 'DATETIME')
+        ]
+        
+        columnas_agregadas = []
+        for columna, tipo in columnas_a_agregar:
+            if columna not in columns:
+                cursor.execute(f'ALTER TABLE pedidos ADD COLUMN {columna} {tipo}')
+                columnas_agregadas.append(columna)
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Base de datos actualizada exitosamente',
+            'columnas_agregadas': columnas_agregadas,
+            'columnas_existentes': columns
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Error actualizando base de datos: {str(e)}'}), 500
 
 @app.route("/api/pedido/confirmar/<numero_pedido>", methods=['POST'])
 def confirmar_ticket(numero_pedido):
