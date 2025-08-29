@@ -1843,9 +1843,9 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
                     except:
                         print(f"⚠️ No se pudo verificar health check en intento {attempt + 1}")
                 
-        response = requests.post(
-            api_url,
-            json=ticket_data,
+                response = requests.post(
+                    api_url,
+                    json=ticket_data,
                     headers=headers,
                     timeout=20  # Timeout aumentado
                 )
@@ -1860,11 +1860,11 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
                 elif response.status_code == 400:
                     print(f"❌ Error en datos enviados: {response.text}")
                     return None
-        else:
+                else:
                     print(f"⚠️ Status {response.status_code} en intento {attempt + 1}")
                     print(f"   Response: {response.text[:200]}...")
-            
-    except requests.exceptions.Timeout:
+                    
+            except requests.exceptions.Timeout:
                 last_error = f"Timeout en intento {attempt + 1}"
                 print(f"⏰ {last_error}")
             except requests.exceptions.ConnectionError:
@@ -1873,7 +1873,7 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
             except requests.exceptions.RequestException as e:
                 last_error = f"Error de request en intento {attempt + 1}: {str(e)}"
                 print(f"🌐 {last_error}")
-    except Exception as e:
+            except Exception as e:
                 last_error = f"Error inesperado en intento {attempt + 1}: {str(e)}"
                 print(f"❌ {last_error}")
             
