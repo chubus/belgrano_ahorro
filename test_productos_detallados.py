@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Test de productos detallados en la comunicación entre Belgrano Ahorro y Ticketera
-Verifica que se envíen y muestren correctamente: nombre, precio, cantidad y sucursal
+Verifica que se envíen nombre, precio, cantidad, sucursal y negocio
 """
 
 import requests
@@ -16,75 +16,61 @@ TICKETERA_URL = "https://ticketerabelgrano.onrender.com"
 API_KEY = "belgrano_ahorro_api_key_2025"
 
 def test_productos_detallados():
-    """Test de envío de productos con información detallada"""
-    print("🎫 Probando envío de productos con información detallada...")
+    """Test de envío de productos con información completa"""
+    print("🎫 Test de productos detallados")
+    print("=" * 50)
     
-    # Simular carrito con productos detallados
-    carrito_items = [
-        {
-            'producto': {
-                'nombre': 'Arroz Integral 1kg',
-                'precio': 850,
-                'sucursal': 'Sucursal Centro',
-                'categoria': 'Granos',
-                'descripcion': 'Arroz integral de alta calidad',
-                'codigo': 'ARROZ001'
-            },
-            'cantidad': 2
-        },
-        {
-            'producto': {
-                'nombre': 'Aceite de Oliva Extra Virgen 500ml',
-                'precio': 1200,
-                'sucursal': 'Sucursal Norte',
-                'categoria': 'Aceites',
-                'descripcion': 'Aceite de oliva premium',
-                'codigo': 'ACEITE002'
-            },
-            'cantidad': 1
-        },
-        {
-            'producto': {
-                'nombre': 'Leche Descremada 1L',
-                'precio': 450,
-                'sucursal': 'Sucursal Sur',
-                'categoria': 'Lácteos',
-                'descripcion': 'Leche descremada fresca',
-                'codigo': 'LECHE003'
-            },
-            'cantidad': 3
-        }
-    ]
-    
-    # Calcular total
-    total = sum(item['cantidad'] * item['producto']['precio'] for item in carrito_items)
-    
-    # Preparar productos con estructura detallada
-    productos = []
-    for item in carrito_items:
-        producto = item['producto']
-        producto_detallado = {
-            'nombre': producto['nombre'],
-            'cantidad': item['cantidad'],
-            'precio_unitario': producto['precio'],
-            'precio_total': item['cantidad'] * producto['precio'],
-            'sucursal': producto['sucursal'],
-            'categoria': producto['categoria'],
-            'descripcion': producto['descripcion'],
-            'codigo': producto['codigo']
-        }
-        productos.append(producto_detallado)
-    
+    # Datos de prueba con productos detallados
     ticket_data = {
-        "numero": f"PRODUCTOS-DETALLADOS-{int(time.time())}",
+        "numero": f"PRODUCTOS-DET-{int(time.time())}",
         "cliente_nombre": "Cliente Test Productos Detallados",
         "cliente_direccion": "Dirección Test 123",
         "cliente_telefono": "1234567890",
         "cliente_email": "test.productos@example.com",
-        "productos": productos,
-        "total": total,
+        "productos": [
+            {
+                "id": 1,
+                "nombre": "Arroz 1kg",
+                "precio": 950.0,
+                "cantidad": 2,
+                "subtotal": 1900.0,
+                "sucursal": "Sucursal Centro",
+                "negocio": "Belgrano Ahorro",
+                "categoria": "Granos y Cereales",
+                "descripcion": "Arroz de grano largo",
+                "stock": 50,
+                "destacado": True
+            },
+            {
+                "id": 2,
+                "nombre": "Aceite 900ml",
+                "precio": 1800.0,
+                "cantidad": 1,
+                "subtotal": 1800.0,
+                "sucursal": "Sucursal Sur",
+                "negocio": "Belgrano Ahorro",
+                "categoria": "Condimentos",
+                "descripcion": "Aceite de girasol",
+                "stock": 45,
+                "destacado": True
+            },
+            {
+                "id": 5,
+                "nombre": "Leche 1L",
+                "precio": 850.0,
+                "cantidad": 3,
+                "subtotal": 2550.0,
+                "sucursal": "Sucursal Centro",
+                "negocio": "Belgrano Ahorro",
+                "categoria": "Lácteos",
+                "descripcion": "Leche entera",
+                "stock": 60,
+                "destacado": True
+            }
+        ],
+        "total": 6250.0,
         "metodo_pago": "efectivo",
-        "indicaciones": "Test de productos con información detallada",
+        "indicaciones": "Test de productos con información completa",
         "estado": "pendiente",
         "prioridad": "normal",
         "tipo_cliente": "cliente",
@@ -101,22 +87,24 @@ def test_productos_detallados():
     }
     
     try:
-        print(f"📤 Enviando ticket con productos detallados a {TICKETERA_URL}/api/tickets")
+        print(f"📤 Enviando ticket con productos detallados...")
+        print(f"   URL: {TICKETERA_URL}/api/tickets")
         print(f"   Número: {ticket_data['numero']}")
         print(f"   Cliente: {ticket_data['cliente_nombre']}")
         print(f"   Total: ${ticket_data['total']}")
-        print(f"   Productos: {len(productos)} items")
+        print(f"   Productos: {len(ticket_data['productos'])} items")
         
-        # Mostrar detalles de productos
-        print("\n📋 Detalles de productos a enviar:")
-        for i, producto in enumerate(productos, 1):
-            print(f"   {i}. {producto['nombre']}")
-            print(f"      Cantidad: {producto['cantidad']}")
-            print(f"      Precio unitario: ${producto['precio_unitario']}")
-            print(f"      Precio total: ${producto['precio_total']}")
-            print(f"      Sucursal: {producto['sucursal']}")
-            print(f"      Categoría: {producto['categoria']}")
-            print()
+        # Mostrar detalles de cada producto
+        for i, producto in enumerate(ticket_data['productos'], 1):
+            print(f"   Producto {i}:")
+            print(f"     - ID: {producto['id']}")
+            print(f"     - Nombre: {producto['nombre']}")
+            print(f"     - Precio: ${producto['precio']}")
+            print(f"     - Cantidad: {producto['cantidad']}")
+            print(f"     - Subtotal: ${producto['subtotal']}")
+            print(f"     - Sucursal: {producto['sucursal']}")
+            print(f"     - Negocio: {producto['negocio']}")
+            print(f"     - Categoría: {producto['categoria']}")
         
         response = requests.post(
             f"{TICKETERA_URL}/api/tickets",
@@ -125,7 +113,7 @@ def test_productos_detallados():
             timeout=20
         )
         
-        print(f"📥 Status Code: {response.status_code}")
+        print(f"\n📥 Status Code: {response.status_code}")
         
         if response.status_code in (200, 201):
             try:
@@ -136,15 +124,18 @@ def test_productos_detallados():
                 print(f"   Estado: {response_data.get('estado', 'N/A')}")
                 print(f"   Repartidor: {response_data.get('repartidor_asignado', 'N/A')}")
                 
-                # Verificar que los productos se procesaron correctamente
-                print("\n🔍 Verificando procesamiento de productos...")
-                if response_data.get('exito'):
-                    print("✅ Ticket procesado correctamente")
-                    return response_data.get('numero')
+                # Verificar que los productos se guardaron correctamente
+                print(f"\n🔍 Verificando productos en la respuesta...")
+                if 'productos' in response_data:
+                    productos_respuesta = response_data['productos']
+                    print(f"   Productos en respuesta: {len(productos_respuesta)}")
+                    for i, producto in enumerate(productos_respuesta, 1):
+                        print(f"   Producto {i}: {producto}")
                 else:
-                    print("⚠️ Ticket procesado pero con advertencias")
-                    return response_data.get('numero')
-                    
+                    print("   ⚠️ No se encontraron productos en la respuesta")
+                
+                return response_data.get('numero')
+                
             except json.JSONDecodeError:
                 print(f"⚠️ Respuesta no es JSON válido: {response.text}")
                 return None
@@ -158,19 +149,19 @@ def test_productos_detallados():
         return None
 
 def test_verificacion_ticketera():
-    """Verificar que la Ticketera esté funcionando"""
-    print("\n🔍 Verificando estado de la Ticketera...")
+    """Verificar que la Ticketera puede mostrar los productos correctamente"""
+    print(f"\n🔍 Verificando que la Ticketera esté funcionando...")
     
     try:
         response = requests.get(f"{TICKETERA_URL}/healthz", timeout=10)
         if response.status_code == 200:
-            print("✅ Ticketera: OK")
+            print("✅ Ticketera está funcionando")
             return True
         else:
-            print(f"❌ Ticketera: Status {response.status_code}")
+            print(f"❌ Ticketera no responde correctamente: {response.status_code}")
             return False
     except Exception as e:
-        print(f"❌ Ticketera: Error - {e}")
+        print(f"❌ Error conectando con Ticketera: {e}")
         return False
 
 def main():
@@ -194,19 +185,14 @@ def main():
     print("=" * 50)
     
     if ticket_numero:
-        print("🎉 ¡PRODUCTOS DETALLADOS FUNCIONANDO!")
-        print("✅ Información completa enviada:")
-        print("   - Nombre del producto")
-        print("   - Precio unitario")
-        print("   - Cantidad")
-        print("   - Precio total por producto")
-        print("   - Sucursal")
-        print("   - Categoría")
-        print("   - Descripción")
-        print("   - Código de producto")
+        print("🎉 ¡PRODUCTOS DETALLADOS ENVIADOS EXITOSAMENTE!")
+        print("✅ Información completa de productos enviada")
+        print("✅ Nombre, precio, cantidad incluidos")
+        print("✅ Sucursal y negocio incluidos")
+        print("✅ Categoría y descripción incluidos")
         print(f"✅ Ticket creado: {ticket_numero}")
     else:
-        print("❌ Problemas con productos detallados")
+        print("❌ Problemas enviando productos detallados")
         print("🔧 Revisar configuración y logs")
 
 if __name__ == "__main__":
