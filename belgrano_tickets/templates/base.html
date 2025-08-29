@@ -100,7 +100,7 @@
         .btn-warning {
             background-color: var(--celeste-claro);
             border-color: var(--celeste-claro);
-            color: #1a1a1a;
+            color: var(--text-bright);
         }
 
         .btn-danger {
@@ -199,84 +199,65 @@
             color: var(--text-light) !important;
         }
 
+        /* Asegurar que todos los textos sean blancos o turquesa */
+        .text-dark {
+            color: var(--text-bright) !important;
+        }
+
+        .text-muted {
+            color: var(--text-muted) !important;
+        }
+
+        .text-secondary {
+            color: var(--text-secondary) !important;
+        }
+
+        /* Estilos para badges y elementos con fondo claro */
+        .bg-warning {
+            background-color: var(--turquesa) !important;
+            color: var(--text-bright) !important;
+        }
+
+        .bg-light {
+            background-color: var(--card-bg) !important;
+            color: var(--text-bright) !important;
+        }
+
+        /* Asegurar que todos los elementos tengan texto claro */
+        .card-body, .card-header, .card-footer {
+            color: var(--text-bright) !important;
+        }
+
+        .form-label {
+            color: var(--text-bright) !important;
+        }
+
+        .small {
+            color: var(--text-muted) !important;
+        }
+
+        /* Estilos para modales */
+        .modal-content {
+            background-color: var(--card-bg);
+            color: var(--text-bright);
+        }
+
+        .modal-header {
+            background-color: var(--darker-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-footer {
+            background-color: var(--darker-bg);
+            border-top: 1px solid var(--border-color);
+        }
+
         .text-muted {
             color: var(--text-muted) !important;
         }
 
         .text-secondary {
             color: var(--text-soft) !important;
-        }
-
-        /* Asegurar que todo el texto sea blanco o turquesa */
-        h1, h2, h3, h4, h5, h6 {
-            color: var(--text-bright) !important;
-        }
-
-        p, span, div, label, small {
-            color: var(--text-light) !important;
-        }
-
-        /* Override para elementos específicos que necesiten turquesa */
-        .text-turquesa {
-            color: var(--turquesa) !important;
-        }
-
-        .text-celeste {
-            color: var(--celeste-claro) !important;
-        }
-
-        /* Asegurar que las tablas tengan texto blanco */
-        .table {
-            color: var(--text-bright) !important;
-        }
-
-        .table th {
-            color: var(--text-bright) !important;
-        }
-
-        .table td {
-            color: var(--text-light) !important;
-        }
-
-        /* Asegurar que los modales tengan tema oscuro */
-        .modal-content {
-            background-color: var(--card-bg) !important;
-            color: var(--text-bright) !important;
-        }
-
-        .modal-header {
-            background-color: var(--darker-bg) !important;
-            border-bottom: 1px solid var(--border-color) !important;
-        }
-
-        .modal-footer {
-            background-color: var(--darker-bg) !important;
-            border-top: 1px solid var(--border-color) !important;
-        }
-
-        /* Asegurar que los alerts tengan texto blanco */
-        .alert {
-            color: var(--text-bright) !important;
-        }
-
-        .alert-success {
-            background-color: rgba(76, 175, 80, 0.2) !important;
-            border-color: var(--turquesa) !important;
-        }
-
-        .alert-danger {
-            background-color: rgba(244, 67, 54, 0.2) !important;
-            border-color: var(--danger-color) !important;
-        }
-
-        .alert-warning {
-            background-color: rgba(255, 152, 0, 0.2) !important;
-            border-color: var(--celeste-claro) !important;
-        }
-
-        .alert-info {
-            background-color: rgba(33, 150, 243, 0.2) !important;
-            border-color: var(--azul-claro) !important;
         }
 
         /* Responsive para layout horizontal */
