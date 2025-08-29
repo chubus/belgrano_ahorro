@@ -441,6 +441,26 @@ def recibir_ticket_externo():
                     'total': existente.total
                 }), 200
         
+        # Procesar productos para mostrar información detallada
+        productos_raw = data.get('productos', [])
+        productos_procesados = []
+        
+        for producto in productos_raw:
+            if isinstance(producto, dict):
+                # Producto con estructura detallada
+                nombre = producto.get('nombre', 'Producto sin nombre')
+                cantidad = producto.get('cantidad', 1)
+                precio_unitario = producto.get('precio_unitario', 0)
+                precio_total = producto.get('precio_total', 0)
+                sucursal = producto.get('sucursal', 'Sucursal Principal')
+                categoria = producto.get('categoria', 'Sin categoría')
+                
+                producto_formateado = f"{nombre} x{cantidad} - ${precio_unitario} c/u (${precio_total} total) - {sucursal} - {categoria}"
+                productos_procesados.append(producto_formateado)
+            else:
+                # Producto como string (formato anterior)
+                productos_procesados.append(str(producto))
+        
         # Crear el ticket con los datos recibidos
         ticket = Ticket(
             numero=numero_ticket or f'TICKET-{datetime.now().strftime("%Y%m%d%H%M%S")}',
@@ -448,7 +468,7 @@ def recibir_ticket_externo():
             cliente_direccion=data.get('cliente_direccion', data.get('direccion', 'Sin dirección')),
             cliente_telefono=data.get('cliente_telefono', data.get('telefono', 'Sin teléfono')),
             cliente_email=data.get('cliente_email', data.get('email', 'sin@email.com')),
-            productos=json.dumps(data.get('productos', [])),
+            productos=json.dumps(productos_procesados),
             total=data.get('total', 0),
             estado=data.get('estado', 'pendiente'),
             prioridad=prioridad,
@@ -467,15 +487,15 @@ def recibir_ticket_externo():
         
         # Emitir evento WebSocket para actualización en tiempo real
         try:
-        socketio.emit('nuevo_ticket', {
-            'ticket_id': ticket.id, 
-            'numero': ticket.numero,
-            'cliente_nombre': ticket.cliente_nombre,
-            'estado': ticket.estado,
+            socketio.emit('nuevo_ticket', {
+                'ticket_id': ticket.id, 
+                'numero': ticket.numero,
+                'cliente_nombre': ticket.cliente_nombre,
+                'estado': ticket.estado,
                 'repartidor': ticket.repartidor_nombre,
-            'prioridad': ticket.prioridad,
-            'tipo_cliente': tipo_cliente
-        })
+                'prioridad': ticket.prioridad,
+                'tipo_cliente': tipo_cliente
+            })
             print(f"📡 Evento WebSocket emitido para ticket {ticket.id}")
         except Exception as ws_error:
             print(f"⚠️ Error emitiendo WebSocket: {ws_error}")

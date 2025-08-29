@@ -1738,11 +1738,47 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
         if not nombre_completo:
             nombre_completo = usuario.get('email', 'Cliente')
         
-        # Preparar lista de productos con más detalles
-        productos = []
+        # Preparar lista de productos con estructura completa para la Ticketera
+        productos_lista = []
         for item in carrito_items:
             producto = item['producto']
-            productos.append(f"{producto['nombre']} x{item['cantidad']} - ${producto.get('precio', 0)}")
+            
+            # Obtener información del negocio
+            negocio_nombre = "Negocio no especificado"
+            if producto.get('negocio'):
+                negocio_data = productos.get('negocios', {}).get(producto['negocio'])
+                if negocio_data:
+                    negocio_nombre = negocio_data.get('nombre', producto['negocio'])
+            
+            # Obtener información de la sucursal (usar la primera disponible)
+            sucursal_nombre = "Sucursal no especificada"
+            if producto.get('sucursales') and len(producto['sucursales']) > 0:
+                sucursal_id = producto['sucursales'][0]
+                if producto['negocio'] in productos.get('sucursales', {}):
+                    sucursal_data = productos['sucursales'][producto['negocio']].get(sucursal_id)
+                    if sucursal_data:
+                        sucursal_nombre = sucursal_data.get('nombre', sucursal_id)
+            
+            # Obtener información de la categoría
+            categoria_nombre = "Sin categoría"
+            if producto.get('categoria'):
+                categoria_data = productos.get('categorias', {}).get(producto['categoria'])
+                if categoria_data:
+                    categoria_nombre = categoria_data.get('nombre', producto['categoria'])
+            
+            productos_lista.append({
+                'id': producto.get('id', 'N/A'),
+                'nombre': producto.get('nombre', 'Producto sin nombre'),
+                'precio': float(producto.get('precio', 0)),
+                'cantidad': int(item['cantidad']),
+                'subtotal': float(item['subtotal']),
+                'sucursal': sucursal_nombre,
+                'negocio': negocio_nombre,
+                'categoria': categoria_nombre,
+                'descripcion': producto.get('descripcion', 'Sin descripción'),
+                'stock': producto.get('stock', 0),
+                'destacado': producto.get('destacado', False)
+            })
         
         # Preparar datos para enviar a la API con validación
         ticket_data = {
@@ -1751,7 +1787,7 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
             "cliente_direccion": direccion or "Dirección no especificada",
             "cliente_telefono": usuario.get('telefono', ''),
             "cliente_email": usuario['email'],
-            "productos": productos,
+            "productos": productos_lista,
             "total": float(total),  # Asegurar que sea float
             "metodo_pago": metodo_pago,
             "indicaciones": notas or 'Sin indicaciones especiales',
@@ -1767,7 +1803,7 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
             print("❌ Datos de cliente incompletos")
             return None
         
-        if not productos:
+        if not productos_lista:
             print("❌ No hay productos en el carrito")
             return None
         
@@ -1777,7 +1813,7 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
         print(f"   Pedido: {numero_pedido}")
         print(f"   Cliente: {nombre_completo}")
         print(f"   Total: ${total}")
-        print(f"   Productos: {len(productos)} items")
+        print(f"   Productos: {len(productos_lista)} items")
         
         # Headers mejorados
         headers = {
@@ -1807,9 +1843,9 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
                     except:
                         print(f"⚠️ No se pudo verificar health check en intento {attempt + 1}")
                 
-                response = requests.post(
-                    api_url,
-                    json=ticket_data,
+        response = requests.post(
+            api_url,
+            json=ticket_data,
                     headers=headers,
                     timeout=20  # Timeout aumentado
                 )
@@ -1824,11 +1860,11 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
                 elif response.status_code == 400:
                     print(f"❌ Error en datos enviados: {response.text}")
                     return None
-                else:
+        else:
                     print(f"⚠️ Status {response.status_code} en intento {attempt + 1}")
                     print(f"   Response: {response.text[:200]}...")
-                    
-            except requests.exceptions.Timeout:
+            
+    except requests.exceptions.Timeout:
                 last_error = f"Timeout en intento {attempt + 1}"
                 print(f"⏰ {last_error}")
             except requests.exceptions.ConnectionError:
@@ -1837,7 +1873,7 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
             except requests.exceptions.RequestException as e:
                 last_error = f"Error de request en intento {attempt + 1}: {str(e)}"
                 print(f"🌐 {last_error}")
-            except Exception as e:
+    except Exception as e:
                 last_error = f"Error inesperado en intento {attempt + 1}: {str(e)}"
                 print(f"❌ {last_error}")
             
