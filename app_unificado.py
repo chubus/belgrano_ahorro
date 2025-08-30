@@ -590,9 +590,83 @@ def ticketera_gestion_flota():
         stats_repartidores=stats_repartidores
     )
 
+@app.route('/ticketera/registro')
+@login_required
+@role_required('admin')
+def ticketera_registro():
+    """Panel de registro de tickets (historial)"""
+    tickets_registro = database.obtener_tickets_registro()
+    return render_template('ticketera/registro_tickets.html', tickets_registro=tickets_registro)
+
 # =================================================================
 # RUTAS DE API
 # =================================================================
+
+@app.route('/api/tickets/<int:ticket_id>/actualizar-estado', methods=['POST'])
+@login_required
+@role_required('admin')
+def api_actualizar_estado_ticket(ticket_id):
+    """Actualizar estado de un ticket"""
+    try:
+        data = request.get_json()
+        estado = data.get('estado')
+        estado_envio = data.get('estado_envio')
+        repartidor = data.get('repartidor')
+        prioridad = data.get('prioridad')
+        
+        success = database.actualizar_estado_ticket(
+            ticket_id, estado, estado_envio, repartidor, prioridad
+        )
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Estado actualizado correctamente'})
+        else:
+            return jsonify({'success': False, 'error': 'Error actualizando estado'}), 500
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/tickets/<int:ticket_id>/preparar', methods=['POST'])
+@login_required
+@role_required('admin')
+def api_preparar_ticket(ticket_id):
+    """Preparar un ticket (asignar repartidor y prioridad)"""
+    try:
+        data = request.get_json()
+        repartidor = data.get('repartidor')
+        prioridad = data.get('prioridad', 'normal')
+        
+        success = database.actualizar_estado_ticket(
+            ticket_id, 
+            estado='en-preparacion',
+            estado_envio='en-preparacion',
+            repartidor=repartidor,
+            prioridad=prioridad
+        )
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Ticket preparado correctamente'})
+        else:
+            return jsonify({'success': False, 'error': 'Error preparando ticket'}), 500
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/tickets/<int:ticket_id>/mover-registro', methods=['POST'])
+@login_required
+@role_required('admin')
+def api_mover_a_registro(ticket_id):
+    """Mover un ticket al registro"""
+    try:
+        success = database.mover_ticket_a_registro(ticket_id)
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Ticket movido al registro correctamente'})
+        else:
+            return jsonify({'success': False, 'error': 'Error moviendo ticket al registro'}), 500
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/health')
 def health_check():

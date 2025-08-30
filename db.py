@@ -700,14 +700,64 @@ def crear_tabla_tickets():
                 cliente_telefono VARCHAR(20),
                 cliente_email VARCHAR(100),
                 productos TEXT NOT NULL,
+                total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
                 estado VARCHAR(20) DEFAULT 'pendiente',
+                estado_envio VARCHAR(20) DEFAULT 'pendiente',
                 prioridad VARCHAR(20) DEFAULT 'normal',
                 indicaciones TEXT,
                 repartidor VARCHAR(50),
                 fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
-                fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP
+                fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+                fecha_envio DATETIME,
+                fecha_entrega DATETIME
             )
         ''')
+        
+        # Crear tabla de registro de tickets (historial)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS registro_tickets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticket_id INTEGER NOT NULL,
+                numero VARCHAR(50) NOT NULL,
+                cliente_nombre VARCHAR(100) NOT NULL,
+                cliente_direccion TEXT,
+                cliente_telefono VARCHAR(20),
+                cliente_email VARCHAR(100),
+                productos TEXT NOT NULL,
+                total DECIMAL(10,2) NOT NULL,
+                estado_final VARCHAR(20) NOT NULL,
+                estado_envio_final VARCHAR(20) NOT NULL,
+                prioridad VARCHAR(20),
+                indicaciones TEXT,
+                repartidor VARCHAR(50),
+                fecha_creacion DATETIME,
+                fecha_envio DATETIME,
+                fecha_entrega DATETIME,
+                fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (ticket_id) REFERENCES tickets (id)
+            )
+        ''')
+        
+        # Agregar columnas si no existen (para compatibilidad con bases de datos existentes)
+        try:
+            cursor.execute('ALTER TABLE tickets ADD COLUMN total DECIMAL(10,2) DEFAULT 0.00')
+        except:
+            pass  # La columna ya existe
+            
+        try:
+            cursor.execute('ALTER TABLE tickets ADD COLUMN estado_envio VARCHAR(20) DEFAULT "pendiente"')
+        except:
+            pass  # La columna ya existe
+            
+        try:
+            cursor.execute('ALTER TABLE tickets ADD COLUMN fecha_envio DATETIME')
+        except:
+            pass  # La columna ya existe
+            
+        try:
+            cursor.execute('ALTER TABLE tickets ADD COLUMN fecha_entrega DATETIME')
+        except:
+            pass  # La columna ya existe
         
         conn.commit()
         conn.close()
@@ -725,9 +775,9 @@ def guardar_ticket(**kwargs):
         cursor.execute('''
             INSERT INTO tickets (
                 numero, cliente_nombre, cliente_direccion, cliente_telefono,
-                cliente_email, productos, estado, prioridad, indicaciones,
-                repartidor, fecha_creacion
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                cliente_email, productos, total, estado, estado_envio, prioridad, 
+                indicaciones, repartidor, fecha_creacion
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             kwargs.get('numero'),
             kwargs.get('cliente_nombre'),
@@ -735,7 +785,9 @@ def guardar_ticket(**kwargs):
             kwargs.get('cliente_telefono'),
             kwargs.get('cliente_email'),
             kwargs.get('productos'),
+            kwargs.get('total', 0.00),
             kwargs.get('estado', 'pendiente'),
+            kwargs.get('estado_envio', 'pendiente'),
             kwargs.get('prioridad', 'normal'),
             kwargs.get('indicaciones'),
             kwargs.get('repartidor'),
@@ -758,8 +810,9 @@ def obtener_todos_los_tickets():
         
         cursor.execute('''
             SELECT id, numero, cliente_nombre, cliente_direccion, cliente_telefono,
-                   cliente_email, productos, estado, prioridad, indicaciones,
-                   repartidor, fecha_creacion, fecha_actualizacion
+                   cliente_email, productos, total, estado, estado_envio, prioridad, 
+                   indicaciones, repartidor, fecha_creacion, fecha_actualizacion,
+                   fecha_envio, fecha_entrega
             FROM tickets
             ORDER BY fecha_creacion DESC
         ''')
@@ -774,12 +827,16 @@ def obtener_todos_los_tickets():
                 'cliente_telefono': row[4],
                 'cliente_email': row[5],
                 'productos': row[6],
-                'estado': row[7],
-                'prioridad': row[8],
-                'indicaciones': row[9],
-                'repartidor': row[10],
-                'fecha_creacion': row[11],
-                'fecha_actualizacion': row[12]
+                'total': row[7] or 0.00,
+                'estado': row[8],
+                'estado_envio': row[9],
+                'prioridad': row[10],
+                'indicaciones': row[11],
+                'repartidor': row[12],
+                'fecha_creacion': row[13],
+                'fecha_actualizacion': row[14],
+                'fecha_envio': row[15],
+                'fecha_entrega': row[16]
             })
         
         conn.close()
@@ -796,8 +853,9 @@ def obtener_tickets_por_repartidor(repartidor):
         
         cursor.execute('''
             SELECT id, numero, cliente_nombre, cliente_direccion, cliente_telefono,
-                   cliente_email, productos, estado, prioridad, indicaciones,
-                   repartidor, fecha_creacion, fecha_actualizacion
+                   cliente_email, productos, total, estado, estado_envio, prioridad, 
+                   indicaciones, repartidor, fecha_creacion, fecha_actualizacion,
+                   fecha_envio, fecha_entrega
             FROM tickets
             WHERE repartidor = ?
             ORDER BY fecha_creacion DESC
@@ -813,12 +871,16 @@ def obtener_tickets_por_repartidor(repartidor):
                 'cliente_telefono': row[4],
                 'cliente_email': row[5],
                 'productos': row[6],
-                'estado': row[7],
-                'prioridad': row[8],
-                'indicaciones': row[9],
-                'repartidor': row[10],
-                'fecha_creacion': row[11],
-                'fecha_actualizacion': row[12]
+                'total': row[7] or 0.00,
+                'estado': row[8],
+                'estado_envio': row[9],
+                'prioridad': row[10],
+                'indicaciones': row[11],
+                'repartidor': row[12],
+                'fecha_creacion': row[13],
+                'fecha_actualizacion': row[14],
+                'fecha_envio': row[15],
+                'fecha_entrega': row[16]
             })
         
         conn.close()
@@ -871,3 +933,184 @@ def contar_tickets():
     except Exception as e:
         logger.error(f"Error contando tickets: {e}")
         return 0
+
+def actualizar_estado_ticket(ticket_id, estado, estado_envio=None, repartidor=None, prioridad=None):
+    """Actualizar estado de un ticket"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        # Preparar la consulta dinámicamente
+        query_parts = ['UPDATE tickets SET']
+        params = []
+        
+        if estado:
+            query_parts.append('estado = ?')
+            params.append(estado)
+            
+        if estado_envio:
+            query_parts.append('estado_envio = ?')
+            params.append(estado_envio)
+            
+        if repartidor:
+            query_parts.append('repartidor = ?')
+            params.append(repartidor)
+            
+        if prioridad:
+            query_parts.append('prioridad = ?')
+            params.append(prioridad)
+            
+        # Agregar fecha de actualización
+        query_parts.append('fecha_actualizacion = ?')
+        params.append(datetime.now())
+        
+        # Agregar fechas específicas según el estado
+        if estado_envio == 'en-envio':
+            query_parts.append('fecha_envio = ?')
+            params.append(datetime.now())
+        elif estado_envio == 'entregado':
+            query_parts.append('fecha_entrega = ?')
+            params.append(datetime.now())
+        
+        query_parts.append('WHERE id = ?')
+        params.append(ticket_id)
+        
+        query = ', '.join(query_parts)
+        cursor.execute(query, params)
+        
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"Error actualizando estado del ticket: {e}")
+        return False
+
+def mover_ticket_a_registro(ticket_id):
+    """Mover un ticket completado al registro de tickets"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        # Obtener datos del ticket
+        cursor.execute('''
+            SELECT id, numero, cliente_nombre, cliente_direccion, cliente_telefono,
+                   cliente_email, productos, total, estado, estado_envio, prioridad,
+                   indicaciones, repartidor, fecha_creacion, fecha_envio, fecha_entrega
+            FROM tickets
+            WHERE id = ?
+        ''', (ticket_id,))
+        
+        ticket = cursor.fetchone()
+        if not ticket:
+            conn.close()
+            return False
+        
+        # Insertar en registro de tickets
+        cursor.execute('''
+            INSERT INTO registro_tickets (
+                ticket_id, numero, cliente_nombre, cliente_direccion, cliente_telefono,
+                cliente_email, productos, total, estado_final, estado_envio_final,
+                prioridad, indicaciones, repartidor, fecha_creacion, fecha_envio, fecha_entrega
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            ticket[0], ticket[1], ticket[2], ticket[3], ticket[4], ticket[5],
+            ticket[6], ticket[7], ticket[8], ticket[9], ticket[10], ticket[11],
+            ticket[12], ticket[13], ticket[14], ticket[15]
+        ))
+        
+        # Eliminar el ticket de la tabla principal
+        cursor.execute('DELETE FROM tickets WHERE id = ?', (ticket_id,))
+        
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"Error moviendo ticket a registro: {e}")
+        return False
+
+def obtener_tickets_registro():
+    """Obtener tickets del registro (historial)"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, ticket_id, numero, cliente_nombre, cliente_direccion, cliente_telefono,
+                   cliente_email, productos, total, estado_final, estado_envio_final,
+                   prioridad, indicaciones, repartidor, fecha_creacion, fecha_envio,
+                   fecha_entrega, fecha_registro
+            FROM registro_tickets
+            ORDER BY fecha_registro DESC
+        ''')
+        
+        tickets = []
+        for row in cursor.fetchall():
+            tickets.append({
+                'id': row[0],
+                'ticket_id': row[1],
+                'numero': row[2],
+                'cliente_nombre': row[3],
+                'cliente_direccion': row[4],
+                'cliente_telefono': row[5],
+                'cliente_email': row[6],
+                'productos': row[7],
+                'total': row[8] or 0.00,
+                'estado_final': row[9],
+                'estado_envio_final': row[10],
+                'prioridad': row[11],
+                'indicaciones': row[12],
+                'repartidor': row[13],
+                'fecha_creacion': row[14],
+                'fecha_envio': row[15],
+                'fecha_entrega': row[16],
+                'fecha_registro': row[17]
+            })
+        
+        conn.close()
+        return tickets
+    except Exception as e:
+        logger.error(f"Error obteniendo tickets del registro: {e}")
+        return []
+
+def obtener_ticket_por_id(ticket_id):
+    """Obtener un ticket específico por ID"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT id, numero, cliente_nombre, cliente_direccion, cliente_telefono,
+                   cliente_email, productos, total, estado, estado_envio, prioridad,
+                   indicaciones, repartidor, fecha_creacion, fecha_actualizacion,
+                   fecha_envio, fecha_entrega
+            FROM tickets
+            WHERE id = ?
+        ''', (ticket_id,))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return {
+                'id': row[0],
+                'numero': row[1],
+                'cliente_nombre': row[2],
+                'cliente_direccion': row[3],
+                'cliente_telefono': row[4],
+                'cliente_email': row[5],
+                'productos': row[6],
+                'total': row[7] or 0.00,
+                'estado': row[8],
+                'estado_envio': row[9],
+                'prioridad': row[10],
+                'indicaciones': row[11],
+                'repartidor': row[12],
+                'fecha_creacion': row[13],
+                'fecha_actualizacion': row[14],
+                'fecha_envio': row[15],
+                'fecha_entrega': row[16]
+            }
+        return None
+    except Exception as e:
+        logger.error(f"Error obteniendo ticket por ID: {e}")
+        return None

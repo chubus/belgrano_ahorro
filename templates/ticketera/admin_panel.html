@@ -1,6 +1,52 @@
 {% extends "base.html" %}
 {% block title %}Panel de Administración{% endblock %}
 
+<style>
+/* Estilos para los nuevos estados de envío */
+.status-envio-pendiente {
+    background-color: #ffc107;
+    color: black;
+}
+
+.status-envio-en-preparacion {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.status-envio-en-envio {
+    background-color: #007bff;
+    color: white;
+}
+
+.status-envio-entregado {
+    background-color: #28a745;
+    color: white;
+}
+
+/* Estilos para prioridades */
+.priority-alta {
+    background-color: #dc3545;
+    color: white;
+}
+
+.priority-normal {
+    background-color: #6c757d;
+    color: white;
+}
+
+.priority-baja {
+    background-color: #28a745;
+    color: white;
+}
+
+/* Estilos para el total */
+.total-display {
+    background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+    border: 2px solid #2c3e50;
+    font-weight: bold;
+}
+</style>
+
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
@@ -16,6 +62,9 @@
                 <button class="btn btn-outline-success" onclick="exportTickets()">
                     <i class="fas fa-download me-1"></i>Exportar
                 </button>
+                <a href="/ticketera/registro" class="btn btn-outline-info">
+                    <i class="fas fa-archive me-1"></i>Registro de Tickets
+                </a>
             </div>
         </div>
     </div>
@@ -147,6 +196,19 @@
                                 {{ ticket.estado|title }}
                             {% endif %}
                         </span>
+                        <span class="badge status-envio-{{ ticket.estado_envio or 'pendiente' }}">
+                            {% if ticket.estado_envio == 'pendiente' %}
+                                <i class="fas fa-clock me-1"></i>Pendiente
+                            {% elif ticket.estado_envio == 'en-preparacion' %}
+                                <i class="fas fa-cogs me-1"></i>En Preparación
+                            {% elif ticket.estado_envio == 'en-envio' %}
+                                <i class="fas fa-truck me-1"></i>En Envío
+                            {% elif ticket.estado_envio == 'entregado' %}
+                                <i class="fas fa-check me-1"></i>Entregado
+                            {% else %}
+                                {{ (ticket.estado_envio or 'pendiente')|title }}
+                            {% endif %}
+                        </span>
                         <span class="badge priority-{{ ticket.prioridad }}">
                             {{ ticket.prioridad|title }}
                         </span>
@@ -259,7 +321,7 @@
                             <div class="mt-2 p-2 bg-warning text-dark rounded">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <h6 class="mb-0">
-                                        <i class="fas fa-dollar-sign me-2"></i>Total: ${{ "%.2f"|format(total_productos) }}
+                                        <i class="fas fa-dollar-sign me-2"></i>Total: ${{ "%.2f"|format(ticket.total or total_productos) }}
                                     </h6>
                                 </div>
                             </div>
@@ -287,8 +349,11 @@
                                 <button class="btn btn-sm btn-primary" onclick="editTicket({{ ticket.id }})">
                                     <i class="fas fa-edit me-1"></i>Editar
                                 </button>
-                                <button class="btn btn-sm btn-success" onclick="updateStatus({{ ticket.id }}, 'en-preparacion')">
+                                <button class="btn btn-sm btn-success" onclick="prepararTicket({{ ticket.id }})">
                                     <i class="fas fa-cogs me-1"></i>Preparar
+                                </button>
+                                <button class="btn btn-sm btn-warning" onclick="moverARegistro({{ ticket.id }})">
+                                    <i class="fas fa-archive me-1"></i>Mover a Registro
                                 </button>
                             </div>
                         </div>
@@ -299,10 +364,10 @@
             <!-- Acciones Adicionales -->
             <div class="card-footer">
                 <div class="d-flex gap-2 justify-content-center">
-                    <button class="btn btn-sm btn-info" onclick="updateStatus({{ ticket.id }}, 'en-camino')">
-                        <i class="fas fa-truck me-1"></i>Enviar
+                    <button class="btn btn-sm btn-info" onclick="actualizarEstadoEnvio({{ ticket.id }}, 'en-envio')">
+                        <i class="fas fa-truck me-1"></i>En Envío
                     </button>
-                    <button class="btn btn-sm btn-success" onclick="updateStatus({{ ticket.id }}, 'entregado')">
+                    <button class="btn btn-sm btn-success" onclick="actualizarEstadoEnvio({{ ticket.id }}, 'entregado')">
                         <i class="fas fa-check me-1"></i>Entregado
                     </button>
                     <button class="btn btn-sm btn-warning" onclick="duplicarTicket({{ ticket.id }})">
@@ -345,6 +410,46 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-primary" onclick="guardarAsignacionRepartidor()">Asignar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para preparar ticket -->
+<div class="modal fade" id="prepararTicketModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Preparar Ticket</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="prepararTicketForm">
+                    <input type="hidden" id="prepararTicketId">
+                    <div class="mb-3">
+                        <label for="selectRepartidorPreparar" class="form-label">Asignar Repartidor</label>
+                        <select class="form-select" id="selectRepartidorPreparar" required>
+                            <option value="">Seleccionar repartidor...</option>
+                            <option value="Repartidor1">Repartidor 1</option>
+                            <option value="Repartidor2">Repartidor 2</option>
+                            <option value="Repartidor3">Repartidor 3</option>
+                            <option value="Repartidor4">Repartidor 4</option>
+                            <option value="Repartidor5">Repartidor 5</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="selectPrioridad" class="form-label">Prioridad</label>
+                        <select class="form-select" id="selectPrioridad" required>
+                            <option value="normal">Normal</option>
+                            <option value="alta">Alta</option>
+                            <option value="baja">Baja</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="confirmarPreparar()">Preparar</button>
             </div>
         </div>
     </div>

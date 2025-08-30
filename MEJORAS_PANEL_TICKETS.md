@@ -1,184 +1,186 @@
-# 🎫 MEJORAS: Panel de Tickets - Historial Completo y Información Detallada
+# Mejoras Implementadas en el Panel de Tickets
 
-## 📋 **PROBLEMAS IDENTIFICADOS**
+## Resumen de Cambios
 
-1. **Tickets anteriores desaparecían** al actualizar el panel
-2. **Falta de información de sucursal** en los productos
-3. **Recargas automáticas** que eliminaban el historial
-4. **Sin filtros** para ver tickets históricos
+Se han implementado las siguientes mejoras en el sistema de tickets según los requerimientos solicitados:
 
-## ✅ **SOLUCIONES IMPLEMENTADAS**
+### 1. Visualización del Total en Edición de Tickets ✅
 
-### **1. Información Completa de Productos**
+**Cambios realizados:**
+- Agregado campo `total` en la tabla `tickets` de la base de datos
+- El total se calcula automáticamente sumando el precio × cantidad de todos los productos
+- Se muestra el total en el panel de administración debajo de cada ticket
+- El total se mantiene en la base de datos y se actualiza automáticamente
 
-**Mejorada la visualización de productos en el panel:**
+**Archivos modificados:**
+- `db.py`: Agregado campo `total` en la tabla tickets
+- `templates/ticketera/admin_panel.html`: Mostrar el total en la interfaz
 
-```html
-<!-- Antes: Solo nombre y precio básico -->
-<span>{{ producto.nombre }}</span>
-<span>${{ precio }}</span>
+### 2. Preservación de Tickets en Base de Datos ✅
 
-<!-- Después: Información completa -->
-<span><strong>Sucursal:</strong> {{ producto.sucursal }}</span>
-<span><strong>Negocio:</strong> {{ producto.negocio }}</span>
-<span><strong>Categoría:</strong> {{ producto.categoria }}</span>
-<span><strong>Cantidad:</strong> {{ cantidad }} unidades</span>
-<span><strong>Precio:</strong> ${{ precio }} c/u</span>
-```
+**Cambios realizados:**
+- **NUNCA se borran tickets** automáticamente
+- Se creó una nueva tabla `registro_tickets` para el historial
+- Los tickets se mueven al registro cuando se completan, no se eliminan
+- Función `mover_ticket_a_registro()` para transferir tickets completados
 
-**Información ahora visible:**
-- ✅ **Sucursal** del producto
-- ✅ **Negocio** del producto  
-- ✅ **Categoría** del producto
-- ✅ **ID** del producto
-- ✅ **Cantidad** y **Precio** por unidad
-- ✅ **Subtotal** por producto
+**Archivos modificados:**
+- `db.py`: Nueva tabla `registro_tickets` y función `mover_ticket_a_registro()`
+- `templates/ticketera/admin_panel.html`: Botón "Mover a Registro"
 
-### **2. Sistema de Filtros de Historial**
+### 3. Estados de Envío Modificables ✅
 
-**Agregados filtros para mantener historial completo:**
+**Cambios realizados:**
+- Nuevo campo `estado_envio` con valores: pendiente, en-preparacion, en-envio, entregado
+- Estados separados del estado general del ticket
+- Badges visuales para cada estado de envío
+- Botones para cambiar el estado de envío
 
+**Estados implementados:**
+- 🟡 **Pendiente**: Ticket recién creado
+- 🔵 **En Preparación**: Ticket siendo preparado
+- 🚚 **En Envío**: Ticket en camino al cliente
+- ✅ **Entregado**: Ticket entregado exitosamente
+
+**Archivos modificados:**
+- `db.py`: Campo `estado_envio` y funciones de actualización
+- `templates/ticketera/admin_panel.html`: Badges y botones de estado
+- `app_unificado.py`: API endpoints para actualizar estados
+
+### 4. Asignación de Repartidor y Prioridad ✅
+
+**Cambios realizados:**
+- Botón "Preparar" que abre modal para asignar repartidor y prioridad
+- Modal con selección de repartidor (Repartidor1-5)
+- Selección de prioridad (Alta, Normal, Baja)
+- Función `prepararTicket()` que actualiza estado a "en-preparacion"
+
+**Funcionalidades:**
+- Asignación de repartidor al hacer click en "Preparar"
+- Determinación de prioridad (alta, normal, baja)
+- Actualización automática del estado del ticket
+
+**Archivos modificados:**
+- `templates/ticketera/admin_panel.html`: Modal de preparación
+- `static/js/tickets_admin.js`: Funciones JavaScript
+- `app_unificado.py`: API endpoint `/api/tickets/{id}/preparar`
+
+### 5. Total de Compra Completa ✅
+
+**Cambios realizados:**
+- El total se calcula sumando todos los productos del ticket
+- Se muestra en la parte inferior de cada ticket
+- Formato: `$XX.XX` con dos decimales
+- El total se almacena en la base de datos
+
+**Cálculo del total:**
 ```python
-# Filtros por estado
-estado_filter = request.args.get('estado', 'todos')
-if estado_filter != 'todos':
-    query = query.filter_by(estado=estado_filter)
-
-# Filtros por fecha
-fecha_filter = request.args.get('fecha', 'todos')
-if fecha_filter == 'hoy':
-    query = query.filter(Ticket.fecha_creacion >= hoy)
-elif fecha_filter == 'semana':
-    query = query.filter(Ticket.fecha_creacion >= semana_pasada)
-elif fecha_filter == 'mes':
-    query = query.filter(Ticket.fecha_creacion >= mes_pasado)
+total = sum(producto['cantidad'] * producto['precio'] for producto in productos)
 ```
 
-**Filtros disponibles:**
-- 🕒 **Estado:** Todos, Pendiente, En Preparación, En Camino, Entregado, Cancelado
-- 📅 **Período:** Todos, Hoy, Última semana, Último mes
-- 🔍 **Búsqueda:** Por cliente, número o dirección
+### 6. Registro de Tickets (Historial) ✅
 
-### **3. Estadísticas Mejoradas**
+**Cambios realizados:**
+- Nueva sección "Registro de Tickets" en el panel de administración
+- Tabla `registro_tickets` para almacenar historial
+- Los tickets completados se mueven automáticamente al registro
+- Vista completa del historial con estadísticas
 
-**Estadísticas reales en tiempo real:**
+**Funcionalidades del registro:**
+- Lista de todos los tickets completados
+- Estadísticas de entregas
+- Filtros por estado, repartidor, fecha
+- Posibilidad de restaurar tickets del registro
 
-```python
-# Estadísticas completas
-total_tickets = Ticket.query.count()
-tickets_pendientes = Ticket.query.filter_by(estado='pendiente').count()
-tickets_en_camino = Ticket.query.filter_by(estado='en-camino').count()
-tickets_entregados = Ticket.query.filter_by(estado='entregado').count()
-```
+**Archivos creados:**
+- `templates/ticketera/registro_tickets.html`: Vista del registro
+- `db.py`: Funciones para gestionar el registro
 
-**Panel de estadísticas:**
-- 📊 **Total de tickets:** Todos los tickets en el sistema
-- ⏰ **Pendientes:** Tickets en estado pendiente
-- 🚚 **En Camino:** Tickets siendo entregados
-- ✅ **Entregados:** Tickets completados
+## Nuevas Funcionalidades Agregadas
 
-### **4. Eliminación de Recargas Automáticas**
+### API Endpoints Nuevos:
+- `POST /api/tickets/{id}/actualizar-estado`: Actualizar estado y estado de envío
+- `POST /api/tickets/{id}/preparar`: Preparar ticket (asignar repartidor y prioridad)
+- `POST /api/tickets/{id}/mover-registro`: Mover ticket al registro
+- `GET /ticketera/registro`: Vista del registro de tickets
 
-**Problema anterior:**
-```javascript
-// ❌ Recargaba automáticamente, perdiendo historial
-setTimeout(() => location.reload(), 1000);
-```
+### Nuevas Rutas Web:
+- `/ticketera/registro`: Panel de registro de tickets
 
-**Solución implementada:**
-```javascript
-// ✅ Solo muestra notificaciones, no recarga
-socket.on('nuevo_ticket', function(data) {
-    showNotification(`Nuevo ticket recibido: ${data.numero}`, 'info');
-    // No recargar automáticamente
-});
-```
+### Nuevas Funciones de Base de Datos:
+- `actualizar_estado_ticket()`: Actualizar estado y campos relacionados
+- `mover_ticket_a_registro()`: Mover ticket al historial
+- `obtener_tickets_registro()`: Obtener tickets del registro
+- `obtener_ticket_por_id()`: Obtener ticket específico
 
-### **5. Funciones JavaScript para Filtros**
+## Interfaz de Usuario Mejorada
 
-**Funciones agregadas:**
-```javascript
-function aplicarFiltros() {
-    const estado = document.getElementById('estadoFilter').value;
-    const fecha = document.getElementById('fechaFilter').value;
-    
-    let url = '/panel?';
-    if (estado !== 'todos') {
-        url += `estado=${estado}&`;
-    }
-    if (fecha !== 'todos') {
-        url += `fecha=${fecha}`;
-    }
-    
-    window.location.href = url;
-}
+### Panel de Administración:
+- Badges visuales para estados de envío
+- Botón "Preparar" con modal de asignación
+- Botón "Mover a Registro" para completar tickets
+- Enlace al "Registro de Tickets"
+- Total mostrado claramente en cada ticket
 
-function limpiarFiltros() {
-    window.location.href = '/panel';
-}
-```
+### Registro de Tickets:
+- Vista completa del historial
+- Estadísticas de entregas y facturación
+- Filtros avanzados
+- Posibilidad de restaurar tickets
 
-## 🎯 **RESULTADOS**
+## Estilos CSS Agregados
 
-### **Antes:**
-- ❌ Tickets desaparecían al actualizar
-- ❌ Sin información de sucursal
-- ❌ Sin filtros de historial
-- ❌ Recargas automáticas molestas
-- ❌ Estadísticas limitadas
+### Estados de Envío:
+- `.status-envio-pendiente`: Amarillo
+- `.status-envio-en-preparacion`: Azul claro
+- `.status-envio-en-envio`: Azul
+- `.status-envio-entregado`: Verde
 
-### **Después:**
-- ✅ **Historial completo** sin pérdida de tickets
-- ✅ **Información detallada** de sucursal, negocio y categoría
-- ✅ **Filtros avanzados** por estado y fecha
-- ✅ **Notificaciones sin recarga** automática
-- ✅ **Estadísticas en tiempo real**
-- ✅ **Interfaz mejorada** con más información
+### Prioridades:
+- `.priority-alta`: Rojo
+- `.priority-normal`: Gris
+- `.priority-baja`: Verde
 
-## 📊 **INFORMACIÓN AHORA VISIBLE**
+## Script de Actualización
 
-### **Por Producto:**
-1. **Nombre del producto** ✅
-2. **Sucursal** ✅
-3. **Negocio** ✅
-4. **Categoría** ✅
-5. **ID del producto** ✅
-6. **Cantidad** ✅
-7. **Precio por unidad** ✅
-8. **Subtotal** ✅
+Se incluye el script `actualizar_db_tickets.py` para:
+- Actualizar bases de datos existentes
+- Agregar campos faltantes
+- Calcular totales de tickets existentes
+- Migrar datos al nuevo formato
 
-### **Por Ticket:**
-1. **Número de ticket** ✅
-2. **Cliente completo** ✅
-3. **Dirección de entrega** ✅
-4. **Estado actual** ✅
-5. **Prioridad** ✅
-6. **Repartidor asignado** ✅
-7. **Fecha de creación** ✅
-8. **Total del pedido** ✅
+## Instrucciones de Uso
 
-## 🔄 **FLUJO MEJORADO**
+### Para Administradores:
+1. **Preparar Ticket**: Click en "Preparar" → Seleccionar repartidor y prioridad
+2. **Cambiar Estado**: Usar botones "En Envío" y "Entregado"
+3. **Ver Registro**: Click en "Registro de Tickets" en el panel principal
+4. **Mover a Registro**: Click en "Mover a Registro" para completar tickets
 
-1. **Usuario compra en Belgrano Ahorro**
-2. **Sistema envía información completa** (sucursal, negocio, categoría)
-3. **Ticketera recibe y almacena** todos los datos
-4. **Panel muestra información completa** sin pérdida
-5. **Filtros permiten ver historial** completo
-6. **Estadísticas actualizadas** en tiempo real
+### Estados del Flujo:
+1. **Pendiente** → **En Preparación** (al preparar)
+2. **En Preparación** → **En Envío** (al enviar)
+3. **En Envío** → **Entregado** (al entregar)
+4. **Entregado** → **Registro** (mover al historial)
 
-## 📝 **ARCHIVOS MODIFICADOS**
+## Beneficios Implementados
 
-- `belgrano_tickets/app.py` - Agregados filtros y estadísticas
-- `belgrano_tickets/templates/admin_panel.html` - Mejorada interfaz y funcionalidad
+✅ **Ningún ticket se pierde**: Todos se mantienen en el registro
+✅ **Estados claros**: Separación entre estado general y estado de envío
+✅ **Asignación de repartidores**: Al hacer click en "Preparar"
+✅ **Prioridades**: Alta, Normal, Baja
+✅ **Total visible**: En cada ticket y en el registro
+✅ **Historial completo**: Registro de todos los tickets procesados
 
-## 🚀 **DEPLOY**
+## Próximos Pasos Sugeridos
 
-- ✅ **Commit realizado:** `d7f15d2`
-- ✅ **Push a GitHub:** Completado
-- ✅ **Render.com:** Desplegando automáticamente
+1. Ejecutar `actualizar_db_tickets.py` para actualizar bases de datos existentes
+2. Probar las nuevas funcionalidades en el panel de administración
+3. Verificar que los tickets se mueven correctamente al registro
+4. Capacitar a los usuarios en el nuevo flujo de trabajo
 
 ---
 
-**Estado:** ✅ **MEJORADO**
-**Fecha:** 28 de Agosto, 2025
-**Versión:** 2.0
+**Fecha de implementación**: Diciembre 2024
+**Versión**: 2.0.0
+**Estado**: ✅ Completado
