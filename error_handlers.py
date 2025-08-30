@@ -7,6 +7,12 @@ Manejadores de errores para Belgrano Ahorro
 from flask import render_template, jsonify, request
 import logging
 
+def is_xhr():
+    """Detectar si la solicitud es AJAX/XHR"""
+    return (request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+            request.headers.get('Accept', '').startswith('application/json') or
+            request.path.startswith('/api/'))
+
 logger = logging.getLogger(__name__)
 
 class ValidationError(Exception):
@@ -28,7 +34,7 @@ def register_error_handlers(app):
     def bad_request(error):
         """Manejar errores 400 - Bad Request"""
         logger.warning(f"Error 400: {error} desde {request.remote_addr}")
-        if request.is_xhr or request.path.startswith('/api/'):
+        if is_xhr():
             return jsonify({'error': 'Solicitud incorrecta'}), 400
         return render_template('error_sistema.html', error="Solicitud incorrecta"), 400
 
@@ -36,7 +42,7 @@ def register_error_handlers(app):
     def unauthorized(error):
         """Manejar errores 401 - Unauthorized"""
         logger.warning(f"Error 401: {error} desde {request.remote_addr}")
-        if request.is_xhr or request.path.startswith('/api/'):
+        if is_xhr():
             return jsonify({'error': 'No autorizado', 'redirect': '/login'}), 401
         return render_template('error_sistema.html', error="No autorizado"), 401
 
@@ -44,7 +50,7 @@ def register_error_handlers(app):
     def forbidden(error):
         """Manejar errores 403 - Forbidden"""
         logger.warning(f"Error 403: {error} desde {request.remote_addr}")
-        if request.is_xhr or request.path.startswith('/api/'):
+        if is_xhr():
             return jsonify({'error': 'Acceso denegado'}), 403
         return render_template('error_sistema.html', error="Acceso denegado"), 403
 
@@ -52,7 +58,7 @@ def register_error_handlers(app):
     def not_found(error):
         """Manejar errores 404 - Not Found"""
         logger.info(f"Error 404: {request.url} desde {request.remote_addr}")
-        if request.is_xhr or request.path.startswith('/api/'):
+        if is_xhr():
             return jsonify({'error': 'Recurso no encontrado'}), 404
         return render_template('404.html'), 404
 
@@ -60,7 +66,7 @@ def register_error_handlers(app):
     def method_not_allowed(error):
         """Manejar errores 405 - Method Not Allowed"""
         logger.warning(f"Error 405: {request.method} {request.url} desde {request.remote_addr}")
-        if request.is_xhr or request.path.startswith('/api/'):
+        if is_xhr():
             return jsonify({'error': 'Método no permitido'}), 405
         return render_template('error_sistema.html', error="Método no permitido"), 405
 
@@ -68,7 +74,7 @@ def register_error_handlers(app):
     def too_many_requests(error):
         """Manejar errores 429 - Too Many Requests"""
         logger.warning(f"Error 429: {request.remote_addr}")
-        if request.is_xhr or request.path.startswith('/api/'):
+        if is_xhr():
             return jsonify({'error': 'Demasiadas solicitudes. Intenta más tarde.'}), 429
         return render_template('error_sistema.html', error="Demasiadas solicitudes"), 429
 
@@ -76,7 +82,7 @@ def register_error_handlers(app):
     def internal_error(error):
         """Manejar errores 500 - Internal Server Error"""
         logger.error(f"Error 500: {error} desde {request.remote_addr}")
-        if request.is_xhr or request.path.startswith('/api/'):
+        if is_xhr():
             return jsonify({'error': 'Error interno del servidor'}), 500
         return render_template('500.html'), 500
 
@@ -84,7 +90,7 @@ def register_error_handlers(app):
     def validation_error(error):
         """Manejar errores de validación"""
         logger.warning(f"Error de validación: {error} desde {request.remote_addr}")
-        if request.is_xhr or request.path.startswith('/api/'):
+        if is_xhr():
             return jsonify({'error': str(error)}), 400
         return render_template('error_sistema.html', error=str(error)), 400
 
@@ -92,7 +98,7 @@ def register_error_handlers(app):
     def authentication_error(error):
         """Manejar errores de autenticación"""
         logger.warning(f"Error de autenticación: {error} desde {request.remote_addr}")
-        if request.is_xhr or request.path.startswith('/api/'):
+        if is_xhr():
             return jsonify({'error': 'No autorizado', 'redirect': '/login'}), 401
         return render_template('error_sistema.html', error="No autorizado"), 401
 
@@ -100,6 +106,6 @@ def register_error_handlers(app):
     def authorization_error(error):
         """Manejar errores de autorización"""
         logger.warning(f"Error de autorización: {error} desde {request.remote_addr}")
-        if request.is_xhr or request.path.startswith('/api/'):
+        if is_xhr():
             return jsonify({'error': 'Acceso denegado'}), 403
         return render_template('error_sistema.html', error="Acceso denegado"), 403
