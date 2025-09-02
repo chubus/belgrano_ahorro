@@ -2146,6 +2146,243 @@ def internal_error(error):
     return render_template('500.html'), 500
 
 # ==========================================
+# FUNCIONES DE AGREGACIÓN MEJORADAS
+# ==========================================
+
+def guardar_datos_json(datos):
+    """
+    Guarda datos en el archivo productos.json de forma segura
+    """
+    try:
+        import json
+        with open('productos.json', 'w', encoding='utf-8') as f:
+            json.dump(datos, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        logger.error(f"Error guardando JSON: {e}")
+        return False
+
+@app.route('/admin/agregar_producto', methods=['POST'])
+@admin_required
+def agregar_producto_mejorado():
+    """
+    Agregar producto con manejo de errores mejorado
+    """
+    try:
+        # Validar datos requeridos
+        nombre = request.form.get('nombre', '').strip()
+        precio = request.form.get('precio', '').strip()
+        categoria = request.form.get('categoria', '').strip()
+        negocio = request.form.get('negocio', '').strip()
+        
+        if not all([nombre, precio, categoria, negocio]):
+            flash('Todos los campos son requeridos', 'error')
+            return redirect(url_for('admin_panel'))
+        
+        try:
+            precio_float = float(precio)
+        except ValueError:
+            flash('El precio debe ser un número válido', 'error')
+            return redirect(url_for('admin_panel'))
+        
+        # Cargar datos actuales
+        datos = cargar_datos_completos()
+        if not datos:
+            datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+        
+        # Crear nuevo producto
+        nuevo_producto = {
+            'id': str(uuid.uuid4()),
+            'nombre': nombre,
+            'precio': precio_float,
+            'categoria': categoria,
+            'negocio': negocio,
+            'descripcion': request.form.get('descripcion', ''),
+            'imagen': request.form.get('imagen', ''),
+            'activo': True,
+            'fecha_creacion': datetime.now().isoformat()
+        }
+        
+        # Agregar a la lista
+        if 'productos' not in datos:
+            datos['productos'] = []
+        datos['productos'].append(nuevo_producto)
+        
+        # Guardar
+        if guardar_datos_json(datos):
+            flash(f'Producto "{nombre}" agregado exitosamente', 'success')
+            logger.info(f"Producto agregado: {nombre}")
+        else:
+            flash('Error al guardar el producto', 'error')
+            
+    except Exception as e:
+        logger.error(f"Error agregando producto: {e}")
+        flash('Error interno al agregar producto. Revisa los logs.', 'error')
+    
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/agregar_sucursal', methods=['POST'])
+@admin_required
+def agregar_sucursal_mejorado():
+    """
+    Agregar sucursal con manejo de errores mejorado
+    """
+    try:
+        # Validar datos requeridos
+        nombre = request.form.get('nombre', '').strip()
+        direccion = request.form.get('direccion', '').strip()
+        telefono = request.form.get('telefono', '').strip()
+        
+        if not all([nombre, direccion]):
+            flash('Nombre y dirección son requeridos', 'error')
+            return redirect(url_for('admin_panel'))
+        
+        # Cargar datos actuales
+        datos = cargar_datos_completos()
+        if not datos:
+            datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+        
+        # Crear nueva sucursal
+        nueva_sucursal = {
+            'id': str(uuid.uuid4()),
+            'nombre': nombre,
+            'direccion': direccion,
+            'telefono': telefono,
+            'horario': request.form.get('horario', ''),
+            'activo': True,
+            'fecha_creacion': datetime.now().isoformat()
+        }
+        
+        # Agregar a la lista
+        if 'sucursales' not in datos:
+            datos['sucursales'] = []
+        datos['sucursales'].append(nueva_sucursal)
+        
+        # Guardar
+        if guardar_datos_json(datos):
+            flash(f'Sucursal "{nombre}" agregada exitosamente', 'success')
+            logger.info(f"Sucursal agregada: {nombre}")
+        else:
+            flash('Error al guardar la sucursal', 'error')
+            
+    except Exception as e:
+        logger.error(f"Error agregando sucursal: {e}")
+        flash('Error interno al agregar sucursal. Revisa los logs.', 'error')
+    
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/agregar_oferta', methods=['POST'])
+@admin_required
+def agregar_oferta_mejorado():
+    """
+    Agregar oferta con manejo de errores mejorado
+    """
+    try:
+        # Validar datos requeridos
+        titulo = request.form.get('titulo', '').strip()
+        descripcion = request.form.get('descripcion', '').strip()
+        descuento = request.form.get('descuento', '').strip()
+        
+        if not all([titulo, descripcion, descuento]):
+            flash('Título, descripción y descuento son requeridos', 'error')
+            return redirect(url_for('admin_panel'))
+        
+        try:
+            descuento_int = int(descuento)
+            if descuento_int < 0 or descuento_int > 100:
+                raise ValueError("Descuento debe estar entre 0 y 100")
+        except ValueError:
+            flash('El descuento debe ser un número entre 0 y 100', 'error')
+            return redirect(url_for('admin_panel'))
+        
+        # Cargar datos actuales
+        datos = cargar_datos_completos()
+        if not datos:
+            datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+        
+        # Crear nueva oferta
+        nueva_oferta = {
+            'id': str(uuid.uuid4()),
+            'titulo': titulo,
+            'descripcion': descripcion,
+            'descuento': descuento_int,
+            'imagen': request.form.get('imagen', ''),
+            'fecha_inicio': request.form.get('fecha_inicio', ''),
+            'fecha_fin': request.form.get('fecha_fin', ''),
+            'activo': True,
+            'fecha_creacion': datetime.now().isoformat()
+        }
+        
+        # Agregar a la lista
+        if 'ofertas' not in datos:
+            datos['ofertas'] = []
+        datos['ofertas'].append(nueva_oferta)
+        
+        # Guardar
+        if guardar_datos_json(datos):
+            flash(f'Oferta "{titulo}" agregada exitosamente', 'success')
+            logger.info(f"Oferta agregada: {titulo}")
+        else:
+            flash('Error al guardar la oferta', 'error')
+            
+    except Exception as e:
+        logger.error(f"Error agregando oferta: {e}")
+        flash('Error interno al agregar oferta. Revisa los logs.', 'error')
+    
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/agregar_negocio', methods=['POST'])
+@admin_required
+def agregar_negocio_mejorado():
+    """
+    Agregar negocio con manejo de errores mejorado
+    """
+    try:
+        # Validar datos requeridos
+        nombre = request.form.get('nombre', '').strip()
+        descripcion = request.form.get('descripcion', '').strip()
+        
+        if not all([nombre, descripcion]):
+            flash('Nombre y descripción son requeridos', 'error')
+            return redirect(url_for('admin_panel'))
+        
+        # Cargar datos actuales
+        datos = cargar_datos_completos()
+        if not datos:
+            datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+        
+        # Crear nuevo negocio
+        negocio_id = str(uuid.uuid4())
+        nuevo_negocio = {
+            'id': negocio_id,
+            'nombre': nombre,
+            'descripcion': descripcion,
+            'logo': request.form.get('logo', ''),
+            'telefono': request.form.get('telefono', ''),
+            'direccion': request.form.get('direccion', ''),
+            'activo': True,
+            'fecha_creacion': datetime.now().isoformat()
+        }
+        
+        # Agregar al diccionario
+        if 'negocios' not in datos:
+            datos['negocios'] = {}
+        datos['negocios'][negocio_id] = nuevo_negocio
+        
+        # Guardar
+        if guardar_datos_json(datos):
+            flash(f'Negocio "{nombre}" agregado exitosamente', 'success')
+            logger.info(f"Negocio agregado: {nombre}")
+        else:
+            flash('Error al guardar el negocio', 'error')
+            
+    except Exception as e:
+        logger.error(f"Error agregando negocio: {e}")
+        flash('Error interno al agregar negocio. Revisa los logs.', 'error')
+    
+    return redirect(url_for('admin_panel'))
+
+# ==========================================
 # INICIO DE LA APLICACIÓN
 # ==========================================
 if __name__ == "__main__":
