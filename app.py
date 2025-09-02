@@ -78,6 +78,15 @@ app.config['ENV'] = os.environ.get('FLASK_ENV', 'development')
 # Registrar manejadores de errores
 register_error_handlers(app)
 
+# Importar y registrar blueprint de DevOps
+try:
+    from devops_routes import devops_bp
+    app.register_blueprint(devops_bp)
+    print("✅ Blueprint de DevOps registrado correctamente")
+except Exception as e:
+    print(f"❌ Error importando devops_routes: {e}")
+    # No es crítico, continúa sin las rutas de DevOps
+
 # ==========================================
 # CONFIGURACIÓN DE COMUNICACIÓN API
 # ==========================================
