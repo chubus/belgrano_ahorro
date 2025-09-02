@@ -1,41 +1,51 @@
-FROM python:3.12-slim
+# Dockerfile optimizado para deploy - SIN BuildKit
+# =================================================================
+# BELGRANO AHORRO - TICKETERA
+# =================================================================
 
-# Instala dependencias del sistema necesarias para Pillow y PyAudio
+# Usar imagen base estable y ligera
+FROM python:3.9-slim
+
+# Deshabilitar BuildKit para evitar problemas de conexión
+ENV DOCKER_BUILDKIT=0
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV FLASK_ENV=production
+
+# Instalar dependencias del sistema necesarias
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    libjpeg-dev \
-    zlib1g-dev \
-    libpng-dev \
-    libtiff-dev \
-    libwebp-dev \
-    portaudio19-dev \
-    sqlite3 \
-    && rm -rf /var/lib/apt/lists/*
+    gcc \
+    g++ \
+    libffi-dev \
+    libssl-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Establece el directorio de trabajo
+# Crear directorio de trabajo
 WORKDIR /app
 
-# Copia los archivos de requisitos
+# Copiar requirements primero para aprovechar cache de Docker
 COPY requirements.txt .
 
-# Instala las dependencias de Python
-RUN pip install --upgrade pip setuptools wheel
-RUN pip install -r requirements.txt
+# Instalar dependencias Python de forma optimizada
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Copia el resto del código de la aplicación
+# Copiar código de la aplicación
 COPY . .
 
-# Crear directorios necesarios
-RUN mkdir -p instance belgrano_tickets/instance
+# Crear directorio para logs y datos
+RUN mkdir -p /app/logs && \
+    mkdir -p /app/data && \
+    chmod 755 /app/logs && \
+    chmod 755 /app/data
 
-# Crear directorios necesarios
-RUN mkdir -p instance belgrano_tickets/instance
+# Crear archivo productos.json inicial si no existe
+RUN python -c "import json, os; datos={'productos':[],'sucursales':[],'ofertas':[],'negocios':{},'categorias':{}}; open('productos.json','w').write(json.dumps(datos,indent=2)) if not os.path.exists('productos.json') else None; print('Archivo productos.json verificado')"
 
-# Verificar que los archivos de base de datos existan
-RUN touch belgrano_ahorro.db belgrano_tickets/belgrano_tickets.db
+# Exponer puerto
+EXPOSE 10000
 
-# Expone el puerto (5000 para Flask)
-EXPOSE 5000
-
-# Comando para ejecutar la aplicación directamente desde app.py
-CMD ["python", "app.py"]
+# Comando de inicio optimizado
+CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--workers", "2", "--timeout", "120", "--keep-alive", "5", "--max-requests", "1000", "--max-requests-jitter", "100", "app:app"]

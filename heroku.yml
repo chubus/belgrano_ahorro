@@ -1,0 +1,48 @@
+# heroku.yml - Configuración optimizada para Heroku
+# =================================================================
+# BELGRANO AHORRO - TICKETERA
+# =================================================================
+
+build:
+  docker:
+    web: Dockerfile
+
+release:
+  command:
+    - echo "✅ Release completado - BuildKit deshabilitado"
+    - python -c "
+      import json
+      import os
+      if not os.path.exists('productos.json'):
+          datos_iniciales = {
+              'productos': [],
+              'sucursales': [],
+              'ofertas': [],
+              'negocios': {},
+              'categorias': {}
+          }
+          with open('productos.json', 'w', encoding='utf-8') as f:
+              json.dump(datos_iniciales, f, ensure_ascii=False, indent=2)
+          print('✅ productos.json creado exitosamente')
+      else:
+          print('✅ productos.json ya existe')
+      "
+    - mkdir -p data logs instance belgrano_tickets/instance
+
+run:
+  web: |
+    # Configurar variables de entorno para evitar BuildKit
+    export DOCKER_BUILDKIT=0
+    export FLASK_ENV=production
+    export PYTHONUNBUFFERED=1
+    
+    # Iniciar con Gunicorn optimizado
+    gunicorn --bind 0.0.0.0:$PORT \
+             --workers 2 \
+             --timeout 120 \
+             --keep-alive 5 \
+             --max-requests 1000 \
+             --max-requests-jitter 100 \
+             --access-logfile - \
+             --error-logfile - \
+             app:app
