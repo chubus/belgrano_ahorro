@@ -1,13 +1,12 @@
 # =================================================================
-# DEPENDENCIAS PYTHON 3.9 - VERSIÓN LIMPIA
+# DEPENDENCIAS PYTHON 3.9 - VERSIÓN FINAL COMPATIBLE
 # =================================================================
+# Todas las versiones son compatibles entre sí y con Python 3.9
 
 # Framework web básico (versiones compatibles con click 7.x)
 Flask==1.1.4
 Werkzeug==1.0.1
 Jinja2==2.11.3
-
-
 
 # Utilidades web
 requests==2.25.1
