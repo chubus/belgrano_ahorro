@@ -1,8 +1,9 @@
 # =================================================================
-# DEPENDENCIAS PYTHON 3.9 - VERSIÓN LIMPIA
+# DEPENDENCIAS PYTHON 3.9 - BELGRANO AHORRO TICKETERA
 # =================================================================
+# Versiones 100% compatibles con Python 3.9
 
-# Framework web básico
+# Framework web
 Flask==2.2.5
 Werkzeug==2.2.3
 Jinja2==3.1.2
@@ -13,25 +14,35 @@ urllib3==1.26.15
 certifi==2022.12.7
 charset-normalizer==3.1.0
 
-# Base de datos
+# Base de datos y ORM
 SQLAlchemy==1.4.53
 Flask-SQLAlchemy==3.0.3
 
-# Autenticación
+# Autenticación y seguridad
 Flask-Login==0.6.2
 Flask-WTF==1.1.1
 WTForms==3.0.1
 cryptography==39.0.2
+PyJWT==2.6.0
 
-# Utilidades básicas
+# Utilidades
 click==7.1.2
 itsdangerous==2.1.2
 MarkupSafe==2.1.1
 blinker==1.5
+cffi==1.15.1
 
-# Servidor
+# Servidor de producción
 gunicorn==20.1.0
+
+# Desarrollo y testing
+pytest==7.1.3
+pytest-cov==4.0.0
+black==22.12.0
+flake8==5.0.4
 
 # Utilidades adicionales
 python-dotenv==1.0.0
 Pillow==9.5.0
+redis==4.5.4
+celery==5.2.7

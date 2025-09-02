@@ -92,15 +92,18 @@ except Exception as e:
 # ==========================================
 # Variables de entorno para comunicación entre servicios
 TICKETERA_URL = os.environ.get('TICKETERA_URL', 'http://localhost:5001')
+BELGRANO_AHORRO_URL = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-hp30.onrender.com')
 BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
 
 # URLs de producción (Render.com)
 if os.environ.get('RENDER_ENVIRONMENT') == 'production':
     TICKETERA_URL = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com')
+    BELGRANO_AHORRO_URL = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-hp30.onrender.com')
     BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
 
 print(f"🔗 Configuración API:")
 print(f"   TICKETERA_URL: {TICKETERA_URL}")
+print(f"   BELGRANO_AHORRO_URL: {BELGRANO_AHORRO_URL}")
 print(f"   API_KEY: {BELGRANO_AHORRO_API_KEY[:10]}...")
 
 # =================================================================
