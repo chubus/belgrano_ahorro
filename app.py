@@ -2386,6 +2386,308 @@ def agregar_negocio_mejorado():
     return redirect(url_for('admin_panel'))
 
 # ==========================================
+# API ENDPOINTS PARA DEVOPS
+# ==========================================
+
+@app.route('/api/v1/negocios', methods=['GET'])
+def api_get_negocios():
+    """API endpoint para obtener todos los negocios"""
+    try:
+        datos = cargar_datos_completos()
+        if not datos or 'negocios' not in datos:
+            return jsonify([]), 200
+        
+        # Convertir diccionario a lista
+        negocios = []
+        for negocio_id, negocio_data in datos['negocios'].items():
+            negocio_data['id'] = negocio_id
+            negocios.append(negocio_data)
+        
+        return jsonify(negocios), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo negocios: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/negocios', methods=['POST'])
+def api_create_negocio():
+    """API endpoint para crear un nuevo negocio"""
+    try:
+        data = request.get_json()
+        
+        # Validar datos requeridos
+        required_fields = ['nombre', 'descripcion', 'categoria']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'error': f'Campo requerido faltante: {field}'}), 400
+        
+        # Cargar datos existentes
+        datos = cargar_datos_completos()
+        if not datos:
+            datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+        
+        # Crear nuevo negocio
+        negocio_id = str(uuid.uuid4())
+        nuevo_negocio = {
+            'id': negocio_id,
+            'nombre': data['nombre'],
+            'descripcion': data['descripcion'],
+            'categoria': data['categoria'],
+            'direccion': data.get('direccion', ''),
+            'telefono': data.get('telefono', ''),
+            'email': data.get('email', ''),
+            'activo': data.get('activo', True),
+            'fecha_creacion': datetime.now().isoformat(),
+            'creado_desde': data.get('creado_desde', 'api')
+        }
+        
+        # Agregar al diccionario
+        if 'negocios' not in datos:
+            datos['negocios'] = {}
+        datos['negocios'][negocio_id] = nuevo_negocio
+        
+        # Guardar
+        if guardar_datos_json(datos):
+            logger.info(f"Negocio creado via API: {nuevo_negocio['nombre']}")
+            return jsonify(nuevo_negocio), 201
+        else:
+            return jsonify({'error': 'Error al guardar el negocio'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error creando negocio via API: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/negocios/<negocio_id>', methods=['PUT'])
+def api_update_negocio(negocio_id):
+    """API endpoint para actualizar un negocio existente"""
+    try:
+        data = request.get_json()
+        
+        # Cargar datos existentes
+        datos = cargar_datos_completos()
+        if not datos or 'negocios' not in datos or negocio_id not in datos['negocios']:
+            return jsonify({'error': 'Negocio no encontrado'}), 404
+        
+        # Actualizar datos
+        negocio = datos['negocios'][negocio_id]
+        for key, value in data.items():
+            if key != 'id':  # No permitir cambiar el ID
+                negocio[key] = value
+        
+        negocio['fecha_modificacion'] = datetime.now().isoformat()
+        negocio['modificado_desde'] = data.get('modificado_desde', 'api')
+        
+        # Guardar
+        if guardar_datos_json(datos):
+            logger.info(f"Negocio actualizado via API: {negocio['nombre']}")
+            return jsonify(negocio), 200
+        else:
+            return jsonify({'error': 'Error al guardar los cambios'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error actualizando negocio via API: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/negocios/<negocio_id>', methods=['DELETE'])
+def api_delete_negocio(negocio_id):
+    """API endpoint para eliminar un negocio"""
+    try:
+        # Cargar datos existentes
+        datos = cargar_datos_completos()
+        if not datos or 'negocios' not in datos or negocio_id not in datos['negocios']:
+            return jsonify({'error': 'Negocio no encontrado'}), 404
+        
+        # Eliminar negocio
+        negocio_nombre = datos['negocios'][negocio_id]['nombre']
+        del datos['negocios'][negocio_id]
+        
+        # Guardar
+        if guardar_datos_json(datos):
+            logger.info(f"Negocio eliminado via API: {negocio_nombre}")
+            return jsonify({'message': 'Negocio eliminado exitosamente'}), 200
+        else:
+            return jsonify({'error': 'Error al guardar los cambios'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error eliminando negocio via API: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/ofertas', methods=['GET'])
+def api_get_ofertas():
+    """API endpoint para obtener todas las ofertas"""
+    try:
+        datos = cargar_datos_completos()
+        if not datos or 'ofertas' not in datos:
+            return jsonify([]), 200
+        
+        # Convertir diccionario a lista
+        ofertas = []
+        for oferta_id, oferta_data in datos['ofertas'].items():
+            oferta_data['id'] = oferta_id
+            ofertas.append(oferta_data)
+        
+        return jsonify(ofertas), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo ofertas: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/ofertas', methods=['POST'])
+def api_create_oferta():
+    """API endpoint para crear una nueva oferta"""
+    try:
+        data = request.get_json()
+        
+        # Validar datos requeridos
+        required_fields = ['titulo', 'descripcion', 'descuento', 'fecha_inicio', 'fecha_fin']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'error': f'Campo requerido faltante: {field}'}), 400
+        
+        # Cargar datos existentes
+        datos = cargar_datos_completos()
+        if not datos:
+            datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+        
+        # Crear nueva oferta
+        oferta_id = str(uuid.uuid4())
+        nueva_oferta = {
+            'id': oferta_id,
+            'titulo': data['titulo'],
+            'descripcion': data['descripcion'],
+            'descuento': float(data['descuento']),
+            'producto_nombre': data.get('producto_nombre', ''),  # Nombre del producto en texto libre
+            'producto_id': data.get('producto_id', ''),
+            'fecha_inicio': data['fecha_inicio'],
+            'fecha_fin': data['fecha_fin'],
+            'activa': data.get('activa', True),
+            'fecha_creacion': datetime.now().isoformat(),
+            'creado_desde': data.get('creado_desde', 'api')
+        }
+        
+        # Agregar al diccionario
+        if 'ofertas' not in datos:
+            datos['ofertas'] = {}
+        datos['ofertas'][oferta_id] = nueva_oferta
+        
+        # Guardar
+        if guardar_datos_json(datos):
+            logger.info(f"Oferta creada via API: {nueva_oferta['titulo']}")
+            return jsonify(nueva_oferta), 201
+        else:
+            return jsonify({'error': 'Error al guardar la oferta'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error creando oferta via API: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/ofertas/<oferta_id>', methods=['PUT'])
+def api_update_oferta(oferta_id):
+    """API endpoint para actualizar una oferta existente"""
+    try:
+        data = request.get_json()
+        
+        # Cargar datos existentes
+        datos = cargar_datos_completos()
+        if not datos or 'ofertas' not in datos or oferta_id not in datos['ofertas']:
+            return jsonify({'error': 'Oferta no encontrada'}), 404
+        
+        # Actualizar datos
+        oferta = datos['ofertas'][oferta_id]
+        for key, value in data.items():
+            if key != 'id':  # No permitir cambiar el ID
+                oferta[key] = value
+        
+        oferta['fecha_modificacion'] = datetime.now().isoformat()
+        oferta['modificado_desde'] = data.get('modificado_desde', 'api')
+        
+        # Guardar
+        if guardar_datos_json(datos):
+            logger.info(f"Oferta actualizada via API: {oferta['titulo']}")
+            return jsonify(oferta), 200
+        else:
+            return jsonify({'error': 'Error al guardar los cambios'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error actualizando oferta via API: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/ofertas/<oferta_id>', methods=['DELETE'])
+def api_delete_oferta(oferta_id):
+    """API endpoint para eliminar una oferta"""
+    try:
+        # Cargar datos existentes
+        datos = cargar_datos_completos()
+        if not datos or 'ofertas' not in datos or oferta_id not in datos['ofertas']:
+            return jsonify({'error': 'Oferta no encontrada'}), 404
+        
+        # Eliminar oferta
+        oferta_titulo = datos['ofertas'][oferta_id]['titulo']
+        del datos['ofertas'][oferta_id]
+        
+        # Guardar
+        if guardar_datos_json(datos):
+            logger.info(f"Oferta eliminada via API: {oferta_titulo}")
+            return jsonify({'message': 'Oferta eliminada exitosamente'}), 200
+        else:
+            return jsonify({'error': 'Error al guardar los cambios'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error eliminando oferta via API: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/productos', methods=['GET'])
+def api_get_productos():
+    """API endpoint para obtener todos los productos"""
+    try:
+        datos = cargar_datos_completos()
+        if not datos or 'productos' not in datos:
+            return jsonify([]), 200
+        
+        return jsonify(datos['productos']), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo productos: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/productos/<producto_id>', methods=['PUT'])
+def api_update_producto(producto_id):
+    """API endpoint para actualizar un producto"""
+    try:
+        data = request.get_json()
+        
+        # Cargar datos existentes
+        datos = cargar_datos_completos()
+        if not datos or 'productos' not in datos:
+            return jsonify({'error': 'Productos no encontrados'}), 404
+        
+        # Buscar producto por ID
+        producto_encontrado = None
+        for i, producto in enumerate(datos['productos']):
+            if str(producto.get('id', '')) == str(producto_id):
+                producto_encontrado = i
+                break
+        
+        if producto_encontrado is None:
+            return jsonify({'error': 'Producto no encontrado'}), 404
+        
+        # Actualizar datos del producto
+        for key, value in data.items():
+            if key != 'id':  # No permitir cambiar el ID
+                datos['productos'][producto_encontrado][key] = value
+        
+        datos['productos'][producto_encontrado]['fecha_modificacion'] = datetime.now().isoformat()
+        datos['productos'][producto_encontrado]['modificado_desde'] = data.get('modificado_desde', 'api')
+        
+        # Guardar
+        if guardar_datos_json(datos):
+            logger.info(f"Producto actualizado via API: {datos['productos'][producto_encontrado]['nombre']}")
+            return jsonify(datos['productos'][producto_encontrado]), 200
+        else:
+            return jsonify({'error': 'Error al guardar los cambios'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error actualizando producto via API: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+# ==========================================
 # INICIO DE LA APLICACIÓN
 # ==========================================
 if __name__ == "__main__":
