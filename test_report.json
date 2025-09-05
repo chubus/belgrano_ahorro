@@ -1,0 +1,163 @@
+{
+  "timestamp": "2025-09-05T01:21:45.094079",
+  "duration": 38.51768159866333,
+  "summary": {
+    "total_tests": 19,
+    "passed": 9,
+    "failed": 10,
+    "success_rate": 47.368421052631575
+  },
+  "results": {
+    "devops": {
+      "passed": 7,
+      "failed": 1,
+      "tests": [
+        {
+          "test": "Login DevOps",
+          "success": false,
+          "details": "Error en login: 200",
+          "timestamp": "2025-09-05T01:21:10.306418",
+          "response": null
+        },
+        {
+          "test": "Dashboard DevOps",
+          "success": true,
+          "details": "Dashboard accesible correctamente",
+          "timestamp": "2025-09-05T01:21:11.271577",
+          "response": null
+        },
+        {
+          "test": "GET Productos",
+          "success": true,
+          "details": "Productos obtenidos correctamente",
+          "timestamp": "2025-09-05T01:21:11.776428",
+          "response": null
+        },
+        {
+          "test": "POST Producto",
+          "success": true,
+          "details": "Producto creado: Producto Test 1757046071",
+          "timestamp": "2025-09-05T01:21:12.251455",
+          "response": null
+        },
+        {
+          "test": "GET Negocios",
+          "success": true,
+          "details": "Negocios obtenidos correctamente",
+          "timestamp": "2025-09-05T01:21:12.734332",
+          "response": null
+        },
+        {
+          "test": "POST Negocio",
+          "success": true,
+          "details": "Negocio creado: Negocio Test 1757046072",
+          "timestamp": "2025-09-05T01:21:13.189827",
+          "response": null
+        },
+        {
+          "test": "GET Ofertas",
+          "success": true,
+          "details": "Ofertas obtenidas correctamente",
+          "timestamp": "2025-09-05T01:21:13.643758",
+          "response": null
+        },
+        {
+          "test": "POST Oferta",
+          "success": true,
+          "details": "Oferta creada: Oferta Test 1757046073",
+          "timestamp": "2025-09-05T01:21:14.117097",
+          "response": null
+        }
+      ]
+    },
+    "ticketera": {
+      "passed": 0,
+      "failed": 3,
+      "tests": [
+        {
+          "test": "Health Check",
+          "success": false,
+          "details": "Error en health check: Sin respuesta",
+          "timestamp": "2025-09-05T01:21:24.973685",
+          "response": null
+        },
+        {
+          "test": "GET Tickets",
+          "success": false,
+          "details": "Error obteniendo tickets: Sin respuesta",
+          "timestamp": "2025-09-05T01:21:29.124144",
+          "response": null
+        },
+        {
+          "test": "POST Ticket",
+          "success": false,
+          "details": "Error creando ticket: Sin respuesta",
+          "timestamp": "2025-09-05T01:21:29.367199",
+          "response": null
+        }
+      ]
+    },
+    "sync": {
+      "passed": 2,
+      "failed": 6,
+      "tests": [
+        {
+          "test": "Belgrano Ahorro Health",
+          "success": false,
+          "details": "Error en health check: Sin respuesta",
+          "timestamp": "2025-09-05T01:21:36.888974",
+          "response": null
+        },
+        {
+          "test": "API /api/productos",
+          "success": false,
+          "details": "Endpoint /api/productos no disponible: Sin respuesta",
+          "timestamp": "2025-09-05T01:21:37.241835",
+          "response": null
+        },
+        {
+          "test": "API /api/v1/negocios",
+          "success": true,
+          "details": "Endpoint /api/v1/negocios funcionando",
+          "timestamp": "2025-09-05T01:21:37.508067",
+          "response": null
+        },
+        {
+          "test": "API /api/ofertas",
+          "success": false,
+          "details": "Endpoint /api/ofertas no disponible: Sin respuesta",
+          "timestamp": "2025-09-05T01:21:37.733505",
+          "response": null
+        },
+        {
+          "test": "API /api/precios",
+          "success": false,
+          "details": "Endpoint /api/precios no disponible: Sin respuesta",
+          "timestamp": "2025-09-05T01:21:38.138118",
+          "response": null
+        },
+        {
+          "test": "API /api/sucursales",
+          "success": false,
+          "details": "Endpoint /api/sucursales no disponible: Sin respuesta",
+          "timestamp": "2025-09-05T01:21:38.383611",
+          "response": null
+        },
+        {
+          "test": "Crear en DevOps",
+          "success": true,
+          "details": "Producto creado en DevOps: Producto Sync Test 1757046098",
+          "timestamp": "2025-09-05T01:21:38.979619",
+          "response": null
+        },
+        {
+          "test": "Verificar en Belgrano Ahorro",
+          "success": false,
+          "details": "Error verificando en Belgrano Ahorro: Sin respuesta",
+          "timestamp": "2025-09-05T01:21:41.265295",
+          "response": null
+        }
+      ]
+    }
+  }
+}

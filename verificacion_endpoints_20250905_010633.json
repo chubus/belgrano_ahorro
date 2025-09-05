@@ -1,0 +1,495 @@
+{
+  "summary": {
+    "total_tests": 48,
+    "successful": 15,
+    "failed": 33,
+    "success_rate": 31.25
+  },
+  "services": {
+    "Belgrano Ahorro Local": {
+      "total": 9,
+      "success": 0,
+      "avg_time": 0
+    },
+    "Ticketera Local": {
+      "total": 13,
+      "success": 0,
+      "avg_time": 0
+    },
+    "API Tickets GET": {
+      "total": 2,
+      "success": 1,
+      "avg_time": 2573.2083320617676
+    },
+    "API Tickets POST": {
+      "total": 2,
+      "success": 0,
+      "avg_time": 3120.9704875946045
+    },
+    "Belgrano Ahorro Producción": {
+      "total": 9,
+      "success": 8,
+      "avg_time": 21399.386405944824
+    },
+    "Ticketera Producción": {
+      "total": 13,
+      "success": 6,
+      "avg_time": 14757.229089736938
+    }
+  },
+  "results": [
+    {
+      "url": "http://localhost:5000/",
+      "nombre": "Belgrano Ahorro Local - Home",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:03:29.205705"
+    },
+    {
+      "url": "http://localhost:5000/login",
+      "nombre": "Belgrano Ahorro Local - Login",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:03:33.273770"
+    },
+    {
+      "url": "http://localhost:5000/health",
+      "nombre": "Belgrano Ahorro Local - Health",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:03:37.344905"
+    },
+    {
+      "url": "http://localhost:5000/api/health",
+      "nombre": "Belgrano Ahorro Local - API Health",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:03:41.406689"
+    },
+    {
+      "url": "http://localhost:5000/productos",
+      "nombre": "Belgrano Ahorro Local - Productos",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:03:45.470592"
+    },
+    {
+      "url": "http://localhost:5000/carrito",
+      "nombre": "Belgrano Ahorro Local - Carrito",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:03:49.535678"
+    },
+    {
+      "url": "http://localhost:5000/checkout",
+      "nombre": "Belgrano Ahorro Local - Checkout",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:03:53.602044"
+    },
+    {
+      "url": "http://localhost:5000/perfil",
+      "nombre": "Belgrano Ahorro Local - Perfil",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:03:57.671483"
+    },
+    {
+      "url": "http://localhost:5000/register",
+      "nombre": "Belgrano Ahorro Local - Registro",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:01.731769"
+    },
+    {
+      "url": "http://localhost:5001/",
+      "nombre": "Ticketera Local - Home",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:05.803035"
+    },
+    {
+      "url": "http://localhost:5001/login",
+      "nombre": "Ticketera Local - Login",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:09.850624"
+    },
+    {
+      "url": "http://localhost:5001/health",
+      "nombre": "Ticketera Local - Health",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:13.910345"
+    },
+    {
+      "url": "http://localhost:5001/api/health",
+      "nombre": "Ticketera Local - API Health",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:17.965980"
+    },
+    {
+      "url": "http://localhost:5001/panel",
+      "nombre": "Ticketera Local - Panel",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:22.029992"
+    },
+    {
+      "url": "http://localhost:5001/api/tickets",
+      "nombre": "Ticketera Local - API Tickets",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:26.111011"
+    },
+    {
+      "url": "http://localhost:5001/devops/login",
+      "nombre": "Ticketera Local - DevOps Login",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:30.187747"
+    },
+    {
+      "url": "http://localhost:5001/devops/dashboard",
+      "nombre": "Ticketera Local - DevOps Dashboard",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:34.255206"
+    },
+    {
+      "url": "http://localhost:5001/devops/productos",
+      "nombre": "Ticketera Local - DevOps Productos",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:38.329558"
+    },
+    {
+      "url": "http://localhost:5001/devops/negocios",
+      "nombre": "Ticketera Local - DevOps Negocios",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:42.398487"
+    },
+    {
+      "url": "http://localhost:5001/devops/ofertas",
+      "nombre": "Ticketera Local - DevOps Ofertas",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:46.462746"
+    },
+    {
+      "url": "http://localhost:5001/devops/sucursales",
+      "nombre": "Ticketera Local - DevOps Sucursales",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:50.526568"
+    },
+    {
+      "url": "http://localhost:5001/devops/precios",
+      "nombre": "Ticketera Local - DevOps Precios",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:54.577042"
+    },
+    {
+      "url": "http://localhost:5001/api/tickets",
+      "nombre": "API Tickets GET",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Connection Error - Servicio no disponible",
+      "timestamp": "2025-09-05T01:04:58.645019"
+    },
+    {
+      "url": "http://localhost:5001/api/tickets",
+      "nombre": "API Tickets POST",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /api/tickets (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000231D52B9D60>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+      "timestamp": "2025-09-05T01:05:02.695073"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/",
+      "nombre": "Belgrano Ahorro Producción - Home",
+      "status_code": 200,
+      "response_time_ms": 2730.1788330078125,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:05:05.429333",
+      "response_data": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/login",
+      "nombre": "Belgrano Ahorro Producción - Login",
+      "status_code": 200,
+      "response_time_ms": 2441.039562225342,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:05:07.878716",
+      "response_data": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/health",
+      "nombre": "Belgrano Ahorro Producción - Health",
+      "status_code": 500,
+      "response_time_ms": 2237.6701831817627,
+      "success": false,
+      "error": null,
+      "timestamp": "2025-09-05T01:05:10.120101",
+      "response_data": {
+        "error": "No module named 'models'",
+        "status": "unhealthy",
+        "timestamp": "2025-09-05T04:05:09.996604"
+      }
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/api/health",
+      "nombre": "Belgrano Ahorro Producción - API Health",
+      "status_code": 404,
+      "response_time_ms": 2136.068344116211,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:05:12.260215",
+      "response_data": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/productos",
+      "nombre": "Belgrano Ahorro Producción - Productos",
+      "status_code": 404,
+      "response_time_ms": 2451.7979621887207,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:05:14.715749",
+      "response_data": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/carrito",
+      "nombre": "Belgrano Ahorro Producción - Carrito",
+      "status_code": 200,
+      "response_time_ms": 2164.4914150238037,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:05:16.883463",
+      "response_data": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/checkout",
+      "nombre": "Belgrano Ahorro Producción - Checkout",
+      "status_code": 200,
+      "response_time_ms": 2359.8997592926025,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:05:19.246496",
+      "response_data": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/perfil",
+      "nombre": "Belgrano Ahorro Producción - Perfil",
+      "status_code": 200,
+      "response_time_ms": 2734.638214111328,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:05:21.984301",
+      "response_data": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/register",
+      "nombre": "Belgrano Ahorro Producción - Registro",
+      "status_code": 200,
+      "response_time_ms": 2143.602132797241,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:05:24.130865",
+      "response_data": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/",
+      "nombre": "Ticketera Producción - Home",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Timeout - Servicio no responde",
+      "timestamp": "2025-09-05T01:05:31.014874"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/login",
+      "nombre": "Ticketera Producción - Login",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Timeout - Servicio no responde",
+      "timestamp": "2025-09-05T01:05:37.961289"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/health",
+      "nombre": "Ticketera Producción - Health",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Timeout - Servicio no responde",
+      "timestamp": "2025-09-05T01:05:44.911553"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/api/health",
+      "nombre": "Ticketera Producción - API Health",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Timeout - Servicio no responde",
+      "timestamp": "2025-09-05T01:05:51.807158"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/panel",
+      "nombre": "Ticketera Producción - Panel",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Timeout - Servicio no responde",
+      "timestamp": "2025-09-05T01:05:58.889012"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/api/tickets",
+      "nombre": "Ticketera Producción - API Tickets",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Timeout - Servicio no responde",
+      "timestamp": "2025-09-05T01:06:05.915925"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/login",
+      "nombre": "Ticketera Producción - DevOps Login",
+      "status_code": 0,
+      "response_time_ms": 0,
+      "success": false,
+      "error": "Timeout - Servicio no responde",
+      "timestamp": "2025-09-05T01:06:12.836394"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/dashboard",
+      "nombre": "Ticketera Producción - DevOps Dashboard",
+      "status_code": 200,
+      "response_time_ms": 2462.6216888427734,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:06:15.299272",
+      "response_data": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>DevOps Login - Belgrano Tickets</title>\n    <li"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/productos",
+      "nombre": "Ticketera Producción - DevOps Productos",
+      "status_code": 200,
+      "response_time_ms": 2311.198949813843,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:06:17.613731",
+      "response_data": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>DevOps Login - Belgrano Tickets</title>\n    <li"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/negocios",
+      "nombre": "Ticketera Producción - DevOps Negocios",
+      "status_code": 200,
+      "response_time_ms": 2363.647699356079,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:06:19.982707",
+      "response_data": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>DevOps Login - Belgrano Tickets</title>\n    <li"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/ofertas",
+      "nombre": "Ticketera Producción - DevOps Ofertas",
+      "status_code": 200,
+      "response_time_ms": 2801.7377853393555,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:06:22.787302",
+      "response_data": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>DevOps Login - Belgrano Tickets</title>\n    <li"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/sucursales",
+      "nombre": "Ticketera Producción - DevOps Sucursales",
+      "status_code": 200,
+      "response_time_ms": 2426.321268081665,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:06:25.216512",
+      "response_data": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>DevOps Login - Belgrano Tickets</title>\n    <li"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/precios",
+      "nombre": "Ticketera Producción - DevOps Precios",
+      "status_code": 200,
+      "response_time_ms": 2391.7016983032227,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:06:27.611242",
+      "response_data": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>DevOps Login - Belgrano Tickets</title>\n    <li"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/api/tickets",
+      "nombre": "API Tickets GET",
+      "status_code": 405,
+      "response_time_ms": 2573.2083320617676,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-09-05T01:06:30.196063",
+      "response_data": "<!doctype html>\n<html lang=en>\n<title>405 Method Not Allowed</title>\n<h1>Method Not Allowed</h1>\n<p>The method is not allowed for the requested URL.</p>\n"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/api/tickets",
+      "nombre": "API Tickets POST",
+      "status_code": 401,
+      "response_time_ms": 3120.9704875946045,
+      "success": false,
+      "error": null,
+      "timestamp": "2025-09-05T01:06:33.319802",
+      "response_data": "{\"error\":\"API key inv\\u00e1lida\"}\n"
+    }
+  ]
+}

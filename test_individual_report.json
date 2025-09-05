@@ -1,0 +1,183 @@
+{
+  "timestamp": "2025-09-05T01:25:14.523558",
+  "duration": 17.99988603591919,
+  "summary": {
+    "total_tests": 19,
+    "successful": 7,
+    "failed": 12,
+    "success_rate": 36.84210526315789
+  },
+  "results": [
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/login",
+      "method": "POST",
+      "status_code": 200,
+      "success": false,
+      "response_size": 4052,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:01.086306"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/dashboard",
+      "method": "GET",
+      "status_code": 200,
+      "success": true,
+      "response_size": 3662,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:01.591953"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/productos",
+      "method": "GET",
+      "status_code": 200,
+      "success": true,
+      "response_size": 3662,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:02.984732"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/productos/agregar",
+      "method": "POST",
+      "status_code": 200,
+      "success": false,
+      "response_size": 3662,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:03.521037"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/negocios",
+      "method": "GET",
+      "status_code": 200,
+      "success": true,
+      "response_size": 3662,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:04.017694"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/negocios/agregar",
+      "method": "POST",
+      "status_code": 200,
+      "success": false,
+      "response_size": 3662,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:04.540418"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/ofertas",
+      "method": "GET",
+      "status_code": 200,
+      "success": true,
+      "response_size": 3662,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:04.999002"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/ofertas/agregar",
+      "method": "POST",
+      "status_code": 200,
+      "success": false,
+      "response_size": 3662,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:05.544440"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/health",
+      "method": "GET",
+      "status_code": 200,
+      "success": true,
+      "response_size": 192,
+      "content_type": "application/json",
+      "timestamp": "2025-09-05T01:25:05.903407"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/tickets",
+      "method": "GET",
+      "status_code": 404,
+      "success": false,
+      "response_size": 207,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:06.139027"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/api/tickets",
+      "method": "POST",
+      "status_code": 401,
+      "success": false,
+      "response_size": 34,
+      "content_type": "application/json",
+      "timestamp": "2025-09-05T01:25:06.622103"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/health",
+      "method": "GET",
+      "status_code": 500,
+      "success": false,
+      "response_size": 99,
+      "content_type": "application/json",
+      "timestamp": "2025-09-05T01:25:11.507141"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/",
+      "method": "GET",
+      "status_code": 200,
+      "success": true,
+      "response_size": 1149085,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:12.385832"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/api/productos",
+      "method": "GET",
+      "status_code": 404,
+      "success": false,
+      "response_size": 17035,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:12.626849"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/api/v1/negocios",
+      "method": "GET",
+      "status_code": 200,
+      "success": true,
+      "response_size": 512,
+      "content_type": "application/json",
+      "timestamp": "2025-09-05T01:25:12.854434"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/api/ofertas",
+      "method": "GET",
+      "status_code": 404,
+      "success": false,
+      "response_size": 17035,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:13.535556"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/api/precios",
+      "method": "GET",
+      "status_code": 404,
+      "success": false,
+      "response_size": 17035,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:13.788722"
+    },
+    {
+      "url": "https://belgranoahorro-hp30.onrender.com/api/sucursales",
+      "method": "GET",
+      "status_code": 404,
+      "success": false,
+      "response_size": 17035,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:14.020409"
+    },
+    {
+      "url": "https://ticketerabelgrano.onrender.com/devops/productos/agregar",
+      "method": "POST",
+      "status_code": 200,
+      "success": false,
+      "response_size": 3662,
+      "content_type": "text/html; charset=utf-8",
+      "timestamp": "2025-09-05T01:25:14.509562"
+    }
+  ]
+}

@@ -1,0 +1,129 @@
+{
+  "timestamp": "2025-09-05T03:10:58.159534",
+  "summary": {
+    "total_tests": 18,
+    "passed_tests": 14,
+    "failed_tests": 4,
+    "test_percentage": 77.77777777777779,
+    "solutions_implemented": 3,
+    "total_solutions": 5,
+    "solutions_percentage": 60.0
+  },
+  "solutions_status": {
+    "ofertas_500_fix": false,
+    "negocios_propagation": false,
+    "bidirectional_communication": true,
+    "fallback_local": true,
+    "error_handling": true
+  },
+  "results": [
+    {
+      "name": "Acceso Página Ofertas",
+      "success": false,
+      "details": "Status: 500",
+      "timestamp": "2025-09-05T03:10:19.108760"
+    },
+    {
+      "name": "Contenido Página Ofertas",
+      "success": false,
+      "details": "Error 500",
+      "timestamp": "2025-09-05T03:10:19.109394"
+    },
+    {
+      "name": "Crear Negocio",
+      "success": true,
+      "details": "Status: 302",
+      "timestamp": "2025-09-05T03:10:19.668255"
+    },
+    {
+      "name": "Propagación Fallida",
+      "success": false,
+      "details": "Negocio no aparece después de 5 segundos",
+      "timestamp": "2025-09-05T03:10:27.736564"
+    },
+    {
+      "name": "Conectividad DevOps",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T03:10:31.910448"
+    },
+    {
+      "name": "Conectividad Belgrano Ahorro",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T03:10:36.161716"
+    },
+    {
+      "name": "DevOps Independiente",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T03:10:37.412534"
+    },
+    {
+      "name": "Página Dashboard",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T03:10:38.339087"
+    },
+    {
+      "name": "Página Productos",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T03:10:38.623113"
+    },
+    {
+      "name": "Página Negocios",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T03:10:38.989237"
+    },
+    {
+      "name": "Página Sucursales",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T03:10:39.292063"
+    },
+    {
+      "name": "Página Precios",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T03:10:39.564449"
+    },
+    {
+      "name": "Página Ofertas",
+      "success": false,
+      "details": "Status: 500",
+      "timestamp": "2025-09-05T03:10:39.878434"
+    },
+    {
+      "name": "Estadísticas Locales",
+      "success": true,
+      "details": "Dashboard muestra estadísticas locales",
+      "timestamp": "2025-09-05T03:10:40.497274"
+    },
+    {
+      "name": "Manejo Timeout",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T03:10:44.275252"
+    },
+    {
+      "name": "Endpoint Inexistente /devops/invalid",
+      "success": true,
+      "details": "Status: 404",
+      "timestamp": "2025-09-05T03:10:49.268656"
+    },
+    {
+      "name": "Endpoint Inexistente /api/invalid",
+      "success": true,
+      "details": "Status: 404",
+      "timestamp": "2025-09-05T03:10:54.177815"
+    },
+    {
+      "name": "Endpoint Inexistente /nonexistent",
+      "success": true,
+      "details": "Status: 404",
+      "timestamp": "2025-09-05T03:10:58.107685"
+    }
+  ]
+}

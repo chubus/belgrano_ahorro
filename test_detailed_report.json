@@ -1,0 +1,185 @@
+{
+  "timestamp": "2025-09-05T01:49:01.890877",
+  "summary": {
+    "total": 22,
+    "passed": 18,
+    "failed": 4,
+    "percentage": 81.81818181818183
+  },
+  "categories": {
+    "CREATE": {
+      "passed": 1,
+      "failed": 0
+    },
+    "READ": {
+      "passed": 0,
+      "failed": 1
+    },
+    "Productos": {
+      "passed": 2,
+      "failed": 0
+    },
+    "Ofertas": {
+      "passed": 0,
+      "failed": 1
+    },
+    "Sucursales": {
+      "passed": 2,
+      "failed": 0
+    },
+    "Dashboard": {
+      "passed": 2,
+      "failed": 0
+    },
+    "Belgrano": {
+      "passed": 3,
+      "failed": 1
+    },
+    "API": {
+      "passed": 4,
+      "failed": 1
+    },
+    "Fallback": {
+      "passed": 1,
+      "failed": 0
+    },
+    "Invalid": {
+      "passed": 3,
+      "failed": 0
+    }
+  },
+  "results": [
+    {
+      "name": "CREATE Negocio",
+      "success": true,
+      "details": "Status: 302",
+      "timestamp": "2025-09-05T01:48:24.040155"
+    },
+    {
+      "name": "READ Negocio",
+      "success": false,
+      "details": "Negocio no encontrado en lista",
+      "timestamp": "2025-09-05T01:48:27.882260"
+    },
+    {
+      "name": "Productos List Access",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T01:48:28.230914"
+    },
+    {
+      "name": "Productos Page Content",
+      "success": true,
+      "details": "Página de productos carga correctamente",
+      "timestamp": "2025-09-05T01:48:28.232453"
+    },
+    {
+      "name": "Ofertas List Access",
+      "success": false,
+      "details": "Status: 500",
+      "timestamp": "2025-09-05T01:48:28.556508"
+    },
+    {
+      "name": "Sucursales List Access",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T01:48:28.893960"
+    },
+    {
+      "name": "Sucursales Page Content",
+      "success": true,
+      "details": "Página de sucursales carga correctamente",
+      "timestamp": "2025-09-05T01:48:28.894753"
+    },
+    {
+      "name": "Dashboard Access",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T01:48:29.409379"
+    },
+    {
+      "name": "Dashboard Content",
+      "success": true,
+      "details": "Elementos encontrados: ['productos', 'negocios', 'ofertas', 'sucursales']",
+      "timestamp": "2025-09-05T01:48:29.410696"
+    },
+    {
+      "name": "Belgrano Ahorro Página Principal",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T01:48:32.230884"
+    },
+    {
+      "name": "Belgrano Ahorro Página de Productos",
+      "success": false,
+      "details": "Status: 404",
+      "timestamp": "2025-09-05T01:48:34.792807"
+    },
+    {
+      "name": "Belgrano Ahorro Página de Login",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T01:48:37.397118"
+    },
+    {
+      "name": "Belgrano Ahorro Página de Registro",
+      "success": true,
+      "details": "Status: 200",
+      "timestamp": "2025-09-05T01:48:41.438834"
+    },
+    {
+      "name": "API /api/productos",
+      "success": true,
+      "details": "Status: 404 (Expected 404)",
+      "timestamp": "2025-09-05T01:48:44.398686"
+    },
+    {
+      "name": "API /api/v1/negocios",
+      "success": false,
+      "details": "Status: 200 (Expected 404)",
+      "timestamp": "2025-09-05T01:48:46.388674"
+    },
+    {
+      "name": "API /api/ofertas",
+      "success": true,
+      "details": "Status: 404 (Expected 404)",
+      "timestamp": "2025-09-05T01:48:50.365070"
+    },
+    {
+      "name": "API /api/precios",
+      "success": true,
+      "details": "Status: 404 (Expected 404)",
+      "timestamp": "2025-09-05T01:48:52.358834"
+    },
+    {
+      "name": "API /api/sucursales",
+      "success": true,
+      "details": "Status: 404 (Expected 404)",
+      "timestamp": "2025-09-05T01:48:54.413366"
+    },
+    {
+      "name": "Fallback Local Data",
+      "success": true,
+      "details": "Dashboard muestra estadísticas locales",
+      "timestamp": "2025-09-05T01:48:55.039128"
+    },
+    {
+      "name": "Invalid Endpoint /devops/invalid",
+      "success": true,
+      "details": "Status: 404",
+      "timestamp": "2025-09-05T01:48:57.110576"
+    },
+    {
+      "name": "Invalid Endpoint /api/invalid",
+      "success": true,
+      "details": "Status: 404",
+      "timestamp": "2025-09-05T01:48:59.681722"
+    },
+    {
+      "name": "Invalid Endpoint /nonexistent",
+      "success": true,
+      "details": "Status: 404",
+      "timestamp": "2025-09-05T01:49:01.827677"
+    }
+  ]
+}

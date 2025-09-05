@@ -1,0 +1,199 @@
+{
+  "timestamp": "2025-09-05T02:59:09.566898",
+  "summary": {
+    "total_passed": 15,
+    "total_failed": 7,
+    "percentage": 68.18181818181817,
+    "bidirectional_passed": 5,
+    "bidirectional_total": 11,
+    "bidirectional_percentage": 45.45454545454545
+  },
+  "test_data": {
+    "negocio_creado": null,
+    "producto_creado": null,
+    "oferta_creada": null,
+    "ticket_creado": null
+  },
+  "results": {
+    "devops_to_belgrano": {
+      "passed": 0,
+      "failed": 1,
+      "tests": [
+        {
+          "name": "Autenticación DevOps",
+          "success": false,
+          "details": "No se pudo autenticar",
+          "timestamp": "2025-09-05T02:57:55.208083"
+        }
+      ]
+    },
+    "belgrano_to_devops": {
+      "passed": 0,
+      "failed": 2,
+      "tests": [
+        {
+          "name": "Acceso API Negocios",
+          "success": false,
+          "details": "Error: HTTPSConnectionPool(host='belgranoahorro-hp30.onrender.com', port=443): Read timed out. (read timeout=10)",
+          "timestamp": "2025-09-05T02:58:10.187822"
+        },
+        {
+          "name": "Acceso Página Principal",
+          "success": false,
+          "details": "Error: HTTPSConnectionPool(host='belgranoahorro-hp30.onrender.com', port=443): Read timed out. (read timeout=10)",
+          "timestamp": "2025-09-05T02:58:24.791672"
+        }
+      ]
+    },
+    "ticketera_to_belgrano": {
+      "passed": 1,
+      "failed": 1,
+      "tests": [
+        {
+          "name": "Enviar Ticket",
+          "success": true,
+          "details": "Status: 401",
+          "timestamp": "2025-09-05T02:58:29.355837"
+        },
+        {
+          "name": "Acceso Panel Ticketera",
+          "success": false,
+          "details": "Status: 401",
+          "timestamp": "2025-09-05T02:58:29.628700"
+        }
+      ]
+    },
+    "belgrano_to_ticketera": {
+      "passed": 1,
+      "failed": 1,
+      "tests": [
+        {
+          "name": "Acceso Ticketera",
+          "success": true,
+          "details": "Status: 200",
+          "timestamp": "2025-09-05T02:58:34.987595"
+        },
+        {
+          "name": "Acceso API Tickets",
+          "success": false,
+          "details": "Status: 405",
+          "timestamp": "2025-09-05T02:58:39.416858"
+        }
+      ]
+    },
+    "devops_to_ticketera": {
+      "passed": 1,
+      "failed": 1,
+      "tests": [
+        {
+          "name": "Acceso Ticketera desde DevOps",
+          "success": true,
+          "details": "Status: 200",
+          "timestamp": "2025-09-05T02:58:44.668181"
+        },
+        {
+          "name": "Acceso Panel Ticketera",
+          "success": false,
+          "details": "Status: 401",
+          "timestamp": "2025-09-05T02:58:45.053438"
+        }
+      ]
+    },
+    "ticketera_to_devops": {
+      "passed": 2,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Acceso Login DevOps",
+          "success": true,
+          "details": "Status: 200",
+          "timestamp": "2025-09-05T02:58:45.403148"
+        },
+        {
+          "name": "Acceso API DevOps",
+          "success": true,
+          "details": "Status: 404",
+          "timestamp": "2025-09-05T02:58:45.672622"
+        }
+      ]
+    },
+    "fallback_local": {
+      "passed": 6,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Dashboard con Datos Locales",
+          "success": true,
+          "details": "Status: 200",
+          "timestamp": "2025-09-05T02:58:46.455279"
+        },
+        {
+          "name": "Estadísticas Locales",
+          "success": true,
+          "details": "Estadísticas se muestran correctamente",
+          "timestamp": "2025-09-05T02:58:46.456560"
+        },
+        {
+          "name": "Página Productos",
+          "success": true,
+          "details": "Status: 200",
+          "timestamp": "2025-09-05T02:58:46.821393"
+        },
+        {
+          "name": "Página Negocios",
+          "success": true,
+          "details": "Status: 200",
+          "timestamp": "2025-09-05T02:58:47.216958"
+        },
+        {
+          "name": "Página Sucursales",
+          "success": true,
+          "details": "Status: 200",
+          "timestamp": "2025-09-05T02:58:47.627503"
+        },
+        {
+          "name": "Página Precios",
+          "success": true,
+          "details": "Status: 200",
+          "timestamp": "2025-09-05T02:58:48.073309"
+        }
+      ]
+    },
+    "sync_realtime": {
+      "passed": 4,
+      "failed": 1,
+      "tests": [
+        {
+          "name": "Propagación Lenta",
+          "success": false,
+          "details": "Negocio no aparece después de 3 segundos",
+          "timestamp": "2025-09-05T02:58:52.326283"
+        },
+        {
+          "name": "Timeout Handling",
+          "success": true,
+          "details": "Status: 200",
+          "timestamp": "2025-09-05T02:58:56.425605"
+        },
+        {
+          "name": "Invalid Endpoint /devops/invalid",
+          "success": true,
+          "details": "Status: 404",
+          "timestamp": "2025-09-05T02:59:01.049171"
+        },
+        {
+          "name": "Invalid Endpoint /api/invalid",
+          "success": true,
+          "details": "Status: 404",
+          "timestamp": "2025-09-05T02:59:04.311499"
+        },
+        {
+          "name": "Invalid Endpoint /ticketera/invalid",
+          "success": true,
+          "details": "Status: 404",
+          "timestamp": "2025-09-05T02:59:09.458194"
+        }
+      ]
+    }
+  }
+}
