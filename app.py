@@ -2688,6 +2688,14 @@ def api_update_producto(producto_id):
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 # ==========================================
+# ENDPOINT DE HEALTH CHECK PARA RENDER
+# ==========================================
+@app.route('/healthz')
+def health_check():
+    """Endpoint de health check para Render"""
+    return "ok", 200
+
+# ==========================================
 # INICIO DE LA APLICACIÓN
 # ==========================================
 if __name__ == "__main__":
