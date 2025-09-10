@@ -91,20 +91,23 @@ except Exception as e:
 # CONFIGURACIÓN DE COMUNICACIÓN API
 # ==========================================
 # Variables de entorno para comunicación entre servicios
-TICKETERA_URL = os.environ.get('TICKETERA_URL', 'http://localhost:5001')
-BELGRANO_AHORRO_URL = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-hp30.onrender.com')
-BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
+TICKETERA_URL = os.environ.get('TICKETERA_URL')
+BELGRANO_AHORRO_URL = os.environ.get('BELGRANO_AHORRO_URL')
+BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY')
 
-# URLs de producción (Render.com)
-if os.environ.get('RENDER_ENVIRONMENT') == 'production':
-    TICKETERA_URL = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com')
-    BELGRANO_AHORRO_URL = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-hp30.onrender.com')
-    BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
+# Verificar que las variables de entorno estén definidas
+if not BELGRANO_AHORRO_URL:
+    print("⚠️ Variable de entorno BELGRANO_AHORRO_URL no está definida")
+if not BELGRANO_AHORRO_API_KEY:
+    print("⚠️ Variable de entorno BELGRANO_AHORRO_API_KEY no está definida")
 
 print(f"🔗 Configuración API:")
 print(f"   TICKETERA_URL: {TICKETERA_URL}")
 print(f"   BELGRANO_AHORRO_URL: {BELGRANO_AHORRO_URL}")
-print(f"   API_KEY: {BELGRANO_AHORRO_API_KEY[:10]}...")
+if BELGRANO_AHORRO_API_KEY:
+    print(f"   API_KEY: {BELGRANO_AHORRO_API_KEY[:10]}...")
+else:
+    print("   API_KEY: No definida")
 
 # =================================================================
 # FUNCIONES DE BÚSQUEDA Y FILTRADO DE PRODUCTOS
@@ -1284,23 +1287,8 @@ def test():
 
 @app.route("/healthz")
 def healthz():
-    """Endpoint de health check para monitoreo"""
-    try:
-        # Verificar conexión a base de datos
-        conn = get_db_connection()
-        conn.execute("SELECT 1")
-        conn.close()
-        db_status = "healthy"
-    except Exception as e:
-        db_status = f"unhealthy: {str(e)}"
-    
-    return jsonify({
-        "status": "healthy",
-        "service": "belgrano-ahorro",
-        "database": db_status,
-        "ticketera_url": TICKETERA_URL,
-        "timestamp": datetime.now().isoformat()
-    })
+    """Endpoint de health check para Render"""
+    return "ok", 200
 
 @app.route("/api/actualizar-db", methods=['POST'])
 def actualizar_base_datos_produccion():
@@ -2686,14 +2674,6 @@ def api_update_producto(producto_id):
     except Exception as e:
         logger.error(f"Error actualizando producto via API: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
-
-# ==========================================
-# ENDPOINT DE HEALTH CHECK PARA RENDER
-# ==========================================
-@app.route('/healthz')
-def health_check():
-    """Endpoint de health check para Render"""
-    return "ok", 200
 
 # ==========================================
 # INICIO DE LA APLICACIÓN
