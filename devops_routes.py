@@ -12,12 +12,12 @@ devops_bp = Blueprint('devops_bp', __name__, url_prefix='/devops')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Configuración de URLs y API keys
+# Configuracion de URLs y API keys
 BELGRANO_AHORRO_URL = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-hp30.onrender.com')
 BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
 
 # =================================================================
-# FUNCIONES DE SINCRONIZACIÓN EN TIEMPO REAL
+# FUNCIONES DE SINCRONIZACION EN TIEMPO REAL
 # =================================================================
 
 def sync_to_belgrano_ahorro(endpoint, data, method='POST'):
@@ -39,14 +39,14 @@ def sync_to_belgrano_ahorro(endpoint, data, method='POST'):
             response = requests.delete(url, json=data, headers=headers, timeout=10)
         
         if response.status_code in [200, 201]:
-            logger.info(f"✅ Sincronización exitosa a Belgrano Ahorro: {endpoint}")
+            logger.info(f"Sincronizacion exitosa a Belgrano Ahorro: {endpoint}")
             return True, response.json()
         else:
-            logger.error(f"❌ Error en sincronización: {response.status_code} - {response.text}")
+            logger.error(f"Error en sincronizacion: {response.status_code} - {response.text}")
             return False, response.text
             
     except Exception as e:
-        logger.error(f"❌ Error de conexión con Belgrano Ahorro: {e}")
+        logger.error(f"Error de conexion con Belgrano Ahorro: {e}")
         return False, str(e)
 
 def get_belgrano_ahorro_data(endpoint):
@@ -65,20 +65,20 @@ def get_belgrano_ahorro_data(endpoint):
             return False, response.text
             
     except Exception as e:
-        logger.error(f"❌ Error obteniendo datos de Belgrano Ahorro: {e}")
+        logger.error(f"Error obteniendo datos de Belgrano Ahorro: {e}")
         return False, str(e)
 
 # =================================================================
-# SECCIÓN DE SUCURSALES ELIMINADA - CENTRADO EN NEGOCIOS, PRECIOS Y OFERTAS
+# SECCION DE SUCURSALES ELIMINADA - CENTRADO EN NEGOCIOS, PRECIOS Y OFERTAS
 # =================================================================
 
 # =================================================================
-# RUTAS DE GESTIÓN DE NEGOCIOS
+# RUTAS DE GESTION DE NEGOCIOS
 # =================================================================
 
 @devops_bp.route('/negocios', methods=['GET'])
 def devops_negocios():
-    """Panel de gestión de negocios desde DevOps"""
+    """Panel de gestion de negocios desde DevOps"""
     try:
         # Obtener negocios desde Belgrano Ahorro
         success, data = get_belgrano_ahorro_data('/api/v1/negocios')
@@ -95,7 +95,7 @@ def devops_negocios():
             }), 500
             
     except Exception as e:
-        logger.error(f"❌ Error en devops_negocios: {e}")
+        logger.error(f"Error en devops_negocios: {e}")
         return jsonify({
             'status': 'error',
             'message': f'Error interno: {str(e)}'
@@ -103,7 +103,7 @@ def devops_negocios():
 
 @devops_bp.route('/agregar_negocio', methods=['POST'])
 def devops_agregar_negocio():
-    """Agregar negocio desde DevOps con sincronización inmediata"""
+    """Agregar negocio desde DevOps con sincronizacion inmediata"""
     try:
         data = request.get_json()
         
@@ -125,21 +125,21 @@ def devops_agregar_negocio():
         success, response = sync_to_belgrano_ahorro('/api/v1/negocios', data)
         
         if success:
-            logger.info(f"✅ Negocio '{data['nombre']}' agregado y sincronizado exitosamente")
+            logger.info(f"Negocio '{data['nombre']}' agregado y sincronizado exitosamente")
             return jsonify({
                 'status': 'success',
                 'message': 'Negocio agregado y sincronizado exitosamente',
                 'data': response
             })
         else:
-            logger.error(f"❌ Error sincronizando negocio: {response}")
+            logger.error(f"Error sincronizando negocio: {response}")
             return jsonify({
                 'status': 'error',
-                'message': f'Error en sincronización: {response}'
+                'message': f'Error en sincronizacion: {response}'
             }), 500
             
     except Exception as e:
-        logger.error(f"❌ Error en devops_agregar_negocio: {e}")
+        logger.error(f"Error en devops_agregar_negocio: {e}")
         return jsonify({
             'status': 'error',
             'message': f'Error interno: {str(e)}'
@@ -147,7 +147,7 @@ def devops_agregar_negocio():
 
 @devops_bp.route('/editar_negocio/<negocio_id>', methods=['PUT'])
 def devops_editar_negocio(negocio_id):
-    """Editar negocio desde DevOps con sincronización inmediata"""
+    """Editar negocio desde DevOps con sincronizacion inmediata"""
     try:
         data = request.get_json()
         data['id'] = negocio_id
@@ -158,21 +158,21 @@ def devops_editar_negocio(negocio_id):
         success, response = sync_to_belgrano_ahorro(f'/api/v1/negocios/{negocio_id}', data, 'PUT')
         
         if success:
-            logger.info(f"✅ Negocio {negocio_id} editado y sincronizado exitosamente")
+            logger.info(f"Negocio {negocio_id} editado y sincronizado exitosamente")
             return jsonify({
                 'status': 'success',
                 'message': 'Negocio editado y sincronizado exitosamente',
                 'data': response
             })
         else:
-            logger.error(f"❌ Error sincronizando cambios de negocio: {response}")
+            logger.error(f"Error sincronizando cambios de negocio: {response}")
             return jsonify({
                 'status': 'error',
-                'message': f'Error en sincronización: {response}'
+                'message': f'Error en sincronizacion: {response}'
             }), 500
             
     except Exception as e:
-        logger.error(f"❌ Error en devops_editar_negocio: {e}")
+        logger.error(f"Error en devops_editar_negocio: {e}")
         return jsonify({
             'status': 'error',
             'message': f'Error interno: {str(e)}'
@@ -180,7 +180,7 @@ def devops_editar_negocio(negocio_id):
 
 @devops_bp.route('/eliminar_negocio/<negocio_id>', methods=['DELETE'])
 def devops_eliminar_negocio(negocio_id):
-    """Eliminar negocio desde DevOps con sincronización inmediata"""
+    """Eliminar negocio desde DevOps con sincronizacion inmediata"""
     try:
         data = {
             'id': negocio_id,
@@ -188,36 +188,36 @@ def devops_eliminar_negocio(negocio_id):
             'fecha_eliminacion': datetime.now().isoformat()
         }
         
-        # Sincronizar eliminación a Belgrano Ahorro
+        # Sincronizar eliminacion a Belgrano Ahorro
         success, response = sync_to_belgrano_ahorro(f'/api/v1/negocios/{negocio_id}', data, 'DELETE')
         
         if success:
-            logger.info(f"✅ Negocio {negocio_id} eliminado y sincronizado exitosamente")
+            logger.info(f"Negocio {negocio_id} eliminado y sincronizado exitosamente")
             return jsonify({
                 'status': 'success',
                 'message': 'Negocio eliminado y sincronizado exitosamente'
             })
         else:
-            logger.error(f"❌ Error sincronizando eliminación de negocio: {response}")
+            logger.error(f"Error sincronizando eliminacion de negocio: {response}")
             return jsonify({
                 'status': 'error',
-                'message': f'Error en sincronización: {response}'
+                'message': f'Error en sincronizacion: {response}'
             }), 500
             
     except Exception as e:
-        logger.error(f"❌ Error en devops_eliminar_negocio: {e}")
+        logger.error(f"Error en devops_eliminar_negocio: {e}")
         return jsonify({
             'status': 'error',
             'message': f'Error interno: {str(e)}'
         }), 500
 
 # =================================================================
-# RUTAS DE GESTIÓN DE OFERTAS
+# RUTAS DE GESTION DE OFERTAS
 # =================================================================
 
 @devops_bp.route('/ofertas', methods=['GET'])
 def devops_ofertas():
-    """Panel de gestión de ofertas desde DevOps"""
+    """Panel de gestion de ofertas desde DevOps"""
     try:
         # Obtener ofertas desde Belgrano Ahorro
         success, data = get_belgrano_ahorro_data('/api/v1/ofertas')
@@ -234,7 +234,7 @@ def devops_ofertas():
             }), 500
             
     except Exception as e:
-        logger.error(f"❌ Error en devops_ofertas: {e}")
+        logger.error(f"Error en devops_ofertas: {e}")
         return jsonify({
             'status': 'error',
             'message': f'Error interno: {str(e)}'
@@ -242,7 +242,7 @@ def devops_ofertas():
 
 @devops_bp.route('/agregar_oferta', methods=['POST'])
 def devops_agregar_oferta():
-    """Agregar oferta desde DevOps con sincronización inmediata"""
+    """Agregar oferta desde DevOps con sincronizacion inmediata"""
     try:
         data = request.get_json()
         
@@ -264,21 +264,21 @@ def devops_agregar_oferta():
         success, response = sync_to_belgrano_ahorro('/api/v1/ofertas', data)
         
         if success:
-            logger.info(f"✅ Oferta '{data['titulo']}' agregada y sincronizada exitosamente")
+            logger.info(f"Oferta '{data['titulo']}' agregada y sincronizada exitosamente")
             return jsonify({
                 'status': 'success',
                 'message': 'Oferta agregada y sincronizada exitosamente',
                 'data': response
             })
         else:
-            logger.error(f"❌ Error sincronizando oferta: {response}")
+            logger.error(f"Error sincronizando oferta: {response}")
             return jsonify({
                 'status': 'error',
-                'message': f'Error en sincronización: {response}'
+                'message': f'Error en sincronizacion: {response}'
             }), 500
             
     except Exception as e:
-        logger.error(f"❌ Error en devops_agregar_oferta: {e}")
+        logger.error(f"Error en devops_agregar_oferta: {e}")
         return jsonify({
             'status': 'error',
             'message': f'Error interno: {str(e)}'
@@ -286,7 +286,7 @@ def devops_agregar_oferta():
 
 @devops_bp.route('/editar_oferta/<oferta_id>', methods=['PUT'])
 def devops_editar_oferta(oferta_id):
-    """Editar oferta desde DevOps con sincronización inmediata"""
+    """Editar oferta desde DevOps con sincronizacion inmediata"""
     try:
         data = request.get_json()
         data['id'] = oferta_id
@@ -297,21 +297,21 @@ def devops_editar_oferta(oferta_id):
         success, response = sync_to_belgrano_ahorro(f'/api/v1/ofertas/{oferta_id}', data, 'PUT')
         
         if success:
-            logger.info(f"✅ Oferta {oferta_id} editada y sincronizada exitosamente")
+            logger.info(f"Oferta {oferta_id} editada y sincronizada exitosamente")
             return jsonify({
                 'status': 'success',
                 'message': 'Oferta editada y sincronizada exitosamente',
                 'data': response
             })
         else:
-            logger.error(f"❌ Error sincronizando cambios de oferta: {response}")
+            logger.error(f"Error sincronizando cambios de oferta: {response}")
             return jsonify({
                 'status': 'error',
-                'message': f'Error en sincronización: {response}'
+                'message': f'Error en sincronizacion: {response}'
             }), 500
             
     except Exception as e:
-        logger.error(f"❌ Error en devops_editar_oferta: {e}")
+        logger.error(f"Error en devops_editar_oferta: {e}")
         return jsonify({
             'status': 'error',
             'message': f'Error interno: {str(e)}'
@@ -319,7 +319,7 @@ def devops_editar_oferta(oferta_id):
 
 @devops_bp.route('/eliminar_oferta/<oferta_id>', methods=['DELETE'])
 def devops_eliminar_oferta(oferta_id):
-    """Eliminar oferta desde DevOps con sincronización inmediata"""
+    """Eliminar oferta desde DevOps con sincronizacion inmediata"""
     try:
         data = {
             'id': oferta_id,
@@ -327,36 +327,36 @@ def devops_eliminar_oferta(oferta_id):
             'fecha_eliminacion': datetime.now().isoformat()
         }
         
-        # Sincronizar eliminación a Belgrano Ahorro
+        # Sincronizar eliminacion a Belgrano Ahorro
         success, response = sync_to_belgrano_ahorro(f'/api/v1/ofertas/{oferta_id}', data, 'DELETE')
         
         if success:
-            logger.info(f"✅ Oferta {oferta_id} eliminada y sincronizada exitosamente")
+            logger.info(f"Oferta {oferta_id} eliminada y sincronizada exitosamente")
             return jsonify({
                 'status': 'success',
                 'message': 'Oferta eliminada y sincronizada exitosamente'
             })
         else:
-            logger.error(f"❌ Error sincronizando eliminación de oferta: {response}")
+            logger.error(f"Error sincronizando eliminacion de oferta: {response}")
             return jsonify({
                 'status': 'error',
-                'message': f'Error en sincronización: {response}'
+                'message': f'Error en sincronizacion: {response}'
             }), 500
             
     except Exception as e:
-        logger.error(f"❌ Error en devops_eliminar_oferta: {e}")
+        logger.error(f"Error en devops_eliminar_oferta: {e}")
         return jsonify({
             'status': 'error',
             'message': f'Error interno: {str(e)}'
         }), 500
 
 # =================================================================
-# RUTAS DE SINCRONIZACIÓN Y ESTADO
+# RUTAS DE SINCRONIZACION Y ESTADO
 # =================================================================
 
 @devops_bp.route('/sync/status', methods=['GET'])
 def devops_sync_status():
-    """Estado de sincronización entre DevOps y Belgrano Ahorro"""
+    """Estado de sincronizacion entre DevOps y Belgrano Ahorro"""
     try:
         # Verificar conectividad con Belgrano Ahorro
         success, data = get_belgrano_ahorro_data('/healthz')
@@ -376,11 +376,11 @@ def devops_sync_status():
         return jsonify({
             'status': 'success',
             'data': status,
-            'message': 'Estado de sincronización obtenido correctamente'
+            'message': 'Estado de sincronizacion obtenido correctamente'
         })
         
     except Exception as e:
-        logger.error(f"❌ Error en devops_sync_status: {e}")
+        logger.error(f"Error en devops_sync_status: {e}")
         return jsonify({
             'status': 'error',
             'message': f'Error interno: {str(e)}'
@@ -388,7 +388,7 @@ def devops_sync_status():
 
 @devops_bp.route('/sync/force', methods=['POST'])
 def devops_force_sync():
-    """Forzar sincronización completa desde DevOps"""
+    """Forzar sincronizacion completa desde DevOps"""
     try:
         # Obtener todos los datos de Belgrano Ahorro
         endpoints = ['/api/v1/sucursales', '/api/v1/negocios', '/api/v1/ofertas']
@@ -404,7 +404,7 @@ def devops_force_sync():
         
         return jsonify({
             'status': 'success',
-            'message': 'Sincronización forzada completada',
+            'message': 'Sincronizacion forzada completada',
             'data': {
                 'sync_results': sync_results,
                 'timestamp': datetime.now().isoformat()
@@ -412,7 +412,7 @@ def devops_force_sync():
         })
         
     except Exception as e:
-        logger.error(f"❌ Error en devops_force_sync: {e}")
+        logger.error(f"Error en devops_force_sync: {e}")
         return jsonify({
             'status': 'error',
             'message': f'Error interno: {str(e)}'
@@ -434,15 +434,15 @@ def devops_health():
 
 @devops_bp.route('/info', methods=['GET'])
 def devops_info():
-    """Información del sistema DevOps"""
+    """Informacion del sistema DevOps"""
     return jsonify({
         'service': 'DevOps Sync System',
-        'description': 'Sistema de sincronización en tiempo real entre DevOps y Belgrano Ahorro',
+        'description': 'Sistema de sincronizacion en tiempo real entre DevOps y Belgrano Ahorro',
         'features': [
-            'Gestión de sucursales con sincronización inmediata',
-            'Gestión de negocios con sincronización inmediata',
-            'Gestión de ofertas con sincronización inmediata',
-            'Sincronización bidireccional en tiempo real',
+            'Gestion de sucursales con sincronizacion inmediata',
+            'Gestion de negocios con sincronizacion inmediata',
+            'Gestion de ofertas con sincronizacion inmediata',
+            'Sincronizacion bidireccional en tiempo real',
             'API REST completa para todas las operaciones'
         ],
         'endpoints': {
@@ -471,6 +471,3 @@ def devops_info():
         },
         'timestamp': datetime.now().isoformat()
     })
-
-
-
