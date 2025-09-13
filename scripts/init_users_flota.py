@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Script para inicialización de usuarios de flota
-Versión corregida con indentación consistente de 4 espacios
+Versión corregida con indentación consistente
 """
 
 import os
