@@ -8,8 +8,10 @@ Versión de respaldo en directorio raíz
 import os
 import sys
 
-# Agregar el directorio belgrano_tickets al path
-sys.path.insert(0, 'belgrano_tickets')
+# Agregar directorios necesarios al path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
+sys.path.insert(0, os.path.join(current_dir, 'belgrano_tickets'))
 sys.path.insert(0, '.')
 
 def initialize_database():
@@ -19,8 +21,22 @@ def initialize_database():
         
         # Importar módulos necesarios
         from werkzeug.security import generate_password_hash
-        from belgrano_tickets.models import db, User
-        from belgrano_tickets.app import app
+        
+        # Intentar importar desde belgrano_tickets primero
+        try:
+            from belgrano_tickets.models import db, User
+            from belgrano_tickets.app import app
+        except ImportError:
+            # Si falla, intentar importar desde el directorio actual
+            try:
+                import sys
+                sys.path.append('belgrano_tickets')
+                from models import db, User
+                from app import app
+            except ImportError:
+                print("❌ Error: No se pueden importar los módulos necesarios")
+                print("   Asegúrate de que belgrano_tickets/models.py y belgrano_tickets/app.py existan")
+                raise
         
         # Crear contexto de aplicación
         with app.app_context():
