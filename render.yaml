@@ -4,15 +4,15 @@ services:
     name: belgrano-tickets
     env: python
     plan: free
-    buildCommand: pip install -r requirements_ticketera.txt
-    startCommand: python app.py
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app_deploy:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
       - key: FLASK_ENV
         value: production
       - key: FLASK_APP
-        value: app.py
+        value: app_deploy.py
       - key: PORT
         value: 5001
       - key: SECRET_KEY

@@ -49,4 +49,4 @@ EXPOSE 10000
 
 # Comando de inicio optimizado con verificaciones
 # Usar gunicorn para producción
-CMD ["sh", "-c", "python test_imports.py && gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 app_unificado:app"]
+CMD ["sh", "-c", "python test_imports.py && gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 app_deploy:app"]

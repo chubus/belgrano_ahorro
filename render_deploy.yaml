@@ -4,10 +4,9 @@ services:
     env: python
     buildCommand: |
       pip install -r requirements.txt
-      python belgrano_tickets/actualizar_db.py
-      python scripts/init_users_flota.py
+      python -c "import app_deploy; print('✅ app_deploy module ready')"
     startCommand: |
-      cd belgrano_tickets && python app.py
+      gunicorn app_deploy:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
     envVars:
       - key: BELGRANO_AHORRO_URL
         sync: false
