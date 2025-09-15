@@ -12,10 +12,19 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user, login_required
 from functools import wraps
+import hmac
+import binascii
+import hashlib
 
 # Crear la instancia de Flask
 app = Flask(__name__, template_folder='templates_tickets')
-app.secret_key = 'belgrano_tickets_secret_2025'
+# Secret key y cookies configurables por entorno
+app.secret_key = os.environ.get('SECRET_KEY', 'belgrano_tickets_secret_2025')
+app.config.update(
+    SESSION_COOKIE_SAMESITE=os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax'),
+    SESSION_COOKIE_SECURE=os.environ.get('SESSION_COOKIE_SECURE', 'true').lower() == 'true',
+    REMEMBER_COOKIE_SECURE=os.environ.get('REMEMBER_COOKIE_SECURE', 'true').lower() == 'true',
+)
 
 # Configurar Flask-Login
 login_manager = LoginManager(app)
@@ -100,12 +109,15 @@ def inicializar_usuarios():
         count = cursor.fetchone()[0]
         
         if count == 0:
-            # Crear usuario admin
-            admin_password = generate_password_hash('admin123')
+            # Credenciales admin por entorno (con defaults)
+            admin_email = os.environ.get('ADMIN_EMAIL', 'admin@belgranoahorro.com')
+            admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
+            admin_plain_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+            admin_password = generate_password_hash(admin_plain_password)
             cursor.execute('''
                 INSERT INTO usuarios (username, email, password, nombre, rol, activo)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', ('admin', 'admin@belgranoahorro.com', admin_password, 'Administrador', 'admin', True))
+            ''', (admin_username, admin_email, admin_password, 'Administrador', 'admin', True))
             
             # Crear usuarios flota
             flota_usuarios = [
@@ -132,6 +144,37 @@ def inicializar_usuarios():
         return True
     except Exception as e:
         print(f"Error inicializando usuarios: {e}")
+        return False
+    
+def resetear_admin_si_solicitado():
+    """Resetear credenciales del admin si ADMIN_RESET=1 en entorno"""
+    try:
+        if os.environ.get('ADMIN_RESET', '0') != '1':
+            return True
+        conn = sqlite3.connect('belgrano_tickets.db')
+        cursor = conn.cursor()
+        admin_email = os.environ.get('ADMIN_EMAIL', 'admin@belgranoahorro.com')
+        admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
+        admin_plain_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+        admin_password = generate_password_hash(admin_plain_password)
+        cursor.execute('SELECT id FROM usuarios WHERE email = ?', (admin_email,))
+        row = cursor.fetchone()
+        if row:
+            cursor.execute('''
+                UPDATE usuarios SET username = ?, password = ?, nombre = ?, rol = 'admin', activo = 1
+                WHERE id = ?
+            ''', (admin_username, admin_password, 'Administrador', int(row[0])))
+        else:
+            cursor.execute('''
+                INSERT INTO usuarios (username, email, password, nombre, rol, activo)
+                VALUES (?, ?, ?, ?, 'admin', 1)
+            ''', (admin_username, admin_email, admin_password, 'Administrador'))
+        conn.commit()
+        conn.close()
+        print('✅ Admin reseteado por ADMIN_RESET=1')
+        return True
+    except Exception as e:
+        print(f"Error reseteando admin: {e}")
         return False
 
 def guardar_ticket(ticket_data):
@@ -167,6 +210,52 @@ def guardar_ticket(ticket_data):
     except Exception as e:
         print(f"Error guardando ticket: {e}")
         return None
+
+def verificar_password_compat(stored_hash: str, plain_password: str) -> bool:
+    """Verifica password con compatibilidad para hashes 'scrypt:' heredados."""
+    # Intento estándar con Werkzeug
+    try:
+        return check_password_hash(stored_hash, plain_password)
+    except Exception:
+        pass
+    # Compatibilidad scrypt en formato: 'scrypt:N:r:p$salt_hex$digest_hex'
+    try:
+        if not stored_hash.startswith('scrypt:'):
+            return False
+        meta_rest = stored_hash.split(':', 1)[1]
+        params_part, salt_hex, digest_hex = meta_rest.split('$')
+        n_str, r_str, p_str = params_part.split(':')
+        n = int(n_str)
+        r = int(r_str)
+        p = int(p_str)
+        salt = binascii.unhexlify(salt_hex)
+        expected = binascii.unhexlify(digest_hex)
+        dk = hashlib.scrypt(
+            plain_password.encode('utf-8'),
+            salt=salt,
+            n=n,
+            r=r,
+            p=p,
+            dklen=len(expected)
+        )
+        return hmac.compare_digest(dk, expected)
+    except Exception as e:
+        print(f"Error verificando hash scrypt: {e}")
+        return False
+
+def migrar_hash_si_corresponde(user_id: int, stored_hash: str, plain_password: str) -> None:
+    """Si el hash previo es 'scrypt:' y la verificación fue válida, re-hashear con el esquema actual."""
+    try:
+        if stored_hash.startswith('scrypt:'):
+            nuevo_hash = generate_password_hash(plain_password)
+            conn = sqlite3.connect('belgrano_tickets.db')
+            cursor = conn.cursor()
+            cursor.execute('UPDATE usuarios SET password = ? WHERE id = ?', (nuevo_hash, int(user_id)))
+            conn.commit()
+            conn.close()
+            print('🔄 Hash de contraseña migrado a formato actual para el usuario', user_id)
+    except Exception as e:
+        print(f"Error migrando hash: {e}")
 
 def obtener_todos_los_tickets():
     """Obtener todos los tickets"""
@@ -367,7 +456,7 @@ def login():
         usuario = obtener_usuario_por_email(email)
         
         if usuario and usuario['activo']:
-            if check_password_hash(usuario['password'], password):
+            if verificar_password_compat(usuario['password'], password):
                 user = User(
                     id=usuario['id'],
                     username=usuario['username'],
@@ -379,6 +468,10 @@ def login():
                 )
                 
                 login_user(user)
+                try:
+                    migrar_hash_si_corresponde(usuario['id'], usuario['password'], password)
+                except Exception as e:
+                    print(f"Error durante migración de hash: {e}")
                 return redirect(url_for('tickets'))
             else:
                 return render_template('login.html', error='Email o contraseña incorrectos')
@@ -449,6 +542,14 @@ def inicializar_aplicacion():
     else:
         print("❌ Error inicializando usuarios")
         return False
+    # Resetear admin si se solicita por entorno
+    try:
+        if not resetear_admin_si_solicitado():
+            print("❌ Error reseteando admin")
+            return False
+    except NameError:
+        # Si la función no existe, continuar sin bloquear el deploy
+        pass
     
     print("✅ Aplicación inicializada correctamente")
     print("📱 URLs disponibles:")
