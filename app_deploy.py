@@ -108,18 +108,38 @@ def inicializar_usuarios():
         cursor.execute('SELECT COUNT(*) FROM usuarios')
         count = cursor.fetchone()[0]
         
-        if count == 0:
+        # En producción, siempre asegurar que existan los usuarios básicos
+        force_init = os.environ.get('FORCE_USER_INIT', 'false').lower() == 'true'
+        
+        if count == 0 or force_init:
+            print(f"🔄 Inicializando usuarios (count: {count}, force: {force_init})")
+            
             # Credenciales admin por entorno (con defaults)
             admin_email = os.environ.get('ADMIN_EMAIL', 'admin@belgranoahorro.com')
             admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
             admin_plain_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
             admin_password = generate_password_hash(admin_plain_password)
-            cursor.execute('''
-                INSERT INTO usuarios (username, email, password, nombre, rol, activo)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (admin_username, admin_email, admin_password, 'Administrador', 'admin', True))
             
-            # Crear usuarios flota
+            # Verificar si admin ya existe
+            cursor.execute('SELECT id FROM usuarios WHERE email = ?', (admin_email,))
+            admin_exists = cursor.fetchone()
+            
+            if admin_exists:
+                # Actualizar admin existente
+                cursor.execute('''
+                    UPDATE usuarios SET username = ?, password = ?, nombre = ?, rol = 'admin', activo = 1
+                    WHERE email = ?
+                ''', (admin_username, admin_password, 'Administrador', admin_email))
+                print(f"✅ Admin actualizado: {admin_email}")
+            else:
+                # Crear admin nuevo
+                cursor.execute('''
+                    INSERT INTO usuarios (username, email, password, nombre, rol, activo)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (admin_username, admin_email, admin_password, 'Administrador', 'admin', True))
+                print(f"✅ Admin creado: {admin_email}")
+            
+            # Crear/actualizar usuarios flota
             flota_usuarios = [
                 ('repartidor1', 'repartidor1@belgranoahorro.com', 'Repartidor 1'),
                 ('repartidor2', 'repartidor2@belgranoahorro.com', 'Repartidor 2'),
@@ -130,15 +150,35 @@ def inicializar_usuarios():
             
             for username, email, nombre in flota_usuarios:
                 flota_password = generate_password_hash('flota123')
-                cursor.execute('''
-                    INSERT INTO usuarios (username, email, password, nombre, rol, activo)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ''', (username, email, flota_password, nombre, 'flota', True))
+                
+                # Verificar si usuario flota ya existe
+                cursor.execute('SELECT id FROM usuarios WHERE email = ?', (email,))
+                flota_exists = cursor.fetchone()
+                
+                if flota_exists:
+                    # Actualizar usuario flota existente
+                    cursor.execute('''
+                        UPDATE usuarios SET username = ?, password = ?, nombre = ?, rol = 'flota', activo = 1
+                        WHERE email = ?
+                    ''', (username, flota_password, nombre, email))
+                    print(f"✅ Flota actualizado: {email}")
+                else:
+                    # Crear usuario flota nuevo
+                    cursor.execute('''
+                        INSERT INTO usuarios (username, email, password, nombre, rol, activo)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (username, email, flota_password, nombre, 'flota', True))
+                    print(f"✅ Flota creado: {email}")
             
             conn.commit()
-            print("✅ Usuarios del sistema inicializados")
+            print("✅ Usuarios del sistema inicializados/actualizados")
         else:
             print(f"✅ Ya existen {count} usuarios en el sistema")
+        
+        # Verificar usuarios finales
+        cursor.execute('SELECT email, rol, activo FROM usuarios')
+        final_users = cursor.fetchall()
+        print(f"📋 Usuarios finales en DB: {final_users}")
         
         conn.close()
         return True
@@ -313,6 +353,7 @@ def obtener_usuario_por_email(email):
         conn.close()
         
         if row:
+            print(f"✅ Usuario encontrado: {email} (rol: {row[7]}, activo: {bool(row[8])})")
             return {
                 'id': row[0],
                 'username': row[1],
@@ -324,6 +365,15 @@ def obtener_usuario_por_email(email):
                 'rol': row[7],
                 'activo': bool(row[8])
             }
+        else:
+            print(f"❌ Usuario no encontrado: {email}")
+            # Debug: mostrar todos los usuarios disponibles
+            conn = sqlite3.connect('belgrano_tickets.db')
+            cursor = conn.cursor()
+            cursor.execute('SELECT email, rol, activo FROM usuarios')
+            all_users = cursor.fetchall()
+            conn.close()
+            print(f"📋 Usuarios disponibles en DB: {all_users}")
         return None
     except Exception as e:
         print(f"Error obteniendo usuario: {e}")
@@ -450,13 +500,17 @@ def login():
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '').strip()
         
+        print(f"Intento de login: {email}")
+        
         if not email or not password:
             return render_template('login.html', error='Por favor complete todos los campos')
         
         usuario = obtener_usuario_por_email(email)
         
         if usuario and usuario['activo']:
+            print(f"Usuario encontrado y activo: {email}")
             if verificar_password_compat(usuario['password'], password):
+                print(f"✅ Login exitoso para: {email}")
                 user = User(
                     id=usuario['id'],
                     username=usuario['username'],
@@ -474,9 +528,15 @@ def login():
                     print(f"Error durante migración de hash: {e}")
                 return redirect(url_for('tickets'))
             else:
+                print(f"❌ Contraseña incorrecta para: {email}")
                 return render_template('login.html', error='Email o contraseña incorrectos')
         else:
-            return render_template('login.html', error='Usuario no encontrado o inactivo')
+            if usuario:
+                print(f"❌ Usuario inactivo: {email}")
+                return render_template('login.html', error='Usuario inactivo')
+            else:
+                print(f"❌ Usuario no encontrado: {email}")
+                return render_template('login.html', error='Usuario no encontrado o inactivo')
     
     return render_template('login.html')
 
@@ -503,6 +563,11 @@ def health_check():
         total_tickets = cursor.fetchone()[0]
         cursor.execute('SELECT COUNT(*) FROM usuarios')
         total_usuarios = cursor.fetchone()[0]
+        
+        # Obtener lista de usuarios para debug
+        cursor.execute('SELECT email, rol, activo FROM usuarios')
+        usuarios = cursor.fetchall()
+        
         conn.close()
         
         return jsonify({
@@ -512,6 +577,7 @@ def health_check():
             'database': 'connected',
             'total_tickets': total_tickets,
             'total_usuarios': total_usuarios,
+            'usuarios': [{'email': u[0], 'rol': u[1], 'activo': bool(u[2])} for u in usuarios],
             'version': '1.0.0'
         }), 200
     except Exception as e:
@@ -520,6 +586,31 @@ def health_check():
             'error': str(e),
             'timestamp': datetime.now().isoformat()
         }), 500
+
+@app.route('/debug/users')
+def debug_users():
+    """Endpoint de debug para verificar usuarios"""
+    try:
+        conn = sqlite3.connect('belgrano_tickets.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, username, email, rol, activo FROM usuarios')
+        usuarios = cursor.fetchall()
+        conn.close()
+        
+        return jsonify({
+            'usuarios': [
+                {
+                    'id': u[0],
+                    'username': u[1], 
+                    'email': u[2],
+                    'rol': u[3],
+                    'activo': bool(u[4])
+                } for u in usuarios
+            ],
+            'total': len(usuarios)
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # =================================================================
 # INICIALIZACIÓN
