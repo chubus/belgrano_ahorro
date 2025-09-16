@@ -22,7 +22,20 @@ logger = logging.getLogger(__name__)
 
 # Crear la instancia de Flask
 app = Flask(__name__, template_folder="templates", static_folder="static")
-app.secret_key = 'belgrano_ahorro_unificado_secret_2025'
+
+# Cargar configuración centralizada
+try:
+    from belgrano_tickets.config import get_config
+    AppConfigClass = get_config()
+    app.config.from_object(AppConfigClass)
+    # Asegurar SECRET_KEY configurado
+    if not app.config.get('SECRET_KEY'):
+        app.config['SECRET_KEY'] = os.urandom(32).hex()
+    logger.info(f"Config cargada: env={app.config.get('FLASK_ENV')}")
+except Exception as e:
+    logger.warning(f"No se pudo cargar configuración centralizada: {e}")
+    # Fallback mínimo
+    app.secret_key = os.environ.get('SECRET_KEY', os.urandom(32).hex())
 
 # Importar base de datos
 try:
@@ -344,6 +357,28 @@ def enviar_pedido_a_tickets(numero_pedido, usuario, carrito_items, total,
     """Enviar pedido a la API de tickets externa"""
     try:
         import requests
+        from requests.auth import HTTPBasicAuth
+        # Config de ticketera desde app.config
+        api_url = (
+            app.config.get('TICKETS_API_URL')
+            or os.environ.get('TICKETS_API_URL')
+            or os.environ.get('TICKETERA_URL')
+        )
+        api_key = (
+            app.config.get('TICKETS_API_KEY')
+            or os.environ.get('TICKETS_API_KEY')
+            or os.environ.get('TICKETERA_API_KEY')
+        )
+        api_user = (
+            app.config.get('TICKETS_API_USERNAME')
+            or os.environ.get('TICKETS_API_USERNAME')
+            or os.environ.get('TICKETERA_USER')
+        )
+        api_pass = (
+            app.config.get('TICKETS_API_PASSWORD')
+            or os.environ.get('TICKETS_API_PASSWORD')
+            or os.environ.get('TICKETERA_PASSWORD')
+        )
         
         # Preparar datos del cliente
         nombre_completo = usuario.get('nombre', 'Cliente')
@@ -368,15 +403,25 @@ def enviar_pedido_a_tickets(numero_pedido, usuario, carrito_items, total,
             "notas": notas or 'Sin indicaciones especiales'
         }
         
-        # URL de la API de tickets (ajustar según tu deploy)
-        api_url = "https://belgrano-tickets.onrender.com/api/tickets"
-        
+        # Validar URL configurada
+        if not api_url:
+            logger.warning("No se configuró TICKETS_API_URL/TICKETERA_URL; se omite envío a ticketera")
+            return
+
+        headers = {'Content-Type': 'application/json'}
+        auth = None
+        if api_key:
+            headers['Authorization'] = f"Bearer {api_key}"
+        elif api_user and api_pass:
+            auth = HTTPBasicAuth(api_user, api_pass)
+
         # Enviar request POST
         response = requests.post(
             api_url,
             json=ticket_data,
-            headers={'Content-Type': 'application/json'},
-            timeout=10
+            headers=headers,
+            auth=auth,
+            timeout=app.config.get('API_TIMEOUT_SECS', 10)
         )
         
         if response.status_code == 201:
@@ -704,6 +749,9 @@ def healthz():
 @app.route('/debug/credenciales')
 def debug_credenciales():
     try:
+        # Deshabilitar en producción
+        if app.config.get('FLASK_ENV') == 'production':
+            return jsonify({'status': 'forbidden'}), 403
         usuarios = database.obtener_todos_los_usuarios()
         credenciales = []
         
@@ -722,14 +770,13 @@ def debug_credenciales():
             'status': 'success',
             'total_usuarios': len(usuarios),
             'usuarios': credenciales,
-            'credenciales_admin': {
-                'email': 'admin@belgranoahorro.com',
-                'password': 'admin123'
-            },
-            'credenciales_flota': {
-                'email': 'repartidor1@belgranoahorro.com',
-                'password': 'flota123'
-            }
+            # No exponer credenciales por defecto en producción
+            'credenciales_demo': (
+                {
+                    'admin': {'email': 'admin@belgranoahorro.com', 'password': 'admin123'},
+                    'flota': {'email': 'repartidor1@belgranoahorro.com', 'password': 'flota123'}
+                } if app.config.get('FLASK_ENV') != 'production' else {}
+            )
         })
     except Exception as e:
         return jsonify({
