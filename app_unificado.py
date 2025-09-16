@@ -414,7 +414,7 @@ def enviar_pedido_a_tickets(numero_pedido, usuario, carrito_items, total,
             headers['Authorization'] = f"Bearer {api_key}"
         elif api_user and api_pass:
             auth = HTTPBasicAuth(api_user, api_pass)
-
+        
         # Enviar request POST
         response = requests.post(
             api_url,
@@ -558,7 +558,9 @@ def ticketera_login():
                 flash('Usuario inactivo. Contacte al administrador.', 'danger')
                 return render_template('ticketera/login.html')
             
-            if database.verificar_password(password, usuario['password']):
+            # Verificar password usando werkzeug
+            from werkzeug.security import check_password_hash
+            if check_password_hash(usuario['password'], password):
                 user = User(
                     id=usuario['id'],
                     username=usuario['username'],
@@ -722,8 +724,18 @@ def api_mover_a_registro(ticket_id):
 @app.route('/health')
 def health_check():
     try:
-        total_usuarios = database.contar_usuarios()
-        total_tickets = database.contar_tickets()
+        # Verificar conexión básica a la base de datos
+        try:
+            usuarios = database.obtener_todos_los_usuarios()
+            total_usuarios = len(usuarios) if usuarios else 0
+        except Exception:
+            total_usuarios = 0
+            
+        try:
+            tickets = database.obtener_todos_los_tickets()
+            total_tickets = len(tickets) if tickets else 0
+        except Exception:
+            total_tickets = 0
         
         return jsonify({
             'status': 'healthy',
@@ -784,6 +796,32 @@ def debug_credenciales():
             'error': str(e)
         }), 500
 
+@app.route('/debug/crear-usuarios')
+def debug_crear_usuarios():
+    """Endpoint temporal para crear usuarios si no existen"""
+    try:
+        if app.config.get('FLASK_ENV') == 'production':
+            return jsonify({'status': 'forbidden'}), 403
+            
+        # Forzar creación de usuarios
+        inicializar_usuarios_sistema()
+        
+        usuarios = database.obtener_todos_los_usuarios()
+        return jsonify({
+            'status': 'success',
+            'message': 'Usuarios inicializados',
+            'total_usuarios': len(usuarios),
+            'credenciales': {
+                'admin': 'admin@belgranoahorro.com / admin123',
+                'flota': 'repartidor1@belgranoahorro.com / flota123'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
 # =================================================================
 # INICIALIZACIÓN
 # =================================================================
@@ -800,12 +838,19 @@ def inicializar_aplicacion():
         print(f"⚠️ Error con tabla de tickets: {e}")
     
     # Inicializar usuarios del sistema
-    inicializar_usuarios_sistema()
+    try:
+        inicializar_usuarios_sistema()
+        print("✅ Usuarios del sistema inicializados")
+    except Exception as e:
+        print(f"⚠️ Error inicializando usuarios: {e}")
+        print("   Puedes usar /debug/crear-usuarios para forzar la creación")
     
     print("✅ Aplicación inicializada correctamente")
     print("📱 URLs disponibles:")
     print("   • Belgrano Ahorro: http://localhost:5000")
     print("   • Ticketera: http://localhost:5000/ticketera")
+    print("   • Debug usuarios: http://localhost:5000/debug/credenciales")
+    print("   • Crear usuarios: http://localhost:5000/debug/crear-usuarios")
     print()
     print("🔐 Credenciales Ticketera:")
     print("   • Admin: admin@belgranoahorro.com / admin123")
