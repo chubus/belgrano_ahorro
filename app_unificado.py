@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Crear la instancia de Flask
-app = Flask(__name__)
+app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = 'belgrano_ahorro_unificado_secret_2025'
 
 # Importar base de datos
@@ -186,6 +186,12 @@ def role_required(role):
 def index():
     productos = cargar_productos()
     productos_destacados = productos[:8]
+    
+    # Log para verificar en Render
+    logger.info(f"Endpoint / accedido - Productos cargados: {len(productos)}")
+    logger.info(f"Productos destacados: {len(productos_destacados)}")
+    logger.info(f"Primeros 3 productos destacados: {[p.get('nombre', 'Sin nombre') for p in productos_destacados[:3]]}")
+    
     return render_template('index.html', productos=productos_destacados)
 
 @app.route('/productos')
@@ -507,7 +513,7 @@ def ticketera_login():
                 flash('Usuario inactivo. Contacte al administrador.', 'danger')
                 return render_template('ticketera/login.html')
             
-            if check_password_hash(usuario['password'], password):
+            if database.verificar_password(password, usuario['password']):
                 user = User(
                     id=usuario['id'],
                     username=usuario['username'],
@@ -689,6 +695,11 @@ def health_check():
             'error': str(e),
             'timestamp': datetime.now().isoformat()
         }), 500
+
+@app.route('/healthz')
+def healthz():
+    """Health check endpoint para Render"""
+    return "ok", 200
 
 @app.route('/debug/credenciales')
 def debug_credenciales():
