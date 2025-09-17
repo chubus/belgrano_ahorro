@@ -1,0 +1,24 @@
+CREDENCIALES SEGURAS PARA RENDER
+========================================
+
+VARIABLES DE ENTORNO:
+--------------------
+ADMIN_EMAIL=admin@belgranoahorro.com
+ADMIN_PASSWORD=ewKD6qxnYKaNt66x
+ADMIN_RESET=0
+BELGRANO_AHORRO_API_KEY=belgrano_ahorro_iJkkmPl3NLCf2W5nYOwq1rqrn8mZFNFg
+BELGRANO_AHORRO_URL=https://belgranoahorro-hp30.onrender.com
+FLASK_ENV=production
+PORT=10000
+PYTHONPATH=-
+REMEMBER_COOKIE_SECURE=True
+SECRET_KEY=Rxh3f7XVsz3ZepRvqh1Zu5v4iv2ZmJyLydyKTMFnzRU
+SESSION_COOKIE_SAMESITE=Lax
+SESSION_COOKIE_SECURE=True
+
+CREDENCIALES DE ACCESO:
+--------------------
+Admin Email: admin@belgranoahorro.com
+Admin Password: ewKD6qxnYKaNt66x
+API Key: belgrano_ahorro_iJkkmPl3NLCf2W5nYOwq1rqrn8mZFNFg
+Secret Key: Rxh3f7XVsz3ZepRvqh1Zu5v4iv2ZmJyLydyKTMFnzRU

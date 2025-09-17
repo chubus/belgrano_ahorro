@@ -14,7 +14,7 @@ from flask_login import LoginManager, UserMixin, current_user, login_user, logou
 from functools import wraps
 
 # Crear la instancia de Flask
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates_tickets')
 app.secret_key = 'belgrano_tickets_secret_2025'
 
 # Configurar Flask-Login
@@ -239,6 +239,21 @@ def obtener_usuario_por_email(email):
     except Exception as e:
         print(f"Error obteniendo usuario: {e}")
         return None
+
+def contar_tickets():
+    """Contar total de tickets"""
+    try:
+        conn = sqlite3.connect('belgrano_tickets.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT COUNT(*) FROM tickets')
+        count = cursor.fetchone()[0]
+        
+        conn.close()
+        return count
+    except Exception as e:
+        print(f"Error contando tickets: {e}")
+        return 0
 
 # =================================================================
 # FLASK-LOGIN

@@ -2027,7 +2027,7 @@ def api_crear_ticket():
         }
         
         # Usar la función de guardar ticket existente
-        from models import guardar_ticket
+        from app_tickets import guardar_ticket
         ticket_id = guardar_ticket(ticket_data)
         
         if ticket_id:
@@ -2048,7 +2048,7 @@ def api_crear_ticket():
 def api_obtener_tickets():
     """Obtener todos los tickets (solo admin)"""
     try:
-        from models import obtener_todos_los_tickets
+        from app_tickets import obtener_todos_los_tickets
         tickets = obtener_todos_los_tickets()
         return jsonify({'tickets': tickets}), 200
     except Exception as e:
@@ -2058,7 +2058,7 @@ def api_obtener_tickets():
 def health_check():
     """Health check para Render.com"""
     try:
-        from models import contar_tickets
+        from app_tickets import contar_tickets
         total_tickets = contar_tickets()
         return jsonify({
             'status': 'healthy',
@@ -2088,7 +2088,7 @@ def gestion_flota_corregida():
         repartidores = ['Repartidor1', 'Repartidor2', 'Repartidor3', 'Repartidor4', 'Repartidor5']
         
         # Obtener tickets usando la función de base de datos
-        from models import obtener_todos_los_tickets
+        from app_tickets import obtener_todos_los_tickets
         todos_tickets = obtener_todos_los_tickets()
         tickets_asignados = [t for t in todos_tickets if t.get('repartidor')]
         
