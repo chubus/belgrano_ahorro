@@ -45,4 +45,4 @@ run:
              --max-requests-jitter 100 \
              --access-logfile - \
              --error-logfile - \
-             app:app
+             app_deploy:app

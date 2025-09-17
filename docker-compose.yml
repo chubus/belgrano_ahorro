@@ -33,7 +33,7 @@ services:
       - ./productos.json:/app/productos.json
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:10000/devops/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:10000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
