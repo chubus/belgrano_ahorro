@@ -477,6 +477,24 @@ def inicializar_aplicacion():
     
     return True
 
+# Inicialización automática para deploy
+def init_deploy():
+    """Inicialización automática para deploy"""
+    try:
+        # Verificar si la base de datos existe
+        if not os.path.exists('belgrano_tickets.db'):
+            print("Inicializando base de datos para deploy...")
+            crear_base_datos()
+            inicializar_usuarios()
+            print("Inicializacion de deploy completada")
+        else:
+            print("Base de datos ya existe")
+    except Exception as e:
+        print(f"Error en inicializacion de deploy: {e}")
+
+# Ejecutar inicialización automática
+init_deploy()
+
 if __name__ == "__main__":
     if inicializar_aplicacion():
         port = int(os.environ.get('PORT', 5001))

@@ -80,9 +80,16 @@ register_error_handlers(app)
 
 # Importar y registrar blueprint de DevOps
 try:
-    from devops_routes import devops_bp
-    app.register_blueprint(devops_bp)
-    print("✅ Blueprint de DevOps registrado correctamente")
+    try:
+        from devops_routes import devops_bp
+    except ImportError:
+        print("⚠️ Módulo devops_routes no encontrado, continuando sin DevOps")
+        devops_bp = None
+    if devops_bp:
+        app.register_blueprint(devops_bp)
+        print("✅ Blueprint de DevOps registrado correctamente")
+    else:
+        print("⚠️ Blueprint de DevOps no disponible")
 except Exception as e:
     print(f"❌ Error importando devops_routes: {e}")
     # No es crítico, continúa sin las rutas de DevOps

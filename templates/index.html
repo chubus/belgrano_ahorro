@@ -175,7 +175,7 @@
 
                                     {% endif %}
 
-                                    {% if producto.get('precio', 0)_original and producto.get('precio', 0)_original > producto.get('precio', 0) %}
+                                    {% if producto.get('precio_original', 0) and producto.get('precio_original', 0) > producto.get('precio', 0) %}
 
                                     <div class="position-absolute top-0 end-0 m-2">
 
@@ -199,11 +199,11 @@
 
                                             <div>
 
-                                                {% if producto.get('precio', 0)_original and producto.get('precio', 0)_original > producto.get('precio', 0) %}
+                                                {% if producto.get('precio_original', 0) and producto.get('precio_original', 0) > producto.get('precio', 0) %}
 
                                                 <span class="text-danger fw-bold">${{ producto.get('precio', 0) }}</span>
 
-                                                <small class="text-muted text-decoration-line-through">${{ producto.get('precio', 0)_original }}</small>
+                                                <small class="text-muted text-decoration-line-through">${{ producto.get('precio_original', 0) }}</small>
 
                                                 {% else %}
 
@@ -391,7 +391,7 @@
 
                                             {% endif %}
 
-                                            {% if producto.get('precio', 0)_original and producto.get('precio', 0)_original > producto.get('precio', 0) %}
+                                            {% if producto.get('precio_original', 0) and producto.get('precio_original', 0) > producto.get('precio', 0) %}
 
                                             <div class="position-absolute top-0 end-0 m-2">
 
@@ -415,11 +415,11 @@
 
                                                     <div>
 
-                                                        {% if producto.get('precio', 0)_original and producto.get('precio', 0)_original > producto.get('precio', 0) %}
+                                                        {% if producto.get('precio_original', 0) and producto.get('precio_original', 0) > producto.get('precio', 0) %}
 
                                                         <span class="text-danger fw-bold">${{ producto.get('precio', 0) }}</span>
 
-                                                        <small class="text-muted text-decoration-line-through">${{ producto.get('precio', 0)_original }}</small>
+                                                        <small class="text-muted text-decoration-line-through">${{ producto.get('precio_original', 0) }}</small>
 
                                                         {% else %}
 
