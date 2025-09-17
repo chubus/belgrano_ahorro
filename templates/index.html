@@ -70,16 +70,16 @@
                     <div class="col-md-3 mb-3">
                         <div class="card h-100">
                             <div class="card-body">
-                                <h6 class="card-title">{{ producto.nombre }}</h6>
+                                <h6 class="card-title">{{ producto.get('nombre', 'Sin nombre') }}</h6>
                                 <p class="card-text">
-                                    <small class="text-muted">{{ producto.descripcion[:50] }}...</small>
+                                    <small class="text-muted">{{ producto.get('descripcion', producto.get('nombre', 'Sin descripción'))[:50] }}...</small>
                                 </p>
                                 <p class="card-text">
-                                    <strong class="text-success">${{ producto.precio }}</strong>
+                                    <strong class="text-success">${{ producto.get('precio', 0) }}</strong>
                                 </p>
                                 <small class="text-muted">
-                                    Stock: {{ producto.stock }} | 
-                                    Negocio: {{ producto.negocio }}
+                                    Stock: {{ producto.get('stock', 0) }} | 
+                                    Negocio: {{ producto.get('negocio', 'Sin negocio') }}
                                 </small>
                             </div>
                         </div>
@@ -163,9 +163,9 @@
 
                                 <div class="position-relative">
 
-                                    <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">
+                                    <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.get('nombre', 'Sin nombre') }}">
 
-                                    {% if producto.destacado %}
+                                    {% if producto.get('destacado', False) %}
 
                                     <div class="position-absolute top-0 start-0 m-2">
 
@@ -175,7 +175,7 @@
 
                                     {% endif %}
 
-                                    {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                    {% if producto.get('precio', 0)_original and producto.get('precio', 0)_original > producto.get('precio', 0) %}
 
                                     <div class="position-absolute top-0 end-0 m-2">
 
@@ -189,9 +189,9 @@
 
                                 <div class="card-body d-flex flex-column">
 
-                                    <h6 class="card-title">{{ producto.nombre }}</h6>
+                                    <h6 class="card-title">{{ producto.get('nombre', 'Sin nombre') }}</h6>
 
-                                    <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
+                                    <small class="text-muted">{{ categorias[producto.get('categoria', 'Sin categoría')].nombre }}</small>
 
                                     <div class="mt-auto">
 
@@ -199,15 +199,15 @@
 
                                             <div>
 
-                                                {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                                {% if producto.get('precio', 0)_original and producto.get('precio', 0)_original > producto.get('precio', 0) %}
 
-                                                <span class="text-danger fw-bold">${{ producto.precio }}</span>
+                                                <span class="text-danger fw-bold">${{ producto.get('precio', 0) }}</span>
 
-                                                <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
+                                                <small class="text-muted text-decoration-line-through">${{ producto.get('precio', 0)_original }}</small>
 
                                                 {% else %}
 
-                                                <span class="fw-bold">${{ producto.precio }}</span>
+                                                <span class="fw-bold">${{ producto.get('precio', 0) }}</span>
 
                                                 {% endif %}
 
@@ -379,9 +379,9 @@
 
                                         <div class="position-relative">
 
-                                            <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">
+                                            <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.get('nombre', 'Sin nombre') }}">
 
-                                            {% if producto.destacado %}
+                                            {% if producto.get('destacado', False) %}
 
                                             <div class="position-absolute top-0 start-0 m-2">
 
@@ -391,7 +391,7 @@
 
                                             {% endif %}
 
-                                            {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                            {% if producto.get('precio', 0)_original and producto.get('precio', 0)_original > producto.get('precio', 0) %}
 
                                             <div class="position-absolute top-0 end-0 m-2">
 
@@ -405,9 +405,9 @@
 
                                         <div class="card-body d-flex flex-column">
 
-                                            <h6 class="card-title">{{ producto.nombre }}</h6>
+                                            <h6 class="card-title">{{ producto.get('nombre', 'Sin nombre') }}</h6>
 
-                                            <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
+                                            <small class="text-muted">{{ categorias[producto.get('categoria', 'Sin categoría')].nombre }}</small>
 
                                             <div class="mt-auto">
 
@@ -415,15 +415,15 @@
 
                                                     <div>
 
-                                                        {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                                        {% if producto.get('precio', 0)_original and producto.get('precio', 0)_original > producto.get('precio', 0) %}
 
-                                                        <span class="text-danger fw-bold">${{ producto.precio }}</span>
+                                                        <span class="text-danger fw-bold">${{ producto.get('precio', 0) }}</span>
 
-                                                        <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
+                                                        <small class="text-muted text-decoration-line-through">${{ producto.get('precio', 0)_original }}</small>
 
                                                         {% else %}
 
-                                                        <span class="fw-bold">${{ producto.precio }}</span>
+                                                        <span class="fw-bold">${{ producto.get('precio', 0) }}</span>
 
                                                         {% endif %}
 
