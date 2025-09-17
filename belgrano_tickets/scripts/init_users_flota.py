@@ -96,6 +96,9 @@ def main():
         success = initialize_database()
         
 <<<<<<< HEAD
+        if success:
+=======
+<<<<<<< HEAD
         # Si estamos en un subdirectorio, cambiar al directorio padre
         if os.path.basename(script_dir) == 'scripts':
             os.chdir(project_dir)
@@ -122,6 +125,7 @@ def main():
 =======
         if success:
 >>>>>>> b604eec0ed3465b1f7cfd3b2f39bea70a8f6f706
+>>>>>>> 5e1dd54 (backups todo rehecho)
         print("✅ Inicialización completada exitosamente")
             return 0
         else:
