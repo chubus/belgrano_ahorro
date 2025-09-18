@@ -13,9 +13,23 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, current_user, login_user, logout_user, login_required
 from functools import wraps
 
+# Importar configuración centralizada
+try:
+    from config_env import get_config
+    config = get_config()
+    SECRET_KEY = config.get('SECRET_KEY', 'belgrano_tickets_secret_2025')
+    FLASK_ENV = config.get('FLASK_ENV', 'development')
+    PORT = config.get('PORT', 5001)
+except ImportError:
+    # Fallback a variables de entorno directas
+    import os
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'belgrano_tickets_secret_2025')
+    FLASK_ENV = os.environ.get('FLASK_ENV', 'development')
+    PORT = int(os.environ.get('PORT', 5001))
+
 # Crear la instancia de Flask
 app = Flask(__name__, template_folder='templates_tickets')
-app.secret_key = 'belgrano_tickets_secret_2025'
+app.secret_key = SECRET_KEY
 
 # Configurar Flask-Login
 login_manager = LoginManager(app)
@@ -563,10 +577,9 @@ verificar_credenciales()
 
 if __name__ == "__main__":
     if inicializar_aplicacion():
-        port = int(os.environ.get('PORT', 5001))
-        debug = os.environ.get('FLASK_ENV') == 'development'
+        debug = FLASK_ENV == 'development'
         
-        print(f"🌐 Servidor iniciado en puerto {port}")
-        app.run(debug=debug, host='0.0.0.0', port=port)
+        print(f"🌐 Servidor iniciado en puerto {PORT}")
+        app.run(debug=debug, host='0.0.0.0', port=PORT)
     else:
         print("❌ Error inicializando aplicación")
