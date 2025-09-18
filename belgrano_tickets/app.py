@@ -1091,22 +1091,22 @@ def sync_tickets_to_ahorro():
         
         for ticket in tickets:
             tickets_data.append({
-                'numero_pedido': ticket.numero_pedido,
+                'numero_pedido': ticket.numero,
                 'ticket_id': ticket.id,
                 'estado': ticket.estado,
-                'repartidor': ticket.repartidor,
+                'repartidor': ticket.repartidor_nombre,
                 'fecha_creacion': ticket.fecha_creacion.isoformat() if ticket.fecha_creacion else None,
-                'fecha_actualizacion': ticket.fecha_actualizacion.isoformat() if ticket.fecha_actualizacion else None,
+                'fecha_actualizacion': ticket.fecha_asignacion.isoformat() if ticket.fecha_asignacion else None,
                 'datos_completos': {
                     'id': ticket.id,
-                    'numero_pedido': ticket.numero_pedido,
-                    'cliente': ticket.cliente,
+                    'numero_pedido': ticket.numero,
+                    'cliente': ticket.cliente_nombre,
                     'productos': ticket.productos,
                     'total': ticket.total,
                     'estado': ticket.estado,
-                    'repartidor': ticket.repartidor,
+                    'repartidor': ticket.repartidor_nombre,
                     'fecha_creacion': ticket.fecha_creacion.isoformat() if ticket.fecha_creacion else None,
-                    'fecha_actualizacion': ticket.fecha_actualizacion.isoformat() if ticket.fecha_actualizacion else None
+                    'fecha_actualizacion': ticket.fecha_asignacion.isoformat() if ticket.fecha_asignacion else None
                 }
             })
         
