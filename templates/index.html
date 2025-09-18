@@ -60,15 +60,15 @@
 {% if productos %}
 <div class="row mt-4">
     <div class="col-12">
-        <div class="card">
+        <div class="card card-gold shadow-gold">
             <div class="card-header">
-                <h5>🌟 Productos Destacados</h5>
+                <h5 class="text-gold">🌟 Productos Destacados</h5>
             </div>
             <div class="card-body">
                 <div class="row">
                     {% for producto in productos %}
                     <div class="col-md-3 mb-3">
-                        <div class="card h-100">
+                        <div class="card h-100 border-gold hover-gold">
                             <div class="card-body">
                                 <h6 class="card-title">{{ producto.get('nombre', 'Sin nombre') }}</h6>
                                 <p class="card-text">
