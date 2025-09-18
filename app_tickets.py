@@ -39,10 +39,14 @@ class User(UserMixin):
 # BASE DE DATOS
 # =================================================================
 
+# Usar ruta ABSOLUTA y configurable por entorno para la base de datos
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.environ.get('TICKETS_DB_PATH') or os.path.join(BASE_DIR, 'belgrano_tickets.db')
+
 def crear_base_datos():
     """Crear base de datos de tickets"""
     try:
-        conn = sqlite3.connect('belgrano_tickets.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         # Tabla usuarios
@@ -92,7 +96,7 @@ def crear_base_datos():
 def inicializar_usuarios():
     """Inicializar usuarios del sistema"""
     try:
-        conn = sqlite3.connect('belgrano_tickets.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         # Verificar si ya existen usuarios
@@ -134,10 +138,62 @@ def inicializar_usuarios():
         print(f"Error inicializando usuarios: {e}")
         return False
 
+def asegurar_usuarios_core():
+    """Asegurar que existan/estén activos Admin y Flota base.
+    Idempotente: crea si no existen, actualiza password si falta, activa si está inactivo.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cambios = 0
+
+        # Admin
+        cursor.execute('SELECT id, activo FROM usuarios WHERE email = ?', ('admin@belgranoahorro.com',))
+        row = cursor.fetchone()
+        if row is None:
+            admin_password = generate_password_hash('admin123')
+            cursor.execute('''
+                INSERT INTO usuarios (username, email, password, nombre, rol, activo)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', ('admin', 'admin@belgranoahorro.com', admin_password, 'Administrador', 'admin', True))
+            cambios += 1
+        else:
+            user_id, activo = row
+            if not activo:
+                cursor.execute('UPDATE usuarios SET activo = 1 WHERE id = ?', (user_id,))
+                cambios += 1
+
+        # Flota principal
+        cursor.execute('SELECT id, activo FROM usuarios WHERE email = ?', ('repartidor1@belgranoahorro.com',))
+        row = cursor.fetchone()
+        if row is None:
+            flota_password = generate_password_hash('flota123')
+            cursor.execute('''
+                INSERT INTO usuarios (username, email, password, nombre, rol, activo)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', ('repartidor1', 'repartidor1@belgranoahorro.com', flota_password, 'Repartidor 1', 'flota', True))
+            cambios += 1
+        else:
+            user_id, activo = row
+            if not activo:
+                cursor.execute('UPDATE usuarios SET activo = 1 WHERE id = ?', (user_id,))
+                cambios += 1
+
+        conn.commit()
+        conn.close()
+        if cambios:
+            print(f"✅ Usuarios core asegurados/actualizados: {cambios}")
+        else:
+            print("✅ Usuarios core ya presentes y activos")
+        return True
+    except Exception as e:
+        print(f"❌ Error asegurando usuarios core: {e}")
+        return False
+
 def guardar_ticket(ticket_data):
     """Guardar ticket en la base de datos"""
     try:
-        conn = sqlite3.connect('belgrano_tickets.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -171,7 +227,7 @@ def guardar_ticket(ticket_data):
 def obtener_todos_los_tickets():
     """Obtener todos los tickets"""
     try:
-        conn = sqlite3.connect('belgrano_tickets.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -211,7 +267,7 @@ def obtener_todos_los_tickets():
 def obtener_usuario_por_email(email):
     """Obtener usuario por email"""
     try:
-        conn = sqlite3.connect('belgrano_tickets.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -243,7 +299,7 @@ def obtener_usuario_por_email(email):
 def contar_tickets():
     """Contar total de tickets"""
     try:
-        conn = sqlite3.connect('belgrano_tickets.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         cursor.execute('SELECT COUNT(*) FROM tickets')
@@ -262,7 +318,7 @@ def contar_tickets():
 @login_manager.user_loader
 def load_user(user_id):
     try:
-        conn = sqlite3.connect('belgrano_tickets.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -436,7 +492,7 @@ def tickets():
 def health_check():
     """Health check para Render.com"""
     try:
-        conn = sqlite3.connect('belgrano_tickets.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('SELECT COUNT(*) FROM tickets')
         total_tickets = cursor.fetchone()[0]
@@ -499,14 +555,15 @@ def init_deploy():
     """Inicialización automática para deploy"""
     try:
         # Verificar si la base de datos existe
-        if not os.path.exists('belgrano_tickets.db'):
+        if not os.path.exists(DB_PATH):
             print("Inicializando base de datos para deploy...")
             crear_base_datos()
             inicializar_usuarios()
+            asegurar_usuarios_core()
             print("Inicializacion de deploy completada")
         else:
             # Verificar que los usuarios existan
-            conn = sqlite3.connect('belgrano_tickets.db')
+            conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             cursor.execute('SELECT COUNT(*) FROM usuarios')
             user_count = cursor.fetchone()[0]
@@ -515,8 +572,10 @@ def init_deploy():
             if user_count == 0:
                 print("Base de datos existe pero sin usuarios, inicializando...")
                 inicializar_usuarios()
+                asegurar_usuarios_core()
             else:
                 print(f"Base de datos ya existe con {user_count} usuarios")
+                asegurar_usuarios_core()
     except Exception as e:
         print(f"Error en inicializacion de deploy: {e}")
 
@@ -524,7 +583,7 @@ def init_deploy():
 def verificar_credenciales():
     """Verificar que las credenciales críticas existan"""
     try:
-        conn = sqlite3.connect('belgrano_tickets.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
         # Verificar usuario admin
@@ -538,17 +597,11 @@ def verificar_credenciales():
         
         conn.close()
         
-        if admin_count == 0:
-            print("⚠️ Usuario admin no encontrado, recreando...")
-            inicializar_usuarios()
-            return False
+        if admin_count == 0 or flota_count == 0:
+            print("⚠️ Usuarios core incompletos, asegurando...")
+            asegurar_usuarios_core()
         
-        if flota_count < 5:
-            print(f"⚠️ Solo {flota_count} usuarios flota encontrados, recreando...")
-            inicializar_usuarios()
-            return False
-        
-        print(f"✅ Credenciales verificadas: 1 admin, {flota_count} flota")
+        print(f"✅ Credenciales verificadas: admin={admin_count}, flota={flota_count}")
         return True
         
     except Exception as e:
