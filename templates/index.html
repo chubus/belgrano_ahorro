@@ -5,23 +5,23 @@
 {% block content %}
 <div class="row">
     <div class="col-lg-8">
-        <div class="jumbotron bg-light p-5 rounded">
-            <h1 class="display-4">¡Bienvenido a Belgrano Ahorro! 🛒</h1>
+        <div class="jumbotron card-gold p-5 rounded shadow-gold">
+            <h1 class="display-4 text-gradient-gold">¡Bienvenido a Belgrano Ahorro! 🛒</h1>
             <p class="lead">Sistema de gestión integral para tu negocio.</p>
-            <hr class="my-4">
+            <hr class="my-4 border-gold">
             <p>Gestiona productos, ventas, tickets y mucho más desde una sola plataforma.</p>
             {% if not current_user.is_authenticated %}
-                <a class="btn btn-success btn-lg" href="{{ url_for('login') }}" role="button">Iniciar Sesión</a>
+                <a class="btn btn-gold btn-lg" href="{{ url_for('login') }}" role="button">Iniciar Sesión</a>
             {% else %}
-                <a class="btn btn-primary btn-lg" href="{{ url_for('dashboard') }}" role="button">Ir al Dashboard</a>
+                <a class="btn btn-gold btn-lg" href="{{ url_for('dashboard') }}" role="button">Ir al Dashboard</a>
                 {% endif %}
     </div>
 </div>
 
     <div class="col-lg-4">
-        <div class="card">
+        <div class="card card-gold shadow-gold">
             <div class="card-header">
-                <h5>🚀 Estado del Sistema</h5>
+                <h5 class="text-gold">🚀 Estado del Sistema</h5>
                         </div>
             <div class="card-body">
                 <div class="mb-3">
@@ -39,9 +39,9 @@
                     </div>
                 </div>
                 
-        <div class="card mt-3">
+        <div class="card mt-3 card-gold shadow-gold">
             <div class="card-header">
-                <h5>📊 Funcionalidades</h5>
+                <h5 class="text-gold">📊 Funcionalidades</h5>
                 </div>
             <div class="card-body">
                 <ul class="list-unstyled">

@@ -8,14 +8,16 @@
 /* VARIABLES CSS - CAMBIA AQUÍ LOS COLORES */
 /* ========================================== */
 :root {
-    --primary-color: #27ae60;      /* Verde principal */
-    --primary-dark: #229954;       /* Verde oscuro para hover */
-    --secondary-color: #2c3e50;    /* Azul oscuro para texto */
-    --accent-color: #a76b0c;       /* Naranja para destacados */
-    --background-color: #f8f9fa;   /* Fondo gris claro */
-    --card-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    --primary-color: #ffd700;     /* Dorado principal */
+    --primary-dark: #b8860b;       /* Dorado oscuro para hover */
+    --secondary-color: #8b4513;    /* Marrón oscuro para texto */
+    --accent-color: #ff8c00;       /* Naranja dorado para destacados */
+    --background-color: #fff8dc;   /* Fondo crema */
+    --card-shadow: 0 4px 15px rgba(255,215,0,0.2);
     --border-radius: 12px;
     --transition: all 0.3s ease;
+    --gold-light: #ffed4e;         /* Dorado claro */
+    --gold-dark: #daa520;          /* Dorado oscuro */
 }
 
 /* ========================================== */
@@ -389,4 +391,90 @@ footer {
 
 .btn-cart-circle.agregado {
     animation: successPulse 0.6s ease-in-out;
+}
+
+/* ========================================== */
+/* ESTILOS DORADOS - INTERFAZ ANTERIOR */
+/* ========================================== */
+
+/* Clase text-gold para texto dorado */
+.text-gold {
+    color: var(--primary-color) !important;
+    text-shadow: 0 1px 3px rgba(255, 215, 0, 0.3);
+    font-weight: bold;
+}
+
+/* Botones dorados */
+.btn-gold {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--gold-dark) 100%);
+    border: none;
+    color: var(--secondary-color);
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+    transition: var(--transition);
+}
+
+.btn-gold:hover {
+    background: linear-gradient(135deg, var(--gold-dark) 0%, var(--primary-color) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+    color: var(--secondary-color);
+}
+
+/* Cards con estilo dorado */
+.card-gold {
+    background: linear-gradient(135deg, #fff8dc 0%, #fffacd 100%);
+    border: 2px solid var(--primary-color);
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
+}
+
+.card-gold .card-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--gold-dark) 100%);
+    color: var(--secondary-color);
+    font-weight: bold;
+}
+
+/* Navbar dorado */
+.navbar-gold {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--gold-dark) 100%) !important;
+    box-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+}
+
+.navbar-gold .navbar-brand {
+    color: var(--secondary-color) !important;
+    font-weight: bold;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Fondo dorado */
+.bg-gold {
+    background: linear-gradient(135deg, var(--background-color) 0%, #fffacd 100%);
+}
+
+/* Bordes dorados */
+.border-gold {
+    border: 2px solid var(--primary-color) !important;
+    border-radius: var(--border-radius);
+}
+
+/* Sombras doradas */
+.shadow-gold {
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3) !important;
+}
+
+/* Efectos de hover dorados */
+.hover-gold:hover {
+    background-color: var(--primary-color) !important;
+    color: var(--secondary-color) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+}
+
+/* Texto con gradiente dorado */
+.text-gradient-gold {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--gold-dark) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: bold;
 }
