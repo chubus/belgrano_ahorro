@@ -47,7 +47,7 @@ if not BELGRANO_AHORRO_API_KEY:
 
 # Importar cliente API
 try:
-    from api_client import create_api_client, api_client as global_api_client
+    from belgrano_tickets.api_client import create_api_client, api_client as global_api_client
     if BELGRANO_AHORRO_URL and BELGRANO_AHORRO_API_KEY:
         devops_api_client = create_api_client(BELGRANO_AHORRO_URL, BELGRANO_AHORRO_API_KEY)
         logger.info("Cliente API de Belgrano Ahorro inicializado para DevOps")

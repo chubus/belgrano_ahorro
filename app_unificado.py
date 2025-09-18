@@ -208,15 +208,18 @@ def index():
             productos_por_negocio[negocio] = []
         productos_por_negocio[negocio].append(producto)
     
-    # Cargar categorías desde productos.json
+    # Cargar categorías y negocios desde productos.json
     categorias = {}
+    negocios = {}
     try:
         with open('productos.json', 'r', encoding='utf-8') as file:
             data = json.load(file)
             categorias = data.get('categorias', {})
+            negocios = data.get('negocios', {})
     except Exception as e:
-        logger.error(f"Error cargando categorías: {e}")
+        logger.error(f"Error cargando categorías y negocios: {e}")
         categorias = {}
+        negocios = {}
     
     # Log para verificar en Render
     logger.info(f"Endpoint / accedido - Productos cargados: {len(productos)}")
@@ -224,8 +227,9 @@ def index():
     logger.info(f"Primeros 3 productos destacados: {[p.get('nombre', 'Sin nombre') for p in productos_destacados[:3]]}")
     logger.info(f"Productos por negocio: {list(productos_por_negocio.keys())}")
     logger.info(f"Categorías cargadas: {len(categorias)}")
+    logger.info(f"Negocios cargados: {len(negocios)}")
     
-    return render_template('index.html', productos=productos_destacados, productos_por_negocio=productos_por_negocio, categorias=categorias)
+    return render_template('index.html', productos=productos_destacados, productos_por_negocio=productos_por_negocio, categorias=categorias, negocios=negocios)
 
 @app.route('/productos')
 def productos():
