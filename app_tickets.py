@@ -46,8 +46,8 @@ except Exception as e_direct:
             from devops_routes import devops_bp as devops_bp_parent
             app.register_blueprint(devops_bp_parent)
             print("✅ DevOps en app_tickets: blueprint registrado (parent_dir)")
-    except Exception as e_parent:
-        print(f"⚠️ DevOps no disponible en app_tickets: {e_parent}")
+        except Exception as e_parent:
+            print(f"⚠️ DevOps no disponible en app_tickets: {e_parent}")
 
 # Fallback: si no hay rutas /devops, registrar endpoints mínimos
 try:
@@ -171,13 +171,15 @@ def inicializar_usuarios():
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', ('admin', 'admin@belgranoahorro.com', admin_password, 'Administrador', 'admin', True))
             
-            # Crear usuarios flota
+            # Crear usuarios flota (7 repartidores)
             flota_usuarios = [
                 ('repartidor1', 'repartidor1@belgranoahorro.com', 'Repartidor 1'),
                 ('repartidor2', 'repartidor2@belgranoahorro.com', 'Repartidor 2'),
                 ('repartidor3', 'repartidor3@belgranoahorro.com', 'Repartidor 3'),
                 ('repartidor4', 'repartidor4@belgranoahorro.com', 'Repartidor 4'),
-                ('repartidor5', 'repartidor5@belgranoahorro.com', 'Repartidor 5')
+                ('repartidor5', 'repartidor5@belgranoahorro.com', 'Repartidor 5'),
+                ('repartidor6', 'repartidor6@belgranoahorro.com', 'Repartidor 6'),
+                ('repartidor7', 'repartidor7@belgranoahorro.com', 'Repartidor 7')
             ]
             
             for username, email, nombre in flota_usuarios:
@@ -223,21 +225,32 @@ def asegurar_usuarios_core():
                 cursor.execute('UPDATE usuarios SET activo = 1 WHERE id = ?', (user_id,))
                 cambios += 1
 
-        # Flota principal
-        cursor.execute('SELECT id, activo FROM usuarios WHERE email = ?', ('repartidor1@belgranoahorro.com',))
-        row = cursor.fetchone()
-        if row is None:
-            flota_password = generate_password_hash('flota123')
-            cursor.execute('''
-                INSERT INTO usuarios (username, email, password, nombre, rol, activo)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', ('repartidor1', 'repartidor1@belgranoahorro.com', flota_password, 'Repartidor 1', 'flota', True))
-            cambios += 1
-        else:
-            user_id, activo = row
-            if not activo:
-                cursor.execute('UPDATE usuarios SET activo = 1 WHERE id = ?', (user_id,))
+        # Flota - todos los repartidores
+        flota_usuarios = [
+            ('repartidor1', 'repartidor1@belgranoahorro.com', 'Repartidor 1'),
+            ('repartidor2', 'repartidor2@belgranoahorro.com', 'Repartidor 2'),
+            ('repartidor3', 'repartidor3@belgranoahorro.com', 'Repartidor 3'),
+            ('repartidor4', 'repartidor4@belgranoahorro.com', 'Repartidor 4'),
+            ('repartidor5', 'repartidor5@belgranoahorro.com', 'Repartidor 5'),
+            ('repartidor6', 'repartidor6@belgranoahorro.com', 'Repartidor 6'),
+            ('repartidor7', 'repartidor7@belgranoahorro.com', 'Repartidor 7')
+        ]
+        
+        for username, email, nombre in flota_usuarios:
+            cursor.execute('SELECT id, activo FROM usuarios WHERE email = ?', (email,))
+            row = cursor.fetchone()
+            if row is None:
+                flota_password = generate_password_hash('flota123')
+                cursor.execute('''
+                    INSERT INTO usuarios (username, email, password, nombre, rol, activo)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (username, email, flota_password, nombre, 'flota', True))
                 cambios += 1
+            else:
+                user_id, activo = row
+                if not activo:
+                    cursor.execute('UPDATE usuarios SET activo = 1 WHERE id = ?', (user_id,))
+                    cambios += 1
 
         conn.commit()
         conn.close()
@@ -614,13 +627,17 @@ def inicializar_aplicacion():
 def init_deploy():
     """Inicialización automática para deploy"""
     try:
+        print(f"🔧 Inicializando ticketera - DB: {DB_PATH}")
+        
         # Verificar si la base de datos existe
         if not os.path.exists(DB_PATH):
-            print("Inicializando base de datos para deploy...")
+            print("📦 Creando base de datos...")
             crear_base_datos()
+            print("👥 Inicializando usuarios...")
             inicializar_usuarios()
+            print("🔐 Asegurando usuarios core...")
             asegurar_usuarios_core()
-            print("Inicializacion de deploy completada")
+            print("✅ Inicialización de deploy completada")
         else:
             # Verificar que los usuarios existan
             conn = sqlite3.connect(DB_PATH)
@@ -630,14 +647,22 @@ def init_deploy():
             conn.close()
             
             if user_count == 0:
-                print("Base de datos existe pero sin usuarios, inicializando...")
+                print("⚠️ Base de datos existe pero sin usuarios, inicializando...")
                 inicializar_usuarios()
                 asegurar_usuarios_core()
             else:
-                print(f"Base de datos ya existe con {user_count} usuarios")
+                print(f"✅ Base de datos ya existe con {user_count} usuarios")
+                # Asegurar que los usuarios core estén activos
                 asegurar_usuarios_core()
+                
+        # Verificar credenciales después de la inicialización
+        verificar_credenciales()
+        
     except Exception as e:
-        print(f"Error en inicializacion de deploy: {e}")
+        print(f"❌ Error en inicialización de deploy: {e}")
+        return False
+    
+    return True
 
 # Función de verificación automática de credenciales
 def verificar_credenciales():

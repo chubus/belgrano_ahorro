@@ -283,39 +283,50 @@ def devops_status():
 @devops_login_required
 def devops_info():
     """Información completa del sistema DevOps"""
-    return jsonify({
-        'service': 'DevOps System v2.0',
-        'description': 'Sistema de gestión DevOps para Belgrano Tickets',
-        'features': [
-            'Monitoreo de salud del sistema',
-            'Gestión de ofertas y negocios',
-            'Sincronización con API externa',
-            'Logging y debugging',
-            'Panel de administración'
-        ],
-        'endpoints': {
-            'monitoring': {
-                'GET': '/devops/health - Health check',
-                'GET': '/devops/status - Estado del sistema',
-                'GET': '/devops/info - Información del servicio'
-            },
-            'management': {
-                'GET': '/devops/ofertas - Gestión de ofertas',
-                'GET': '/devops/negocios - Gestión de negocios',
-                'POST': '/devops/sync - Sincronización manual'
-            },
-            'utilities': {
-                'GET': '/devops/logs - Ver logs del sistema',
-                'GET': '/devops/config - Configuración actual'
+    try:
+        return jsonify({
+            'status': 'success',
+            'message': 'Información del sistema DevOps',
+            'data': {
+                'service': 'DevOps System v2.0',
+                'description': 'Sistema de gestión DevOps para Belgrano Tickets',
+                'features': [
+                    'Monitoreo de salud del sistema',
+                    'Gestión de ofertas y negocios',
+                    'Sincronización con API externa',
+                    'Logging y debugging',
+                    'Panel de administración'
+                ],
+                'endpoints': {
+                    'monitoring': {
+                        'GET': '/devops/health - Health check',
+                        'GET': '/devops/status - Estado del sistema',
+                        'GET': '/devops/info - Información del servicio'
+                    },
+                    'management': {
+                        'GET': '/devops/ofertas - Gestión de ofertas',
+                        'GET': '/devops/negocios - Gestión de negocios',
+                        'POST': '/devops/sync - Sincronización manual'
+                    },
+                    'utilities': {
+                        'GET': '/devops/logs - Ver logs del sistema',
+                        'GET': '/devops/config - Configuración actual'
+                    }
+                },
+                'documentation': {
+                    'api_docs': '/devops/docs',
+                    'health_endpoint': '/devops/health',
+                    'status_endpoint': '/devops/status'
+                },
+                'timestamp': datetime.now().isoformat()
             }
-        },
-        'documentation': {
-            'api_docs': '/devops/docs',
-            'health_endpoint': '/devops/health',
-            'status_endpoint': '/devops/status'
-        },
-        'timestamp': datetime.now().isoformat()
-    })
+        })
+    except Exception as e:
+        logger.error(f"Error obteniendo información: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error obteniendo información: {str(e)}'
+        }), 500
 
 # ================================================================
 # AUTENTICACIÓN (YA MANEJADA ARRIBA CON SISTEMA PROPIO)
