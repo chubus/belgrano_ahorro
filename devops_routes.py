@@ -73,11 +73,14 @@ devops_bp = Blueprint('devops', __name__, url_prefix='/devops')
 # =============================
 
 def devops_is_authenticated():
+    """Verificar si DevOps está autenticado"""
     return session.get('devops_authenticated') is True
 
 def devops_login_required(fn):
+    """Decorador para requerir autenticación de DevOps"""
     def wrapper(*args, **kwargs):
         if not devops_is_authenticated():
+            # Redirigir al login de DevOps, no al de ticketera
             return redirect(url_for('devops.devops_login'))
         return fn(*args, **kwargs)
     wrapper.__name__ = fn.__name__
@@ -91,24 +94,105 @@ def devops_login():
         password = request.form.get('password', '').strip()
         if username == DEVOPS_USERNAME and password == DEVOPS_PASSWORD:
             session['devops_authenticated'] = True
+            logger.info(f"Login exitoso de DevOps: {username}")
             return redirect(url_for('devops.devops_home'))
-        # respuesta simple de error
-        return make_response("Credenciales inválidas", 401)
+        else:
+            logger.warning(f"Intento de login fallido de DevOps: {username}")
+            # Mostrar formulario con error
+            html_error = f"""
+            <!doctype html>
+            <html>
+            <head>
+                <meta charset='utf-8'>
+                <title>DevOps Login - Belgrano Tickets</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }}
+                    .container {{ max-width: 400px; margin: 50px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                    h2 {{ color: #333; text-align: center; margin-bottom: 30px; }}
+                    .form-group {{ margin-bottom: 20px; }}
+                    label {{ display: block; margin-bottom: 5px; font-weight: bold; color: #555; }}
+                    input[type="text"], input[type="password"] {{ width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }}
+                    button {{ width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }}
+                    button:hover {{ background: #0056b3; }}
+                    .info {{ background: #e7f3ff; padding: 15px; border-radius: 4px; margin-bottom: 20px; border-left: 4px solid #007bff; }}
+                    .error {{ background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px; margin-bottom: 20px; border-left: 4px solid #dc3545; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h2>🔧 DevOps Login</h2>
+                    <div class="error">
+                        <strong>❌ Credenciales incorrectas</strong><br>
+                        Verifique su usuario y contraseña
+                    </div>
+                    <div class="info">
+                        <strong>Sistema DevOps</strong><br>
+                        Acceso independiente para administración del sistema
+                    </div>
+                    <form method='post'>
+                        <div class="form-group">
+                            <label>Usuario DevOps:</label>
+                            <input type="text" name='username' value='{username}' required />
+                        </div>
+                        <div class="form-group">
+                            <label>Contraseña:</label>
+                            <input type='password' name='password' placeholder='Ingrese su contraseña' required />
+                        </div>
+                        <button type='submit'>🔐 Ingresar a DevOps</button>
+                    </form>
+                    <div style="text-align: center; margin-top: 20px; color: #666;">
+                        <small>Sistema DevOps v2.0 - Belgrano Tickets</small>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            return make_response(html_error, 401)
 
-    # Formulario HTML simple (sin plantilla) para no cambiar estructura
+    # Formulario HTML mejorado para DevOps
     html = f"""
     <!doctype html>
-    <html><head><meta charset='utf-8'><title>DevOps Login</title></head>
-    <body style='font-family:sans-serif'>
-      <h2>DevOps Login</h2>
-      <form method='post'>
-        <label>Usuario</label><br>
-        <input name='username' value='{DEVOPS_USERNAME}' /><br><br>
-        <label>Contraseña</label><br>
-        <input type='password' name='password' value='' /><br><br>
-        <button type='submit'>Ingresar</button>
-      </form>
-    </body></html>
+    <html>
+    <head>
+        <meta charset='utf-8'>
+        <title>DevOps Login - Belgrano Tickets</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }}
+            .container {{ max-width: 400px; margin: 50px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+            h2 {{ color: #333; text-align: center; margin-bottom: 30px; }}
+            .form-group {{ margin-bottom: 20px; }}
+            label {{ display: block; margin-bottom: 5px; font-weight: bold; color: #555; }}
+            input[type="text"], input[type="password"] {{ width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }}
+            button {{ width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }}
+            button:hover {{ background: #0056b3; }}
+            .info {{ background: #e7f3ff; padding: 15px; border-radius: 4px; margin-bottom: 20px; border-left: 4px solid #007bff; }}
+            .error {{ color: #dc3545; margin-top: 10px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>🔧 DevOps Login</h2>
+            <div class="info">
+                <strong>Sistema DevOps</strong><br>
+                Acceso independiente para administración del sistema
+            </div>
+            <form method='post'>
+                <div class="form-group">
+                    <label>Usuario DevOps:</label>
+                    <input type="text" name='username' value='{DEVOPS_USERNAME}' required />
+                </div>
+                <div class="form-group">
+                    <label>Contraseña:</label>
+                    <input type='password' name='password' placeholder='Ingrese su contraseña' required />
+                </div>
+                <button type='submit'>🔐 Ingresar a DevOps</button>
+            </form>
+            <div style="text-align: center; margin-top: 20px; color: #666;">
+                <small>Sistema DevOps v2.0 - Belgrano Tickets</small>
+            </div>
+        </div>
+    </body>
+    </html>
     """
     return make_response(html, 200)
 
