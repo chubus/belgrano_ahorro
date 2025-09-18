@@ -20,6 +20,8 @@ app.secret_key = 'belgrano_tickets_secret_2025'
 # Configurar Flask-Login
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+login_manager.login_message = 'Por favor, inicie sesión para acceder a esta página.'
+login_manager.login_message_category = 'info'
 
 # Registrar blueprint de DevOps (importación robusta)
 try:

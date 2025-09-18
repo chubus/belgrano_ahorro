@@ -78,14 +78,23 @@ devops_bp = Blueprint('devops', __name__, url_prefix='/devops')
 
 def devops_is_authenticated():
     """Verificar si DevOps está autenticado"""
-    return session.get('devops_authenticated') is True
+    try:
+        return session.get('devops_authenticated') is True
+    except Exception as e:
+        logger.error(f"Error verificando autenticación DevOps: {e}")
+        return False
 
 def devops_login_required(fn):
     """Decorador para requerir autenticación de DevOps"""
     def wrapper(*args, **kwargs):
         if not devops_is_authenticated():
             # Redirigir al login de DevOps, no al de ticketera
-            return redirect(url_for('devops.devops_login'))
+            try:
+                return redirect(url_for('devops.devops_login'))
+            except Exception as e:
+                # Fallback si hay problema con url_for
+                logger.error(f"Error en redirección DevOps: {e}")
+                return redirect('/devops/login')
         return fn(*args, **kwargs)
     wrapper.__name__ = fn.__name__
     return wrapper
@@ -97,9 +106,14 @@ def devops_login():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
         if username == DEVOPS_USERNAME and check_password_hash(DEVOPS_PASSWORD_HASH, password):
-            session['devops_authenticated'] = True
-            logger.info(f"Login exitoso de DevOps: {username}")
-            return redirect(url_for('devops.devops_home'))
+            try:
+                session['devops_authenticated'] = True
+                session.permanent = True
+                logger.info(f"Login exitoso de DevOps: {username}")
+                return redirect(url_for('devops.devops_home'))
+            except Exception as e:
+                logger.error(f"Error estableciendo sesión DevOps: {e}")
+                return make_response("Error interno del servidor", 500)
         else:
             logger.warning(f"Intento de login fallido de DevOps: {username}")
             # Mostrar formulario con error
