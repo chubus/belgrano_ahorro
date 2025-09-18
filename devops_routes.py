@@ -90,10 +90,12 @@ def devops_login_required(fn):
         if not devops_is_authenticated():
             # Redirigir al login de DevOps, no al de ticketera
             try:
+                # Intentar redirección con url_for
                 return redirect(url_for('devops.devops_login'))
             except Exception as e:
                 # Fallback si hay problema con url_for
                 logger.error(f"Error en redirección DevOps: {e}")
+                # Redirección directa al login de DevOps
                 return redirect('/devops/login')
         return fn(*args, **kwargs)
     wrapper.__name__ = fn.__name__
@@ -216,8 +218,24 @@ def devops_login():
 
 @devops_bp.route('/logout', methods=['POST', 'GET'])
 def devops_logout():
-    session.pop('devops_authenticated', None)
-    return redirect(url_for('devops.devops_login'))
+    """Cerrar sesión de DevOps"""
+    try:
+        session.pop('devops_authenticated', None)
+        logger.info("Logout exitoso de DevOps")
+        return redirect(url_for('devops.devops_login'))
+    except Exception as e:
+        logger.error(f"Error en logout DevOps: {e}")
+        return redirect('/devops/login')
+
+@devops_bp.route('/test')
+def devops_test():
+    """Endpoint de prueba para verificar que DevOps funciona"""
+    return jsonify({
+        'status': 'success',
+        'message': 'DevOps funcionando correctamente',
+        'timestamp': datetime.now().isoformat(),
+        'authenticated': devops_is_authenticated()
+    })
 
 # Función para construir URLs de API
 def build_api_url(endpoint):
