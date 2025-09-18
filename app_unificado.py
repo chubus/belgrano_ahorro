@@ -200,12 +200,21 @@ def index():
     productos = cargar_productos()
     productos_destacados = productos[:8]
     
+    # Agrupar productos por negocio
+    productos_por_negocio = {}
+    for producto in productos:
+        negocio = producto.get('negocio', 'belgrano_ahorro')
+        if negocio not in productos_por_negocio:
+            productos_por_negocio[negocio] = []
+        productos_por_negocio[negocio].append(producto)
+    
     # Log para verificar en Render
     logger.info(f"Endpoint / accedido - Productos cargados: {len(productos)}")
     logger.info(f"Productos destacados: {len(productos_destacados)}")
     logger.info(f"Primeros 3 productos destacados: {[p.get('nombre', 'Sin nombre') for p in productos_destacados[:3]]}")
+    logger.info(f"Productos por negocio: {list(productos_por_negocio.keys())}")
     
-    return render_template('index.html', productos=productos_destacados)
+    return render_template('index.html', productos=productos_destacados, productos_por_negocio=productos_por_negocio)
 
 @app.route('/productos')
 def productos():

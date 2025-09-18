@@ -376,29 +376,46 @@ def login():
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '').strip()
         
+        # Log del intento de login
+        print(f"Intento de login: {email}")
+        
         if not email or not password:
+            print(f"Login fallido - Campos vacíos: {email}")
             return render_template('login.html', error='Por favor complete todos los campos')
         
-        usuario = obtener_usuario_por_email(email)
-        
-        if usuario and usuario['activo']:
-            if check_password_hash(usuario['password'], password):
-                user = User(
-                    id=usuario['id'],
-                    username=usuario['username'],
-                    email=usuario['email'],
-                    password=usuario['password'],
-                    nombre=usuario['nombre'],
-                    role=usuario['rol'],
-                    activo=usuario['activo']
-                )
-                
-                login_user(user)
-                return redirect(url_for('tickets'))
-            else:
+        try:
+            usuario = obtener_usuario_por_email(email)
+            
+            if not usuario:
+                print(f"Login fallido - Usuario no encontrado: {email}")
+                return render_template('login.html', error='Usuario no encontrado o inactivo')
+            
+            if not usuario['activo']:
+                print(f"Login fallido - Usuario inactivo: {email}")
+                return render_template('login.html', error='Usuario no encontrado o inactivo')
+            
+            if not check_password_hash(usuario['password'], password):
+                print(f"Login fallido - Contraseña incorrecta: {email}")
                 return render_template('login.html', error='Email o contraseña incorrectos')
-        else:
-            return render_template('login.html', error='Usuario no encontrado o inactivo')
+            
+            # Login exitoso
+            user = User(
+                id=usuario['id'],
+                username=usuario['username'],
+                email=usuario['email'],
+                password=usuario['password'],
+                nombre=usuario['nombre'],
+                role=usuario['rol'],
+                activo=usuario['activo']
+            )
+            
+            login_user(user)
+            print(f"Login exitoso: {email} ({usuario['rol']})")
+            return redirect(url_for('tickets'))
+            
+        except Exception as e:
+            print(f"Error en login para {email}: {e}")
+            return render_template('login.html', error='Error interno del servidor')
     
     return render_template('login.html')
 
@@ -488,12 +505,61 @@ def init_deploy():
             inicializar_usuarios()
             print("Inicializacion de deploy completada")
         else:
-            print("Base de datos ya existe")
+            # Verificar que los usuarios existan
+            conn = sqlite3.connect('belgrano_tickets.db')
+            cursor = conn.cursor()
+            cursor.execute('SELECT COUNT(*) FROM usuarios')
+            user_count = cursor.fetchone()[0]
+            conn.close()
+            
+            if user_count == 0:
+                print("Base de datos existe pero sin usuarios, inicializando...")
+                inicializar_usuarios()
+            else:
+                print(f"Base de datos ya existe con {user_count} usuarios")
     except Exception as e:
         print(f"Error en inicializacion de deploy: {e}")
 
+# Función de verificación automática de credenciales
+def verificar_credenciales():
+    """Verificar que las credenciales críticas existan"""
+    try:
+        conn = sqlite3.connect('belgrano_tickets.db')
+        cursor = conn.cursor()
+        
+        # Verificar usuario admin
+        cursor.execute('SELECT COUNT(*) FROM usuarios WHERE email = ? AND rol = ?', 
+                      ('admin@belgranoahorro.com', 'admin'))
+        admin_count = cursor.fetchone()[0]
+        
+        # Verificar usuarios flota
+        cursor.execute('SELECT COUNT(*) FROM usuarios WHERE rol = ?', ('flota',))
+        flota_count = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        if admin_count == 0:
+            print("⚠️ Usuario admin no encontrado, recreando...")
+            inicializar_usuarios()
+            return False
+        
+        if flota_count < 5:
+            print(f"⚠️ Solo {flota_count} usuarios flota encontrados, recreando...")
+            inicializar_usuarios()
+            return False
+        
+        print(f"✅ Credenciales verificadas: 1 admin, {flota_count} flota")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error verificando credenciales: {e}")
+        return False
+
 # Ejecutar inicialización automática
 init_deploy()
+
+# Verificar credenciales después de la inicialización
+verificar_credenciales()
 
 if __name__ == "__main__":
     if inicializar_aplicacion():
