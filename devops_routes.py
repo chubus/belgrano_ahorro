@@ -13,6 +13,7 @@ from datetime import datetime
 import logging
 from urllib.parse import urljoin
 from flask import Blueprint, request, jsonify, redirect, url_for, session, make_response
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +34,10 @@ API_TIMEOUT_SECS = 10
 
 # Credenciales de DevOps (propias, separadas del login de ticketera)
 DEVOPS_USERNAME = os.environ.get('DEVOPS_USERNAME', 'devops')
-DEVOPS_PASSWORD = os.environ.get('DEVOPS_PASSWORD', 'devops2025')
+DEVOPS_PASSWORD_PLAIN = os.environ.get('DEVOPS_PASSWORD', 'DevOps2025!Secure')
+
+# Hash de la contraseña para comparación segura
+DEVOPS_PASSWORD_HASH = generate_password_hash(DEVOPS_PASSWORD_PLAIN)
 
 # Validar variables de entorno críticas
 env_status = os.environ.get('FLASK_ENV', 'development')
@@ -92,7 +96,7 @@ def devops_login():
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
-        if username == DEVOPS_USERNAME and password == DEVOPS_PASSWORD:
+        if username == DEVOPS_USERNAME and check_password_hash(DEVOPS_PASSWORD_HASH, password):
             session['devops_authenticated'] = True
             logger.info(f"Login exitoso de DevOps: {username}")
             return redirect(url_for('devops.devops_home'))
