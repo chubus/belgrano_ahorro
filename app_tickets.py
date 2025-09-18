@@ -21,6 +21,25 @@ app.secret_key = 'belgrano_tickets_secret_2025'
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+# Registrar blueprint de DevOps (importación robusta)
+try:
+    # Intento directo si el cwd es la raíz del proyecto
+    from devops_routes import devops_bp
+    app.register_blueprint(devops_bp)
+    print("✅ Blueprint de DevOps registrado en app_tickets (directo)")
+except Exception as e:
+    try:
+        import sys
+        project_root = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(project_root)
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+        from devops_routes import devops_bp as devops_bp_root
+        app.register_blueprint(devops_bp_root)
+        print("✅ Blueprint de DevOps registrado en app_tickets (sys.path raíz)")
+    except Exception as e2:
+        print(f"⚠️ No se pudo registrar DevOps en app_tickets: {e2}")
+
 # =================================================================
 # MODELOS
 # =================================================================
