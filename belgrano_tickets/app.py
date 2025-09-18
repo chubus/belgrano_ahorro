@@ -25,14 +25,15 @@ app.config.update(
     REMEMBER_COOKIE_SECURE=os.environ.get('REMEMBER_COOKIE_SECURE', 'true').lower() == 'true',
 )
 
-# Configuración de base de datos - USAR RUTA ABSOLUTA
-import os
-db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'belgrano_tickets.db')
+# Configuración de base de datos - USAR RUTA ABSOLUTA o VARIABLE DE ENTORNO
+base_dir = os.path.dirname(os.path.abspath(__file__))
+db_path_env = os.environ.get('TICKETS_DB_PATH')
+db_path = db_path_env if db_path_env else os.path.join(base_dir, 'belgrano_tickets.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Importar db desde models
-from models import db, User, Ticket
+from .models import db, User, Ticket
 
 # ==========================================
 # CONFIGURACIÓN DE COMUNICACIÓN API
@@ -88,64 +89,78 @@ except ImportError as e:
 # Inicializar db con la app
 db.init_app(app)
 
-# Crear contexto de aplicación para inicializar la base de datos
+# Crear contexto de aplicación para inicializar la base de datos y ASEGURAR usuarios core
+def asegurar_usuarios_core():
+    """Crear/activar usuarios core (admin y repartidor1) de forma idempotente."""
+    try:
+        cambios = 0
+        # Admin
+        admin = User.query.filter_by(email='admin@belgranoahorro.com').first()
+        if not admin:
+            admin = User(
+                username='admin',
+                email='admin@belgranoahorro.com',
+                password=generate_password_hash('admin123'),
+                role='admin',
+                nombre='Administrador Principal',
+                activo=True
+            )
+            db.session.add(admin)
+            cambios += 1
+        else:
+            if not admin.activo:
+                admin.activo = True
+                cambios += 1
+
+        # Flota principal
+        flota = User.query.filter_by(email='repartidor1@belgranoahorro.com').first()
+        if not flota:
+            flota = User(
+                username='repartidor1',
+                email='repartidor1@belgranoahorro.com',
+                password=generate_password_hash('flota123'),
+                role='flota',
+                nombre='Repartidor 1',
+                activo=True
+            )
+            db.session.add(flota)
+            cambios += 1
+        else:
+            if not flota.activo:
+                flota.activo = True
+                cambios += 1
+
+        db.session.commit()
+        total = User.query.count()
+        if cambios:
+            print(f"✅ Usuarios core asegurados (cambios: {cambios}) | total usuarios: {total}")
+        else:
+            print(f"✅ Usuarios core ya presentes | total usuarios: {total}")
+        return True
+    except Exception as e:
+        print(f"❌ Error asegurando usuarios core: {e}")
+        db.session.rollback()
+        return False
+
 with app.app_context():
+    # Asegurar esquema compatible con el modelo (agregar columnas faltantes)
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        # Verificar columnas de tabla 'user'
+        cur.execute("PRAGMA table_info(user)")
+        cols = {row[1] for row in cur.fetchall()}
+        if 'fecha_creacion' not in cols:
+            cur.execute("ALTER TABLE user ADD COLUMN fecha_creacion DATETIME")
+            conn.commit()
+            print("🔧 Columna 'fecha_creacion' agregada a tabla user")
+        conn.close()
+    except Exception as e:
+        print(f"⚠️ No se pudo ajustar el esquema automáticamente: {e}")
+
     db.create_all()
-    
-    # Inicializar usuarios automáticamente si no existen
-    def inicializar_usuarios_automaticamente():
-        """Inicializar usuarios automáticamente si no existen"""
-        try:
-            usuarios_existentes = User.query.count()
-            if usuarios_existentes == 0:
-                print("No hay usuarios en BD - Creando usuarios automáticamente...")
-                
-                # Usuario Admin
-                admin = User(
-                    username='admin',
-                    email='admin@belgranoahorro.com',
-                    password=generate_password_hash('admin123'),
-                    role='admin',
-                    nombre='Administrador Principal',
-                    activo=True
-                )
-                db.session.add(admin)
-                print("Usuario admin creado: admin@belgranoahorro.com / admin123")
-                
-                # Usuarios Flota
-                flota_usuarios = [
-                    ('repartidor1', 'repartidor1@belgranoahorro.com', 'Repartidor 1'),
-                    ('repartidor2', 'repartidor2@belgranoahorro.com', 'Repartidor 2'),
-                    ('repartidor3', 'repartidor3@belgranoahorro.com', 'Repartidor 3'),
-                    ('repartidor4', 'repartidor4@belgranoahorro.com', 'Repartidor 4'),
-                    ('repartidor5', 'repartidor5@belgranoahorro.com', 'Repartidor 5')
-                ]
-                
-                for username, email, nombre in flota_usuarios:
-                    flota = User(
-                        username=username,
-                        email=email,
-                        password=generate_password_hash('flota123'),
-                        role='flota',
-                        nombre=nombre,
-                        activo=True
-                    )
-                    db.session.add(flota)
-                    print(f"Usuario flota creado: {email} / flota123")
-                
-                db.session.commit()
-                print("Usuarios inicializados automáticamente")
-                return True
-            else:
-                print(f"Ya existen {usuarios_existentes} usuarios en la BD")
-                return False
-        except Exception as e:
-            print(f"Error inicializando usuarios: {e}")
-            db.session.rollback()
-            return False
-    
-    # La inicialización se ejecutará cuando se necesite
-    pass
+    asegurar_usuarios_core()
 
 login_manager = LoginManager(app)
 
