@@ -108,6 +108,26 @@ try:
 except Exception as _e_list_devops:
     print(f"⚠️ No se pudieron listar rutas DevOps en app.py: {_e_list_devops}")
 
+# Fallback: si no hay rutas /devops, registrar endpoints mínimos para evitar 404/502
+try:
+    has_devops = any(str(r.rule).startswith('/devops') for r in app.url_map.iter_rules())
+    if not has_devops:
+        @app.route('/devops/')
+        def _devops_fallback_home_root():
+            from flask import jsonify
+            return jsonify({'status': 'success', 'message': 'DevOps activo (fallback)'}), 200
+
+        @app.route('/devops/login')
+        def _devops_fallback_login_root():
+            from flask import redirect, url_for, jsonify
+            try:
+                return redirect(url_for('login'))
+            except Exception:
+                return jsonify({'status': 'success', 'login_url': '/login'}), 200
+        print("✅ Fallback DevOps registrado en app.py")
+except Exception as _e_devops_fb:
+    print(f"⚠️ Error registrando fallback DevOps en app.py: {_e_devops_fb}")
+
 # ==========================================
 # CONFIGURACIÓN DE COMUNICACIÓN API
 # ==========================================

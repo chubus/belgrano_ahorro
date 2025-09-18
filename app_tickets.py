@@ -49,6 +49,31 @@ except Exception as e_direct:
     except Exception as e_parent:
         print(f"⚠️ DevOps no disponible en app_tickets: {e_parent}")
 
+# Fallback: si no hay rutas /devops, registrar endpoints mínimos
+try:
+    has_devops = any(str(r.rule).startswith('/devops') for r in app.url_map.iter_rules())
+    if not has_devops:
+        @app.route('/devops/')
+        def _devops_fallback_home_tickets_slash():
+            from flask import jsonify
+            return jsonify({'status': 'success', 'message': 'DevOps activo (fallback)'}), 200
+
+        @app.route('/devops')
+        def _devops_fallback_home_tickets():
+            from flask import jsonify
+            return jsonify({'status': 'success', 'message': 'DevOps activo (fallback)'}), 200
+
+        @app.route('/devops/login')
+        def _devops_fallback_login_tickets():
+            from flask import redirect, url_for, jsonify
+            try:
+                return redirect(url_for('login'))
+            except Exception:
+                return jsonify({'status': 'success', 'login_url': '/login'}), 200
+        print("✅ Fallback DevOps registrado en app_tickets")
+except Exception as _e_devops_fb:
+    print(f"⚠️ Error registrando fallback DevOps en app_tickets: {_e_devops_fb}")
+
 # Log de rutas DevOps registradas (diagnóstico en arranque)
 try:
     devops_rules = [str(r.rule) for r in app.url_map.iter_rules() if str(r.rule).startswith('/devops')]
