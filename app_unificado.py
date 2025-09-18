@@ -242,6 +242,88 @@ def productos():
     
     return render_template('productos.html', productos=productos_lista, busqueda=busqueda)
 
+@app.route("/negocio/<negocio_id>")
+def ver_negocio(negocio_id):
+    """
+    RUTA PARA VER PRODUCTOS DE UN NEGOCIO ESPECÍFICO
+    
+    PARÁMETROS:
+    - negocio_id: ID del negocio a mostrar
+    
+    MANTENIMIENTO:
+    - Para agregar nuevos negocios: editar productos.json sección "negocios"
+    - Para cambiar información del negocio: modificar datos en productos.json
+    - Para agregar productos al negocio: agregar en productos.json con negocio correcto
+    """
+    # Cargar datos completos
+    try:
+        with open('productos.json', 'r', encoding='utf-8') as file:
+            data = json.load(file)
+            negocios = data.get('negocios', {})
+            categorias = data.get('categorias', {})
+            sucursales = data.get('sucursales', {})
+    except Exception as e:
+        logger.error(f"Error cargando datos: {e}")
+        flash('Error cargando datos', 'danger')
+        return redirect(url_for('index'))
+    
+    if negocio_id not in negocios:
+        flash('Negocio no encontrado', 'danger')
+        return redirect(url_for('index'))
+    
+    negocio = negocios[negocio_id]
+    productos = cargar_productos()
+    productos_negocio = [p for p in productos if p.get('negocio') == negocio_id]
+    sucursales_negocio = sucursales.get(negocio_id, {})
+    
+    return render_template("negocio.html", 
+                         negocio=negocio,
+                         productos=productos_negocio,
+                         categorias=categorias,
+                         sucursales=sucursales_negocio)
+
+@app.route("/categoria/<categoria_id>")
+def ver_categoria(categoria_id):
+    """
+    RUTA PARA VER PRODUCTOS DE UNA CATEGORÍA ESPECÍFICA
+    
+    PARÁMETROS:
+    - categoria_id: ID de la categoría a mostrar
+    
+    MANTENIMIENTO:
+    - Para agregar categorías: editar productos.json sección "categorias"
+    - Para cambiar iconos: modificar campo "icono" en la categoría
+    - Para agregar productos a categoría: asignar categoria_id correcto en productos.json
+    """
+    # Cargar datos completos
+    try:
+        with open('productos.json', 'r', encoding='utf-8') as file:
+            data = json.load(file)
+            categorias = data.get('categorias', {})
+            negocios = data.get('negocios', {})
+            productos = data.get('productos', [])
+    except Exception as e:
+        logger.error(f"Error cargando datos: {e}")
+        flash('Error cargando datos', 'danger')
+        return redirect(url_for('index'))
+    
+    if categoria_id not in categorias:
+        flash('Categoría no encontrada', 'danger')
+        return redirect(url_for('index'))
+    
+    categoria = categorias[categoria_id]
+    productos_categoria = [p for p in productos if p.get('categoria') == categoria_id and p.get('activo', True)]
+    
+    return render_template("categoria.html", 
+                         categoria=categoria,
+                         productos=productos_categoria,
+                         negocios=negocios)
+
+@app.route('/dashboard')
+def dashboard():
+    """Dashboard principal - redirige a la página principal"""
+    return redirect(url_for('index'))
+
 @app.route('/carrito')
 def carrito():
     if not session.get('carrito'):
@@ -542,6 +624,50 @@ def register():
             flash(f'Error en el registro: {e}', 'danger')
     
     return render_template('register.html')
+
+@app.route("/recuperar-password", methods=['GET', 'POST'])
+def recuperar_password():
+    """
+    RUTA PARA RECUPERAR CONTRASEÑA - Paso 1: Solicitar email
+    """
+    if request.method == 'POST':
+        email = request.form.get('email')
+        
+        # Sanitizar y validar email
+        email_limpio, error = sanitizar_email(email)
+        if error:
+            flash(error, 'danger')
+            return render_template("recuperar_password.html")
+        
+        # Verificar si el usuario existe
+        if database is None:
+            flash('Error del sistema. Intenta más tarde.', 'danger')
+            return render_template("recuperar_password.html")
+        
+        usuario = database.buscar_usuario_por_email(email_limpio)
+        if not usuario:
+            # Por seguridad, no revelar si el email existe o no
+            flash('Si el email está registrado, recibirás instrucciones de recuperación', 'info')
+            return render_template("recuperar_password.html")
+        
+        # Generar token de recuperación
+        token = generar_token_recuperacion()
+        expiracion = datetime.now() + timedelta(hours=24)
+        
+        # Guardar token en la base de datos
+        exito = database.guardar_token_recuperacion(usuario['id'], token, expiracion)
+        
+        if exito:
+            # En una aplicación real, aquí enviarías un email
+            # Por ahora, simulamos el envío
+            flash(f'Se han enviado instrucciones de recuperación a {email_limpio}', 'success')
+            logger.info(f"Token de recuperación generado para {email_limpio}: {token}")
+        else:
+            flash('Error al procesar la solicitud. Contacta soporte.', 'danger')
+        
+        return render_template("recuperar_password.html")
+    
+    return render_template("recuperar_password.html")
 
 @app.route('/logout')
 def logout():

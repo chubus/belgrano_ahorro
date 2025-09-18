@@ -980,6 +980,11 @@ def ver_categoria(categoria_id):
                          productos=productos_categoria,
                          negocios=negocios)
 
+@app.route('/dashboard')
+def dashboard():
+    """Dashboard principal - redirige a la página principal"""
+    return redirect(url_for('index'))
+
 @app.route("/agregar_al_carrito", methods=['POST'])
 def agregar_al_carrito():
     """
