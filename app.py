@@ -78,21 +78,28 @@ app.config['ENV'] = os.environ.get('FLASK_ENV', 'development')
 # Registrar manejadores de errores
 register_error_handlers(app)
 
-# Importar y registrar blueprint de DevOps
+# Importar y registrar blueprint de DevOps (robusto)
 try:
+    # Intento directo
     try:
         from devops_routes import devops_bp
-    except ImportError:
-        print("⚠️ Módulo devops_routes no encontrado, continuando sin DevOps")
-        devops_bp = None
-    if devops_bp:
         app.register_blueprint(devops_bp)
-        print("✅ Blueprint de DevOps registrado correctamente")
-    else:
-        print("⚠️ Blueprint de DevOps no disponible")
+        print("✅ DevOps: blueprint registrado (import directo)")
+    except ImportError as e_direct:
+        # Fallback con sys.path a la raíz del proyecto
+        import sys, os as _os
+        _project_root = _os.path.dirname(_os.path.abspath(__file__))
+        if _project_root not in sys.path:
+            sys.path.insert(0, _project_root)
+        try:
+            from devops_routes import devops_bp as _devops_bp_root
+            app.register_blueprint(_devops_bp_root)
+            print("✅ DevOps: blueprint registrado (sys.path raíz)")
+        except Exception as e_root:
+            print(f"⚠️ DevOps no disponible: {e_root}")
 except Exception as e:
-    print(f"❌ Error importando devops_routes: {e}")
-    # No es crítico, continúa sin las rutas de DevOps
+    print(f"❌ Error importando/registrando devops_routes: {e}")
+    # No crítico: continuar sin DevOps
 
 # ==========================================
 # CONFIGURACIÓN DE COMUNICACIÓN API
