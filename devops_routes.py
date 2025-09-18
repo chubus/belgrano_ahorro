@@ -318,24 +318,8 @@ def devops_info():
     })
 
 # ================================================================
-# AUTENTICACIÓN (REDIRECCIÓN AL LOGIN PRINCIPAL)
+# AUTENTICACIÓN (YA MANEJADA ARRIBA CON SISTEMA PROPIO)
 # ================================================================
-
-@devops_bp.route('/login', methods=['GET'])
-def devops_login():
-    """Entrada de login para DevOps: redirige al login principal.
-    Evita 404 en /devops/login y mantiene una sola pantalla de login.
-    """
-    try:
-        # Redirige a la ruta de login de ticketera si existe
-        return redirect(url_for('login'))
-    except Exception:
-        # Fallback seguro sin romper UI
-        return jsonify({
-            'status': 'success',
-            'message': 'Usa /login para iniciar sesión en ticketera',
-            'login_url': '/login'
-        }), 200
 
 # =================================================================
 # GESTIÓN DE OFERTAS
