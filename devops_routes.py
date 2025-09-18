@@ -12,13 +12,13 @@ from functools import wraps
 from datetime import datetime
 import logging
 from urllib.parse import urljoin
-from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, session
+from flask import Blueprint, request, jsonify, redirect, url_for, session, make_response
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Configuración de API
+# Configuración de API y credenciales DevOps
 try:
     from config_env import get_api_config
     api_config = get_api_config()
@@ -30,6 +30,10 @@ except ImportError:
     BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY')
 
 API_TIMEOUT_SECS = 10
+
+# Credenciales de DevOps (propias, separadas del login de ticketera)
+DEVOPS_USERNAME = os.environ.get('DEVOPS_USERNAME', 'devops')
+DEVOPS_PASSWORD = os.environ.get('DEVOPS_PASSWORD', 'devops2025')
 
 # Validar variables de entorno críticas
 env_status = os.environ.get('FLASK_ENV', 'development')
@@ -63,6 +67,55 @@ except ImportError as e:
 
 # Crear blueprint con prefijo
 devops_bp = Blueprint('devops', __name__, url_prefix='/devops')
+
+# =============================
+# AUTENTICACIÓN DEVOPS (PROPIA)
+# =============================
+
+def devops_is_authenticated():
+    return session.get('devops_authenticated') is True
+
+def devops_login_required(fn):
+    def wrapper(*args, **kwargs):
+        if not devops_is_authenticated():
+            return redirect(url_for('devops.devops_login'))
+        return fn(*args, **kwargs)
+    wrapper.__name__ = fn.__name__
+    return wrapper
+
+@devops_bp.route('/login', methods=['GET', 'POST'])
+def devops_login():
+    """Login propio de DevOps con credenciales separadas."""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        if username == DEVOPS_USERNAME and password == DEVOPS_PASSWORD:
+            session['devops_authenticated'] = True
+            return redirect(url_for('devops.devops_home'))
+        # respuesta simple de error
+        return make_response("Credenciales inválidas", 401)
+
+    # Formulario HTML simple (sin plantilla) para no cambiar estructura
+    html = f"""
+    <!doctype html>
+    <html><head><meta charset='utf-8'><title>DevOps Login</title></head>
+    <body style='font-family:sans-serif'>
+      <h2>DevOps Login</h2>
+      <form method='post'>
+        <label>Usuario</label><br>
+        <input name='username' value='{DEVOPS_USERNAME}' /><br><br>
+        <label>Contraseña</label><br>
+        <input type='password' name='password' value='' /><br><br>
+        <button type='submit'>Ingresar</button>
+      </form>
+    </body></html>
+    """
+    return make_response(html, 200)
+
+@devops_bp.route('/logout', methods=['POST', 'GET'])
+def devops_logout():
+    session.pop('devops_authenticated', None)
+    return redirect(url_for('devops.devops_login'))
 
 # Función para construir URLs de API
 def build_api_url(endpoint):
@@ -100,6 +153,7 @@ def sincronizar_cambio_inmediato(tipo_cambio, datos):
 # =================================================================
 
 @devops_bp.route('/')
+@devops_login_required
 def devops_home():
     """Panel principal de DevOps - Información del sistema"""
     try:
@@ -142,6 +196,7 @@ def devops_home():
         }), 500
 
 @devops_bp.route('/health')
+@devops_login_required
 def devops_health():
     """Health check completo del sistema DevOps"""
     try:
@@ -187,6 +242,7 @@ def devops_health():
         }), 500
 
 @devops_bp.route('/status')
+@devops_login_required
 def devops_status():
     """Estado detallado del sistema"""
     try:
@@ -224,6 +280,7 @@ def devops_status():
         }), 500
 
 @devops_bp.route('/info')
+@devops_login_required
 def devops_info():
     """Información completa del sistema DevOps"""
     return jsonify({
@@ -285,6 +342,7 @@ def devops_login():
 # =================================================================
 
 @devops_bp.route('/ofertas')
+@devops_login_required
 def gestion_ofertas():
     """Gestión completa de ofertas"""
     try:
@@ -330,6 +388,7 @@ def gestion_ofertas():
         }), 500
 
 @devops_bp.route('/negocios')
+@devops_login_required
 def gestion_negocios():
     """Gestión completa de negocios"""
     try:
@@ -379,6 +438,7 @@ def gestion_negocios():
 # =================================================================
 
 @devops_bp.route('/sync', methods=['POST'])
+@devops_login_required
 def sincronizacion_manual():
     """Forzar sincronización manual"""
     try:
@@ -443,6 +503,7 @@ def sincronizacion_manual():
         }), 500
 
 @devops_bp.route('/logs')
+@devops_login_required
 def ver_logs():
     """Ver logs del sistema"""
     try:
@@ -485,6 +546,7 @@ def ver_logs():
         }), 500
 
 @devops_bp.route('/config')
+@devops_login_required
 def ver_configuracion():
     """Ver configuración actual del sistema"""
     try:
