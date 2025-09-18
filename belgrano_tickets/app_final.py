@@ -55,7 +55,7 @@ except ImportError as e:
 # Importar blueprint de DevOps
 try:
     from devops_routes import devops_bp
-    app.register_blueprint(devops_bp)
+    try:\n        app.register_blueprint(devops_bp)\n        print("Blueprint de DevOps registrado")\n    except AssertionError as e:\n        if "overwriting an existing endpoint" in str(e):\n            print("Blueprint de DevOps ya registrado, omitiendo...")\n        else:\n            raise e
     print("Blueprint de DevOps registrado")
 except ImportError as e:
     print(f"No se pudo registrar el blueprint de DevOps: {e}")
@@ -119,9 +119,8 @@ with app.app_context():
             db.session.rollback()
             return False
     
-    # La inicialización se ejecutará cuando se necesite
-    pass
-
+    # Ejecutar inicialización automática
+    inicializar_usuarios_automaticamente()
 login_manager = LoginManager(app)
 
 # Configuración robusta de SocketIO para evitar invalid session
@@ -1139,31 +1138,8 @@ def test_ahorro_api():
             'timestamp': datetime.now().isoformat()
         }), 500
 
-# Ruta principal de la aplicación
-@app.route('/')
-def index():
-    """Página principal de la aplicación"""
-    # Inicializar usuarios si es necesario
-    try:
-        with app.app_context():
-            inicializar_usuarios_automaticamente()
-    except Exception as e:
-        logger.warning(f"Error inicializando usuarios: {e}")
-    
-    return render_template('admin_panel.html')
-
-# Registrar blueprint de DevOps
-try:
-    from devops_routes import devops_bp
-    app.register_blueprint(devops_bp)
-    print("✅ Blueprint de DevOps registrado correctamente")
-except Exception as e:
-    print(f"❌ Error registrando blueprint de DevOps: {e}")
-
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-        # Inicializar usuarios automáticamente
-        inicializar_usuarios_automaticamente()
     print("Iniciando aplicación de tickets en puerto 5001...")
     socketio.run(app, debug=True, host='0.0.0.0', port=5001)

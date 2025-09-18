@@ -34,41 +34,13 @@ init_database() {
     
     # Verificar que el script de inicialización existe
     SCRIPT_PATH=""
-    
-    # Mostrar información de debug
-    echo "🔍 Información de debug:"
-    echo "   Directorio actual: $(pwd)"
-    echo "   Usuario actual: $(whoami)"
-    echo "   Contenido del directorio actual:"
-    ls -la | head -10
-    
-    # Posibles ubicaciones del script (en orden de prioridad)
-    POSSIBLE_PATHS=(
-        "scripts/init_users_flota.py"
-        "./scripts/init_users_flota.py"
-        "/app/scripts/init_users_flota.py"
-        "belgrano_tickets/scripts/init_users_flota.py"
-        "./belgrano_tickets/scripts/init_users_flota.py"
-        "./init_users_flota.py"
-        "/app/init_users_flota.py"
-    )
-    
-    for path in "${POSSIBLE_PATHS[@]}"; do
-        if [ -f "$path" ]; then
-            SCRIPT_PATH="$path"
-            break
-        fi
-    done
-    
-    if [ -z "$SCRIPT_PATH" ]; then
-        echo "❌ Buscando script en las siguientes ubicaciones:"
-        for path in "${POSSIBLE_PATHS[@]}"; do
-            echo "   - $path $([ -f "$path" ] && echo "✅ ENCONTRADO" || echo "❌ NO ENCONTRADO")"
-        done
-        echo "📁 Contenido del directorio actual:"
-        ls -la
-        echo "📁 Contenido del directorio scripts (si existe):"
-        [ -d "scripts" ] && ls -la scripts/ || echo "   Directorio scripts no existe"
+    if [ -f "belgrano_tickets/scripts/init_users_flota.py" ]; then
+        SCRIPT_PATH="belgrano_tickets/scripts/init_users_flota.py"
+    elif [ -f "scripts/init_users_flota.py" ]; then
+        SCRIPT_PATH="scripts/init_users_flota.py"
+    elif [ -f "./init_users_flota.py" ]; then
+        SCRIPT_PATH="./init_users_flota.py"
+    else
         handle_error "Script de inicialización no encontrado en ninguna ubicación"
     fi
     

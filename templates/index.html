@@ -1,1067 +1,981 @@
 {% extends "base.html" %}
 
-{% block title %}Inicio - Belgrano Ahorro{% endblock %}
-
 {% block content %}
-<div class="row">
-    <div class="col-lg-8">
-        <div class="jumbotron card-gold p-5 rounded shadow-gold">
-            <h1 class="display-4 text-gradient-gold">¡Bienvenido a Belgrano Ahorro! 🛒</h1>
-            <p class="lead">Sistema de gestión integral para tu negocio.</p>
-            <hr class="my-4 border-gold">
-            <p>Gestiona productos, ventas, tickets y mucho más desde una sola plataforma.</p>
-            {% if not current_user.is_authenticated %}
-                <a class="btn btn-gold btn-lg" href="{{ url_for('login') }}" role="button">Iniciar Sesión</a>
-            {% else %}
-                <a class="btn btn-gold btn-lg" href="{{ url_for('dashboard') }}" role="button">Ir al Dashboard</a>
+<!-- =================================================================
+     PÁGINA PRINCIPAL - BELGRANO AHORRO
+     =================================================================
+     
+     DESCRIPCIÓN:
+     Esta es la página principal que muestra:
+     - Banner principal con título y logo
+     - Barra de búsqueda de productos
+     - Categorías con animaciones
+     - Productos destacados y ofertas
+     - Sección de negocios
+     
+     MANTENIMIENTO:
+     - Para cambiar el título: modificar línea 33
+     - Para cambiar el banner: modificar línea 35
+     - Para agregar nuevas secciones: agregar después de las existentes
+     - Para modificar categorías: editar productos.json
+     ================================================================= -->
+
+<!-- Barra de Búsqueda -->
+<div class="row mb-4">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow-custom">
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('index') }}" class="d-flex">
+                    <div class="input-group">
+                        <input type="text" 
+                               class="form-control form-control-lg" 
+                               name="busqueda" 
+                               value="{{ busqueda or '' }}"
+                               placeholder="🔍 Buscar productos... (ej: arroz, leche, pan)"
+                               aria-label="Buscar productos">
+                        <button class="btn btn-success btn-lg" type="submit">
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                        {% if busqueda %}
+                        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-lg">
+                            <i class="fas fa-times"></i> Limpiar
+                        </a>
+                        {% endif %}
+                    </div>
+                </form>
+                {% if busqueda %}
+                <div class="mt-3">
+                    <small class="text-muted">
+                        📊 Mostrando {{ productos_filtrados|length if productos_filtrados else 0 }} resultado{% if productos_filtrados and productos_filtrados|length != 1 %}s{% endif %} para "{{ busqueda }}"
+                    </small>
+                </div>
                 {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 
-    <div class="col-lg-4">
-        <div class="card card-gold shadow-gold">
-            <div class="card-header">
-                <h5 class="text-gold">🚀 Estado del Sistema</h5>
+<!-- =================================================================
+     BANNER PRINCIPAL - TÍTULO Y LOGO
+     =================================================================
+     
+     MANTENIMIENTO:
+     - Para cambiar el título: modificar línea 33 (texto "Belgrano Ahorro")
+     - Para cambiar el logo: reemplazar imagen en línea 35
+     - Para cambiar colores: modificar clases CSS
+     - Para cambiar texto descriptivo: modificar línea 34
+     ================================================================= -->
+<div class="hero-section mb-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <!-- TÍTULO PRINCIPAL - CAMBIAR AQUÍ EL NOMBRE -->
+                <h1 class="display-4 fw-bold text-black">🛒 Belgrano Ahorro</h1>
+                <!-- DESCRIPCIÓN - CAMBIAR AQUÍ EL TEXTO DESCRIPTIVO -->
+                <p class="lead text-black">Los mejores precios de Gral Belgrano, todo en un solo lugar</p>
+                
+                <!-- Estadísticas de Negocios -->
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <div class="text-center">
+                            <h4 class="text-gold mb-0">{{ negocios|length }}</h4>
+                            <small class="text-muted">Negocios</small>
                         </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <span class="badge bg-success">✅ Sistema Operativo</span>
                     </div>
-                <div class="mb-3">
-                    <span class="badge bg-info">🔄 API Disponible</span>
+                    <div class="col-4">
+                        <div class="text-center">
+                            {% set total_sucursales = 0 %}
+                            {% for negocio_id, sucursales_negocio in sucursales.items() %}
+                                {% set total_sucursales = total_sucursales + (sucursales_negocio|selectattr('activo', 'equalto', true)|list|length) %}
+                            {% endfor %}
+                            <h4 class="text-gold mb-0">{{ total_sucursales }}</h4>
+                            <small class="text-muted">Sucursales</small>
                         </div>
-                <div class="mb-3">
-                    <small class="text-muted">
-                        Última actualización: {{ moment().format('DD/MM/YYYY HH:mm') if moment else 'Ahora' }}
-                    </small>
                     </div>
-                <a href="/api/health" class="btn btn-outline-primary btn-sm">Verificar Health</a>
+                    <div class="col-4">
+                        <div class="text-center">
+                            <h4 class="text-gold mb-0">{{ productos_destacados|length }}</h4>
+                            <small class="text-muted">Destacados</small>
+                        </div>
                     </div>
                 </div>
                 
-        <div class="card mt-3 card-gold shadow-gold">
-            <div class="card-header">
-                <h5 class="text-gold">📊 Funcionalidades</h5>
+                <div class="d-flex gap-3">
+                    <a href="#productos" class="btn btn-light btn-lg">🛍️ Ver Productos</a>
+                    <a href="#ofertas" class="btn btn-outline-dark btn-lg">🔥 Ofertas</a>
                 </div>
-            <div class="card-body">
-                <ul class="list-unstyled">
-                    <li>✅ Gestión de Productos</li>
-                    <li>✅ Sistema de Tickets</li>
-                    <li>✅ API REST</li>
-                    <li>✅ Dashboard Administrativo</li>
-                    <li>✅ Sincronización de Datos</li>
-                </ul>
+            </div>
+            <div class="col-md-6 text-center">
+                <div class="hero-image">
+                    <!-- LOGO PRINCIPAL - CAMBIAR AQUÍ LA IMAGEN DEL BANNER -->
+                    <img src="{{ url_for('static', filename='images/logo_belgrano_ahorro.jpg') }}" alt="Belgrano Ahorro" class="img-fluid rounded shadow" style="max-height: 300px;">
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Productos Destacados -->
-{% if productos %}
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card card-gold shadow-gold">
-            <div class="card-header">
-                <h5 class="text-gold">🌟 Productos Destacados</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    {% for producto in productos %}
-                    <div class="col-md-3 mb-3">
-                        <div class="card h-100 border-gold hover-gold">
-                            <div class="card-body">
-                                <h6 class="card-title">{{ producto.get('nombre', 'Sin nombre') }}</h6>
-                                <p class="card-text">
-                                    <small class="text-muted">{{ producto.get('descripcion', producto.get('nombre', 'Sin descripción'))[:50] }}...</small>
-                                </p>
-                                <p class="card-text">
-                                    <strong class="text-success">${{ producto.get('precio', 0) }}</strong>
-                                </p>
-                                <small class="text-muted">
-                                    Stock: {{ producto.get('stock', 0) }} | 
-                                    Negocio: {{ producto.get('negocio', 'Sin negocio') }}
-                                </small>
+
+<!-- Resultados de Búsqueda -->
+{% if busqueda and productos_filtrados %}
+<section class="mb-5">
+    <div class="container">
+        <h2 class="text-center mb-4 text-gold">🔍 Resultados de Búsqueda</h2>
+        <div class="carrusel-container">
+            <button class="btn-carrusel btn-carrusel-left" onclick="deslizarCarrusel('busqueda', 'left')">
+                ‹
+            </button>
+            <div class="carrusel-productos" id="busqueda">
+                {% for producto in productos_filtrados %}
+                <div class="producto-carrusel">
+                    <div class="card h-100 producto-card">
+                        <div class="position-relative">
+            <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">
+                            {% if producto.destacado %}
+                            <div class="position-absolute top-0 start-0 m-2">
+                                <span class="badge bg-warning">⭐ Destacado</span>
+                            </div>
+                            {% endif %}
+                            {% if producto.precio_original and producto.precio_original > producto.precio %}
+                            <div class="position-absolute top-0 end-0 m-2">
+                                <span class="badge bg-danger">Oferta</span>
+                            </div>
+                            {% endif %}
+                        </div>
+            <div class="card-body d-flex flex-column">
+                            <h6 class="card-title">{{ producto.nombre }}</h6>
+                            <small class="text-muted">{{ negocios[producto.negocio].nombre }} - {{ categorias[producto.categoria].nombre }}</small>
+                            <div class="mt-auto">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                        <span class="text-danger fw-bold">${{ producto.precio }}</span>
+                                        <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
+                                        {% else %}
+                                        <span class="fw-bold">${{ producto.precio }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                            🛒
+                        </button>
+                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    {% endfor %}
                 </div>
+                {% endfor %}
             </div>
+            <button class="btn-carrusel btn-carrusel-right" onclick="deslizarCarrusel('busqueda', 'right')">
+                ›
+            </button>
         </div>
     </div>
-</div>
+</section>
 {% endif %}
 
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5>🔗 Enlaces Rápidos</h5>
+<!-- Ofertas Especiales -->
+{% if ofertas %}
+<section id="ofertas" class="mb-5">
+    <div class="container">
+        <h2 class="text-center mb-4 text-gold">🔥 Ofertas Especiales</h2>
+        
+        <!-- Ofertas Especiales - Rojo -->
+        <div class="card mb-4 shadow-custom seccion-ofertas">
+            <div class="card-header" style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white;">
+                <h3 class="mb-0">🔥 Ofertas Especiales</h3>
+                <p class="mb-0">Los mejores descuentos seleccionados para ti</p>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3">
-                        <a href="/api/productos" class="btn btn-outline-success w-100 mb-2">
-                            📦 API Productos
-                        </a>
-                                    </div>
-                    <div class="col-md-3">
-                        <a href="/api/status" class="btn btn-outline-info w-100 mb-2">
-                            📊 Estado Sistema
-                        </a>
-                                    </div>
-                    <div class="col-md-3">
-                        <a href="/api/health" class="btn btn-outline-primary w-100 mb-2">
-                            🏥 Health Check
-                        </a>
-                                </div>
-                    <div class="col-md-3">
-                        {% if current_user.is_authenticated %}
-                            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-warning w-100 mb-2">
-                                🎛️ Dashboard
-                            </a>
-                                                {% else %}
-                            <a href="{{ url_for('login') }}" class="btn btn-outline-warning w-100 mb-2">
-                                🔐 Login
-                            </a>
-                                                {% endif %}
-                    </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-        <!-- Maxi Descuento - Naranja Oscuro -->
-
-        <div class="card mb-4 shadow-custom seccion-maxi-descuento">
-
-            <div class="card-header" style="background: linear-gradient(135deg, #e67e22, #d35400); color: white;">
-
-                <h3 class="mb-0">🏷️ Maxi Descuento</h3>
-
-                <p class="mb-0">Ofertas semanales imperdibles</p>
-
-            </div>
-
-            <div class="card-body">
-
                 <div class="carrusel-container">
-
-                    <button class="btn-carrusel btn-carrusel-left" onclick="deslizarCarrusel('maxi-descuento', 'left')">
-
+                    <button class="btn-carrusel btn-carrusel-left" onclick="deslizarCarrusel('ofertas-especiales', 'left')">
                         ‹
-
                     </button>
-
-                    <div class="carrusel-productos" id="maxi-descuento">
-
-                        {% for producto in productos_por_negocio.get('maxi_descuento', [])[:65] %}
-
+                    <div class="carrusel-productos" id="ofertas-especiales">
+                        {% for producto in productos_por_negocio.get('belgrano_ahorro', [])[:65] %}
                         <div class="producto-carrusel">
-
                             <div class="card h-100 producto-card">
-
                                 <div class="position-relative">
-
-                                    <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.get('nombre', 'Sin nombre') }}">
-
-                                    {% if producto.get('destacado', False) %}
-
+                                    <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">
+                                    {% if producto.destacado %}
                                     <div class="position-absolute top-0 start-0 m-2">
-
                                         <span class="badge bg-warning">⭐ Destacado</span>
-
                                     </div>
-
                                     {% endif %}
-
-                                    {% if producto.get('precio_original', 0) and producto.get('precio_original', 0) > producto.get('precio', 0) %}
-
+                                    {% if producto.precio_original and producto.precio_original > producto.precio %}
                                     <div class="position-absolute top-0 end-0 m-2">
-
                                         <span class="badge bg-danger">Oferta</span>
-
                                     </div>
-
                                     {% endif %}
-
                                 </div>
-
                                 <div class="card-body d-flex flex-column">
-
-                                    <h6 class="card-title">{{ producto.get('nombre', 'Sin nombre') }}</h6>
-
-                                    <small class="text-muted">{{ categorias[producto.get('categoria', 'Sin categoría')].nombre }}</small>
-
+                                    <h6 class="card-title">{{ producto.nombre }}</h6>
+                                    <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
                                     <div class="mt-auto">
-
                                         <div class="d-flex justify-content-between align-items-center">
-
                                             <div>
-
-                                                {% if producto.get('precio_original', 0) and producto.get('precio_original', 0) > producto.get('precio', 0) %}
-
-                                                <span class="text-danger fw-bold">${{ producto.get('precio', 0) }}</span>
-
-                                                <small class="text-muted text-decoration-line-through">${{ producto.get('precio_original', 0) }}</small>
-
+                                                {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                                <span class="text-danger fw-bold">${{ producto.precio }}</span>
+                                                <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
                                                 {% else %}
-
-                                                <span class="fw-bold">${{ producto.get('precio', 0) }}</span>
-
+                                                <span class="fw-bold">${{ producto.precio }}</span>
                                                 {% endif %}
-
                                             </div>
-
                                             <div class="d-flex align-items-center gap-2">
-
                         <div class="input-group input-group-sm" style="width: 120px;">
-
                             <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
-
                             <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
-
                             <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
-
                         </div>
-
                         <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
-
                             🛒
-
                         </button>
-
                     </div>
-
                                         </div>
-
                                     </div>
-
                                 </div>
-
                             </div>
-
                         </div>
-
                         {% endfor %}
-
                     </div>
-
-                    <button class="btn-carrusel btn-carrusel-right" onclick="deslizarCarrusel('maxi-descuento', 'right')">
-
+                    <button class="btn-carrusel btn-carrusel-right" onclick="deslizarCarrusel('ofertas-especiales', 'right')">
                         ›
-
                     </button>
-
                 </div>
-
             </div>
-
         </div>
 
+        <!-- Descuentos Rápidos - Naranja -->
+        <div class="card mb-4 shadow-custom seccion-descuentos">
+            <div class="card-header" style="background: linear-gradient(135deg, #f39c12, #e67e22); color: white;">
+                <h3 class="mb-0">⚡ Descuentos Rápidos</h3>
+                <p class="mb-0">Ofertas por tiempo limitado</p>
+            </div>
+            <div class="card-body">
+                <div class="carrusel-container">
+                    <button class="btn-carrusel btn-carrusel-left" onclick="deslizarCarrusel('descuentos-rapidos', 'left')">
+                        ‹
+                    </button>
+                    <div class="carrusel-productos" id="descuentos-rapidos">
+                        {% for producto in productos_por_negocio.get('maxi_descuento', [])[:65] %}
+                        <div class="producto-carrusel">
+                            <div class="card h-100 producto-card">
+                                <div class="position-relative">
+                                    <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">
+                                    {% if producto.destacado %}
+                                    <div class="position-absolute top-0 start-0 m-2">
+                                        <span class="badge bg-warning">⭐ Destacado</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                    <div class="position-absolute top-0 end-0 m-2">
+                                        <span class="badge bg-danger">Oferta</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="card-body d-flex flex-column">
+                                    <h6 class="card-title">{{ producto.nombre }}</h6>
+                                    <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
+                                    <div class="mt-auto">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                                <span class="text-danger fw-bold">${{ producto.precio }}</span>
+                                                <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
+                                                {% else %}
+                                                <span class="fw-bold">${{ producto.precio }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                            🛒
+                        </button>
+                    </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button class="btn-carrusel btn-carrusel-right" onclick="deslizarCarrusel('descuentos-rapidos', 'right')">
+                        ›
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mega Oferta - Púrpura -->
+        <div class="card mb-4 shadow-custom seccion-mega-oferta">
+            <div class="card-header" style="background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white;">
+                <h3 class="mb-0">💎 Mega Oferta</h3>
+                <p class="mb-0">Los mejores productos con descuentos increíbles</p>
+            </div>
+            <div class="card-body">
+                <div class="carrusel-container">
+                    <button class="btn-carrusel btn-carrusel-left" onclick="deslizarCarrusel('mega-oferta', 'left')">
+                        ‹
+                    </button>
+                    <div class="carrusel-productos" id="mega-oferta">
+                        {% for producto in productos_por_negocio.get('super_mercado', [])[:65] %}
+                        <div class="producto-carrusel">
+                            <div class="card h-100 producto-card">
+                                <div class="position-relative">
+                                    <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">
+                                    {% if producto.destacado %}
+                                    <div class="position-absolute top-0 start-0 m-2">
+                                        <span class="badge bg-warning">⭐ Destacado</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                    <div class="position-absolute top-0 end-0 m-2">
+                                        <span class="badge bg-danger">Oferta</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="card-body d-flex flex-column">
+                                    <h6 class="card-title">{{ producto.nombre }}</h6>
+                                    <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
+                                    <div class="mt-auto">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                                <span class="text-danger fw-bold">${{ producto.precio }}</span>
+                                                <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
+                                                {% else %}
+                                                <span class="fw-bold">${{ producto.precio }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                            🛒
+                        </button>
+                    </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button class="btn-carrusel btn-carrusel-right" onclick="deslizarCarrusel('mega-oferta', 'right')">
+                        ›
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Super Mercado - Azul -->
+        <div class="card mb-4 shadow-custom seccion-super-mercado">
+            <div class="card-header" style="background: linear-gradient(135deg, #3498db, #2980b9); color: white;">
+                <h3 class="mb-0">🏪 Super Mercado</h3>
+                <p class="mb-0">Variedad completa de productos</p>
+            </div>
+            <div class="card-body">
+                <div class="carrusel-container">
+                    <button class="btn-carrusel btn-carrusel-left" onclick="deslizarCarrusel('super-mercado', 'left')">
+                        ‹
+                    </button>
+                    <div class="carrusel-productos" id="super-mercado">
+                        {% for producto in productos_por_negocio.get('super_mercado', [])[:65] %}
+                        <div class="producto-carrusel">
+                            <div class="card h-100 producto-card">
+                                <div class="position-relative">
+                                    <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">
+                                    {% if producto.destacado %}
+                                    <div class="position-absolute top-0 start-0 m-2">
+                                        <span class="badge bg-warning">⭐ Destacado</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                    <div class="position-absolute top-0 end-0 m-2">
+                                        <span class="badge bg-danger">Oferta</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="card-body d-flex flex-column">
+                                    <h6 class="card-title">{{ producto.nombre }}</h6>
+                                    <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
+                                    <div class="mt-auto">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                                <span class="text-danger fw-bold">${{ producto.precio }}</span>
+                                                <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
+                                                {% else %}
+                                                <span class="fw-bold">${{ producto.precio }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                            🛒
+                        </button>
+                    </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button class="btn-carrusel btn-carrusel-right" onclick="deslizarCarrusel('super-mercado', 'right')">
+                        ›
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Belgrano Ahorro - Verde -->
+        <div class="card mb-4 shadow-custom seccion-belgrano-ahorro">
+            <div class="card-header" style="background: linear-gradient(135deg, #27ae60, #229954); color: white;">
+                <h3 class="mb-0">🛒 Belgrano Ahorro</h3>
+                <p class="mb-0">Los mejores precios garantizados</p>
+            </div>
+            <div class="card-body">
+                <div class="carrusel-container">
+                    <button class="btn-carrusel btn-carrusel-left" onclick="deslizarCarrusel('belgrano-ahorro', 'left')">
+                        ‹
+                    </button>
+                    <div class="carrusel-productos" id="belgrano-ahorro">
+                        {% for producto in productos_por_negocio.get('belgrano_ahorro', [])[:65] %}
+                        <div class="producto-carrusel">
+                            <div class="card h-100 producto-card">
+                                <div class="position-relative">
+                                    <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">
+                                    {% if producto.destacado %}
+                                    <div class="position-absolute top-0 start-0 m-2">
+                                        <span class="badge bg-warning">⭐ Destacado</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                    <div class="position-absolute top-0 end-0 m-2">
+                                        <span class="badge bg-danger">Oferta</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="card-body d-flex flex-column">
+                                    <h6 class="card-title">{{ producto.nombre }}</h6>
+                                    <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
+                                    <div class="mt-auto">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                                <span class="text-danger fw-bold">${{ producto.precio }}</span>
+                                                <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
+                                                {% else %}
+                                                <span class="fw-bold">${{ producto.precio }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                            🛒
+                        </button>
+                    </div>
+                                        </div>
+                                    </div>
+            </div>
+        </div>
     </div>
+    {% endfor %}
+                    </div>
+                    <button class="btn-carrusel btn-carrusel-right" onclick="deslizarCarrusel('belgrano-ahorro', 'right')">
+                        ›
+                    </button>
+                </div>
+            </div>
+</div>
 
+        <!-- Maxi Descuento - Naranja Oscuro -->
+        <div class="card mb-4 shadow-custom seccion-maxi-descuento">
+            <div class="card-header" style="background: linear-gradient(135deg, #e67e22, #d35400); color: white;">
+                <h3 class="mb-0">🏷️ Maxi Descuento</h3>
+                <p class="mb-0">Ofertas semanales imperdibles</p>
+            </div>
+            <div class="card-body">
+                <div class="carrusel-container">
+                    <button class="btn-carrusel btn-carrusel-left" onclick="deslizarCarrusel('maxi-descuento', 'left')">
+                        ‹
+                    </button>
+                    <div class="carrusel-productos" id="maxi-descuento">
+                        {% for producto in productos_por_negocio.get('maxi_descuento', [])[:65] %}
+                        <div class="producto-carrusel">
+                            <div class="card h-100 producto-card">
+                                <div class="position-relative">
+                                    <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">
+                                    {% if producto.destacado %}
+                                    <div class="position-absolute top-0 start-0 m-2">
+                                        <span class="badge bg-warning">⭐ Destacado</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                    <div class="position-absolute top-0 end-0 m-2">
+                                        <span class="badge bg-danger">Oferta</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="card-body d-flex flex-column">
+                                    <h6 class="card-title">{{ producto.nombre }}</h6>
+                                    <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
+                                    <div class="mt-auto">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                                <span class="text-danger fw-bold">${{ producto.precio }}</span>
+                                                <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
+                                                {% else %}
+                                                <span class="fw-bold">${{ producto.precio }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
+                        </div>
+                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                            🛒
+                        </button>
+                    </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button class="btn-carrusel btn-carrusel-right" onclick="deslizarCarrusel('maxi-descuento', 'right')">
+                        ›
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </section>
-
-
+{% endif %}
 
 <!-- Productos por Negocio -->
-
 <section id="productos" class="mb-5">
-
     <div class="container">
-
         <h2 class="text-center mb-4 text-gold">🏪 Nuestros Negocios</h2>
-
         
-
         {% for negocio_id, productos_negocio in productos_por_negocio.items() %}
-
             {% if productos_negocio %}
-
             <div class="negocio-section mb-5">
-
                 <div class="card shadow-custom">
-
                     <div class="card-header" style="background-color: {{ negocios[negocio_id].color }}; color: white;">
-
                         <div class="d-flex justify-content-between align-items-center">
-
                             <div>
-
                                 <h3 class="mb-0">{{ negocios[negocio_id].nombre }}</h3>
-
                                 <p class="mb-0">{{ negocios[negocio_id].descripcion }}</p>
-
                                 {% if sucursales and sucursales[negocio_id] %}
-
                                 <small class="mt-2 d-block">
-
                                     <i class="fas fa-store me-1"></i>
-
                                     {{ sucursales[negocio_id]|selectattr('activo', 'equalto', true)|list|length }} sucursales disponibles
-
                                 </small>
-
                                 {% endif %}
-
                             </div>
-
                             <div class="text-end">
-
                                 <a href="{{ url_for('ver_negocio', negocio_id=negocio_id) }}" class="btn btn-light btn-sm mb-2">
-
                                 Ver Todo →
-
                             </a>
-
                                 {% if sucursales and sucursales[negocio_id] %}
-
                                 <div class="dropdown">
-
                                     <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-
                                         <i class="fas fa-map-marker-alt"></i> Sucursales
-
                                     </button>
-
                                     <ul class="dropdown-menu">
-
                                         {% for sucursal_id, sucursal in sucursales[negocio_id].items() %}
-
                                         {% if sucursal.activo %}
-
                                         <li>
-
                                             <a class="dropdown-item" href="{{ url_for('ver_negocio', negocio_id=negocio_id) }}#{{ sucursal_id }}">
-
                                                 <i class="fas fa-store me-2"></i>{{ sucursal.nombre }}
-
                                             </a>
-
                                         </li>
-
                                         {% endif %}
-
                                         {% endfor %}
-
                                     </ul>
-
                                 </div>
-
                                 {% endif %}
-
                             </div>
-
                         </div>
-
                     </div>
-
                     <div class="card-body">
-
                         <!-- Carrusel de productos -->
-
                         <div class="carrusel-container">
-
                             <button class="btn-carrusel btn-carrusel-left" onclick="deslizarCarrusel('negocio-{{ negocio_id }}', 'left')">
-
                                 ‹
-
                             </button>
-
                             <div class="carrusel-productos" id="negocio-{{ negocio_id }}">
-
                                 {% for producto in productos_negocio[:65] %}
-
                                 <div class="producto-carrusel">
-
                                     <div class="card h-100 producto-card">
-
                                         <div class="position-relative">
-
-                                            <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.get('nombre', 'Sin nombre') }}">
-
-                                            {% if producto.get('destacado', False) %}
-
+                                            <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">
+                                            {% if producto.destacado %}
                                             <div class="position-absolute top-0 start-0 m-2">
-
                                                 <span class="badge bg-warning">⭐ Destacado</span>
-
                                             </div>
-
                                             {% endif %}
-
-                                            {% if producto.get('precio_original', 0) and producto.get('precio_original', 0) > producto.get('precio', 0) %}
-
+                                            {% if producto.precio_original and producto.precio_original > producto.precio %}
                                             <div class="position-absolute top-0 end-0 m-2">
-
                                                 <span class="badge bg-danger">Oferta</span>
-
                                             </div>
-
                                             {% endif %}
-
                                         </div>
-
                                         <div class="card-body d-flex flex-column">
-
-                                            <h6 class="card-title">{{ producto.get('nombre', 'Sin nombre') }}</h6>
-
-                                            <small class="text-muted">{{ categorias[producto.get('categoria', 'Sin categoría')].nombre }}</small>
-
+                                            <h6 class="card-title">{{ producto.nombre }}</h6>
+                                            <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
                                             <div class="mt-auto">
-
                                                 <div class="d-flex justify-content-between align-items-center">
-
                                                     <div>
-
-                                                        {% if producto.get('precio_original', 0) and producto.get('precio_original', 0) > producto.get('precio', 0) %}
-
-                                                        <span class="text-danger fw-bold">${{ producto.get('precio', 0) }}</span>
-
-                                                        <small class="text-muted text-decoration-line-through">${{ producto.get('precio_original', 0) }}</small>
-
+                                                        {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                                        <span class="text-danger fw-bold">${{ producto.precio }}</span>
+                                                        <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
                                                         {% else %}
-
-                                                        <span class="fw-bold">${{ producto.get('precio', 0) }}</span>
-
+                                                        <span class="fw-bold">${{ producto.precio }}</span>
                                                         {% endif %}
-
                                                     </div>
-
                                                     <div class="d-flex align-items-center gap-2">
-
                         <div class="input-group input-group-sm" style="width: 120px;">
-
                             <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
-
                             <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
-
                             <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
-
                         </div>
-
                         <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
-
                             🛒
-
                         </button>
-
                     </div>
-
                                                 </div>
-
                                             </div>
-
                                         </div>
-
                                     </div>
-
                                 </div>
-
                                 {% endfor %}
-
                             </div>
-
                             <button class="btn-carrusel btn-carrusel-right" onclick="deslizarCarrusel('negocio-{{ negocio_id }}', 'right')">
-
                                 ›
-
                             </button>
-
                         </div>
-
                     </div>
-
                 </div>
-
             </div>
-
             {% endif %}
-
         {% endfor %}
-
     </div>
-
 </section>
-
-
 
 <!-- =================================================================
-
      SECCIÓN DE CATEGORÍAS CON ANIMACIONES
-
      =================================================================
-
      
-
      MANTENIMIENTO:
-
      - Para agregar categorías: editar productos.json sección "categorias"
-
      - Para cambiar iconos: modificar campo "icono" en la categoría
-
      - Para cambiar animaciones: modificar CSS en la sección de estilos
-
      - Para cambiar colores: modificar variables CSS
-
      ================================================================= -->
-
 {% if categorias %}
-
 <section class="mb-5">
-
     <div class="container">
-
         <h2 class="text-center mb-4 text-gold">📂 Categorías</h2>
-
         <div class="row">
-
             {% for categoria_id, categoria in categorias.items() %}
-
             <div class="col-md-4 col-sm-6 mb-3">
-
                 <div class="card text-center categoria-card categoria-animada">
-
                     <div class="card-body">
-
                         <div class="categoria-icon mb-3 categoria-icon-animado">
-
                             <span class="fs-1 categoria-emoji">{{ categoria.icono }}</span>
-
                         </div>
-
                         <h5 class="card-title text-black fw-bold">{{ categoria.nombre }}</h5>
-
                         <p class="card-text text-black">{{ categoria.descripcion }}</p>
-
                         <a href="{{ url_for('ver_categoria', categoria_id=categoria_id) }}" class="btn btn-outline-primary categoria-btn">
-
                             Ver Productos
-
                         </a>
-
                     </div>
-
                 </div>
-
             </div>
-
             {% endfor %}
-
         </div>
-
     </div>
-
 </section>
-
 {% endif %}
 
-
-
 <style>
-
 .hero-section {
-
     background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #2c3e50 100%);
-
     color: #2c3e50;
-
     padding: 4rem 0;
-
     border-radius: 0 0 2rem 2rem;
-
     border-bottom: 4px solid #2c3e50;
-
 }
-
-
 
 .producto-card {
-
     transition: transform 0.2s, box-shadow 0.2s;
-
     border: 2px solid #2c3e50;
-
     min-width: 220px;
-
     background: rgba(255, 255, 255, 0.95);
-
 }
-
-
 
 .producto-card:hover {
-
     transform: translateY(-5px);
-
     box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-
 }
-
-
 
 .producto-card.destacado {
-
     border: 3px solid #FFD700;
-
 }
-
-
 
 /* Carrusel Styles mejorados */
-
 .carrusel-container {
-
     position: relative;
-
     display: flex;
-
     align-items: center;
-
     gap: 15px;
-
 }
-
-
 
 .carrusel-productos {
-
     display: flex;
-
     gap: 20px;
-
     overflow-x: hidden;
-
     scroll-behavior: smooth;
-
     padding: 15px 0;
-
     flex: 1;
-
     scroll-snap-type: x mandatory;
-
 }
-
-
 
 .producto-carrusel {
-
     flex: 0 0 auto;
-
     width: 240px;
-
     scroll-snap-align: start;
-
 }
-
-
 
 .btn-carrusel {
-
     background: rgba(44, 62, 80, 0.9);
-
     color: white;
-
     border: none;
-
     border-radius: 50%;
-
     width: 50px;
-
     height: 50px;
-
     display: flex;
-
     align-items: center;
-
     justify-content: center;
-
     font-size: 24px;
-
     cursor: pointer;
-
     transition: all 0.3s ease;
-
     z-index: 10;
-
     box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-
 }
-
-
 
 .btn-carrusel:hover {
-
     background: rgba(44, 62, 80, 1);
-
     transform: scale(1.1);
-
     box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-
 }
-
-
 
 .btn-carrusel:disabled {
-
     opacity: 0.5;
-
     cursor: not-allowed;
-
 }
-
-
 
 /* =================================================================
-
    ESTILOS DE CATEGORÍAS CON ANIMACIONES MEJORADAS
-
    =================================================================
-
    
-
    MANTENIMIENTO:
-
    - Para cambiar animaciones: modificar las propiedades transition y transform
-
    - Para cambiar colores: modificar las variables de color
-
    - Para cambiar tamaños: modificar font-size y dimensiones
-
    - Para agregar nuevas animaciones: agregar nuevas reglas CSS
-
    ================================================================= */
 
-
-
 /* Categorías con animaciones mejoradas */
-
 .categoria-card {
-
     border: 3px solid #2c3e50;
-
     border-radius: 15px;
-
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 165, 0, 0.1));
-
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-
     min-height: 200px;
-
     display: flex;
-
     flex-direction: column;
-
     justify-content: center;
-
     position: relative;
-
     overflow: hidden;
-
 }
-
-
 
 .categoria-card:hover {
-
     transform: translateY(-12px) scale(1.02);
-
     box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-
     border-color: #FFD700;
-
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 165, 0, 0.2));
-
 }
-
-
 
 /* Animación del icono de categoría */
-
 .categoria-icon-animado {
-
     transition: all 0.3s ease;
-
 }
-
-
 
 .categoria-card:hover .categoria-icon-animado {
-
     transform: scale(1.2) rotate(5deg);
-
 }
-
-
 
 .categoria-emoji {
-
     font-size: 4.5rem;
-
     color: #FFD700;
-
     text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-
     transition: all 0.3s ease;
-
     display: inline-block;
-
 }
-
-
 
 .categoria-card:hover .categoria-emoji {
-
     color: #FFA500;
-
     text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
-
     animation: bounce 0.6s ease-in-out;
-
 }
-
-
 
 /* Animación de rebote para el emoji */
-
 @keyframes bounce {
-
     0%, 20%, 50%, 80%, 100% {
-
         transform: translateY(0);
-
     }
-
     40% {
-
         transform: translateY(-10px);
-
     }
-
     60% {
-
         transform: translateY(-5px);
-
     }
-
 }
-
-
 
 /* Animación del botón de categoría */
-
 .categoria-btn {
-
     transition: all 0.3s ease;
-
     position: relative;
-
     overflow: hidden;
-
 }
-
-
 
 .categoria-btn:hover {
-
     transform: translateY(-2px);
-
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-
 }
-
-
 
 .categoria-btn::before {
-
     content: '';
-
     position: absolute;
-
     top: 0;
-
     left: -100%;
-
     width: 100%;
-
     height: 100%;
-
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-
     transition: left 0.5s;
-
 }
-
-
 
 .categoria-btn:hover::before {
-
     left: 100%;
-
 }
-
-
 
 .categoria-card .card-title {
-
     font-size: 1.3rem;
-
     margin-bottom: 1rem;
-
     transition: color 0.3s ease;
-
 }
-
-
 
 .categoria-card:hover .card-title {
-
     color: #2c3e50;
-
 }
-
-
 
 .categoria-card .card-text {
-
     font-size: 0.95rem;
-
     line-height: 1.4;
-
     transition: color 0.3s ease;
-
 }
-
-
 
 .categoria-card:hover .card-text {
-
     color: #34495e;
-
 }
-
-
 
 @media (max-width: 768px) {
-
     .hero-section {
-
         padding: 2rem 0;
-
     }
-
     
-
     .display-4 {
-
         font-size: 2rem;
-
     }
-
     
-
     .producto-carrusel {
-
         width: 200px;
-
     }
-
     
-
     .btn-carrusel {
-
         width: 40px;
-
         height: 40px;
-
         font-size: 18px;
-
     }
-
     
-
     .categoria-icon {
-
         font-size: 3.5rem;
-
     }
-
 }
-
 </style>
 
-
-
 <script>
-
 // Función para deslizar carruseles mejorada
-
 function deslizarCarrusel(carruselId, direccion) {
-
     const carrusel = document.getElementById(carruselId);
-
     const scrollAmount = 400; // Más traslado de ítems
-
     
-
     if (direccion === 'left') {
-
         carrusel.scrollBy({
-
             left: -scrollAmount,
-
             behavior: 'smooth'
-
         });
-
     } else {
-
         carrusel.scrollBy({
-
             left: scrollAmount,
-
             behavior: 'smooth'
-
         });
-
     }
-
 }
 
-
-
 // Actualizar botones de carrusel según la posición
-
 document.addEventListener('DOMContentLoaded', function() {
-
     const carruseles = document.querySelectorAll('.carrusel-productos');
-
     
-
     carruseles.forEach(carrusel => {
-
         carrusel.addEventListener('scroll', function() {
-
             const btnLeft = this.parentElement.querySelector('.btn-carrusel-left');
-
             const btnRight = this.parentElement.querySelector('.btn-carrusel-right');
-
             
-
             // Habilitar/deshabilitar botones según la posición
-
             btnLeft.disabled = this.scrollLeft <= 0;
-
             btnRight.disabled = this.scrollLeft >= this.scrollWidth - this.clientWidth;
-
         });
-
     });
-
 });
-
 </script>
-
 {% endblock %}
-

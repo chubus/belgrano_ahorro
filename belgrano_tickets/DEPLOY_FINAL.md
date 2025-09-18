@@ -9,7 +9,21 @@
 
 ## 📋 Credenciales de Acceso
 
-En producción no se deben publicar credenciales. Para desarrollo local, el sistema puede inicializar usuarios demo (admin y flota). En producción, crea usuarios reales en la base de datos y deshabilita cualquier endpoint de debug.
+### 👨‍💼 **Usuario Admin (Acceso completo):**
+- **Email:** `admin@belgrano.com`
+- **Password:** `admin123`
+- **Funciones:** Gestión total de tickets, usuarios, configuración
+
+### 🚚 **Usuarios Flota (Acceso limitado):**
+1. **Email:** `flota1@belgrano.com` - Password: `flota123`
+2. **Email:** `flota2@belgrano.com` - Password: `flota123`
+3. **Email:** `flota3@belgrano.com` - Password: `flota123`
+4. **Email:** `flota4@belgrano.com` - Password: `flota123`
+5. **Email:** `flota5@belgrano.com` - Password: `flota123`
+6. **Email:** `flota@belgrano.com` - Password: `flota123`
+7. **Email:** `flota2@belgrano.com` - Password: `flota123`
+
+**Funciones flota:** Solo ver y actualizar estado de tickets
 
 ## 🐳 Opciones de Deploy
 
@@ -31,7 +45,7 @@ En producción no se deben publicar credenciales. Para desarrollo local, el sist
 # - python app.py
 ```
 
-## ⚙️ Variables de Entorno Requeridas
+## ⚙️ Variables de Entorno Configuradas
 
 ```yaml
 # En render_docker.yaml
@@ -39,35 +53,30 @@ envVars:
   - key: FLASK_ENV
     value: production
   - key: PORT
-    value: 5000
+    value: 5001
   - key: SECRET_KEY
-    value: ${GENERAR_UNA_SECRETA_UNICA}
-  - key: DATABASE_URL
-    value: ${URL_DE_BASE_DE_DATOS_NO_SQLITE_EN_PROD}
+    value: belgrano_tickets_secret_2025
   - key: BELGRANO_AHORRO_URL
     value: https://belgrano-ahorro.onrender.com
-  - key: BELGRANO_AHORRO_API_KEY
-    value: ${API_KEY}
-  - key: TICKETS_API_URL
-    value: https://tu-ticketera/api/tickets
-  - key: TICKETS_API_KEY
-    value: ${API_KEY_OPCIONAL}
-  - key: TICKETS_API_USERNAME
-    value: ${USUARIO_OPCIONAL}
-  - key: TICKETS_API_PASSWORD
-    value: ${PASSWORD_OPCIONAL}
-  - key: BELGRANO_AHORRO_TIMEOUT
-    value: 30
+  - key: DATABASE_URL
+    value: sqlite:///belgrano_tickets.db
+  - key: AUTO_CREATE_USERS
+    value: true
+  - key: ADMIN_EMAIL
+    value: admin@belgrano.com
+  - key: ADMIN_PASSWORD
+    value: admin123
+  - key: FLOTA_PASSWORD
+    value: flota123
 ```
 
 ## 🔧 Scripts de Inicio
 
-### **Procfile (Render/Heroku)**
-Usamos gunicorn apuntando a `app_unificado:app`:
-
-```bash
-web: gunicorn app_unificado:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100
-```
+### **start_ticketera.sh**
+- ✅ Inicializa base de datos
+- ✅ Crea usuarios automáticamente
+- ✅ Verifica conexión con Belgrano Ahorro
+- ✅ Inicia con gunicorn (producción)
 
 ### **Verificación Local**
 ```bash
@@ -79,9 +88,9 @@ python verificar_deploy.py
 
 ```
 belgrano_tickets/
-├── app_unificado.py                # Aplicación principal (Ahorro + Ticketera)
+├── app.py                          # Aplicación principal
 ├── models.py                       # Modelos de base de datos
-├── belgrano_tickets/config.py      # Configuración centralizada
+├── config_ticketera.py             # Configuración
 ├── requirements_ticketera.txt      # Dependencias Python
 ├── Dockerfile                      # Configuración Docker
 ├── start_ticketera.sh              # Script de inicio

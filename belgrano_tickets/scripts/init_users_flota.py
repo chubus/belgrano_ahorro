@@ -1,104 +1,170 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Script para inicialización de usuarios de flota
-Versión corregida con indentación consistente
+Script de inicialización de usuarios para la flota
+Este script se ejecuta durante el deploy para inicializar usuarios básicos
 """
 
 import os
 import sys
+import json
+import sqlite3
+from datetime import datetime
 
-# Agregar el directorio padre al path para importaciones
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.insert(0, parent_dir)
-
-def initialize_database():
-    """Inicializar la base de datos y usuarios"""
+def init_database():
+    """Inicializar la base de datos si no existe"""
     try:
-        print("🔧 Inicializando base de datos...")
+        # Crear directorio si no existe
+        os.makedirs('data', exist_ok=True)
         
-        # Importar módulos necesarios
-        from werkzeug.security import generate_password_hash
-        from belgrano_tickets.models import db, User
-        from belgrano_tickets.app import app
+        # Determinar la ruta de la base de datos
+        db_path = 'data/belgrano_ahorro.db'
         
-        # Crear contexto de aplicación
-        with app.app_context():
-            # Crear todas las tablas
-            db.create_all()
-            print("✅ Tablas de base de datos creadas")
+        # Conectar a la base de datos
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Crear tabla de usuarios si no existe
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                rol TEXT NOT NULL DEFAULT 'usuario',
+                activo BOOLEAN DEFAULT 1,
+                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Crear tabla de flota si no existe
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS flota (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL,
+                descripcion TEXT,
+                activo BOOLEAN DEFAULT 1,
+                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+        
+        print("✅ Base de datos inicializada correctamente")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error inicializando base de datos: {e}")
+        return False
+
+def create_default_users():
+    """Crear usuarios por defecto"""
+    try:
+        conn = sqlite3.connect('data/belgrano_ahorro.db')
+        cursor = conn.cursor()
             
             # Verificar si ya existen usuarios
-            user_count = User.query.count()
-            if user_count > 0:
-                print(f"✅ Ya existen {user_count} usuarios en la base de datos")
+        cursor.execute("SELECT COUNT(*) FROM usuarios")
+        count = cursor.fetchone()[0]
+        
+        if count > 0:
+            print(f"✅ Ya existen {count} usuarios en la base de datos")
+            conn.close()
+            return True
+        
+        # Crear usuarios por defecto
+        default_users = [
+            {
+                'username': 'admin',
+                'email': 'admin@belgranoahorro.com',
+                'password_hash': 'admin_hash_2025',  # En producción usar hash real
+                'rol': 'admin'
+            },
+            {
+                'username': 'flota_manager',
+                'email': 'flota@belgranoahorro.com',
+                'password_hash': 'flota_hash_2025',  # En producción usar hash real
+                'rol': 'flota_manager'
+            },
+            {
+                'username': 'operador',
+                'email': 'operador@belgranoahorro.com',
+                'password_hash': 'operador_hash_2025',  # En producción usar hash real
+                'rol': 'operador'
+            }
+        ]
+        
+        for user in default_users:
+            cursor.execute('''
+                INSERT OR IGNORE INTO usuarios (username, email, password_hash, rol)
+                VALUES (?, ?, ?, ?)
+            ''', (user['username'], user['email'], user['password_hash'], user['rol']))
+        
+        conn.commit()
+        print(f"✅ Creados {len(default_users)} usuarios por defecto")
+        
+        conn.close()
                 return True
             
-            print("🔧 Creando usuarios iniciales...")
-            
-            # Crear usuario administrador
-            admin_user = User(
-                username='admin',
-                email='admin@belgranoahorro.com',
-                password=generate_password_hash('admin123'),
-                role='admin',
-                nombre='Administrador Principal',
-                activo=True
-            )
-            db.session.add(admin_user)
-            print("✅ Usuario administrador creado")
-            
-            # Lista de usuarios de flota
-            fleet_users = [
-                ('repartidor1', 'repartidor1@belgranoahorro.com', 'Repartidor 1'),
-                ('repartidor2', 'repartidor2@belgranoahorro.com', 'Repartidor 2'),
-                ('repartidor3', 'repartidor3@belgranoahorro.com', 'Repartidor 3'),
-                ('repartidor4', 'repartidor4@belgranoahorro.com', 'Repartidor 4'),
-                ('repartidor5', 'repartidor5@belgranoahorro.com', 'Repartidor 5')
-            ]
-            
-            # Crear usuarios de flota
-            for username, email, nombre in fleet_users:
-                fleet_user = User(
-                    username=username,
-                    email=email,
-                    password=generate_password_hash('flota123'),
-                    role='flota',
-                    nombre=nombre,
-                    activo=True
-                )
-                db.session.add(fleet_user)
-                print(f"✅ Usuario de flota creado: {username}")
-            
-            # Confirmar cambios en la base de datos
-            db.session.commit()
-            print("🎉 Todos los usuarios creados exitosamente")
-            
-            # Verificar creación
-            final_count = User.query.count()
-            print(f"📊 Total de usuarios en base de datos: {final_count}")
-            
+    except Exception as e:
+        print(f"❌ Error creando usuarios por defecto: {e}")
+        return False
+
+def create_default_flota():
+    """Crear datos de flota por defecto"""
+    try:
+        conn = sqlite3.connect('data/belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        # Verificar si ya existe flota
+        cursor.execute("SELECT COUNT(*) FROM flota")
+        count = cursor.fetchone()[0]
+        
+        if count > 0:
+            print(f"✅ Ya existen {count} registros de flota")
+            conn.close()
+            return True
+        
+        # Crear flota por defecto
+        default_flota = [
+            {
+                'nombre': 'Flota Principal',
+                'descripcion': 'Flota principal de Belgrano Ahorro'
+            },
+            {
+                'nombre': 'Flota Secundaria',
+                'descripcion': 'Flota secundaria para operaciones especiales'
+            }
+        ]
+        
+        for flota in default_flota:
+            cursor.execute('''
+                INSERT OR IGNORE INTO flota (nombre, descripcion)
+                VALUES (?, ?)
+            ''', (flota['nombre'], flota['descripcion']))
+        
+        conn.commit()
+        print(f"✅ Creados {len(default_flota)} registros de flota")
+        
+        conn.close()
             return True
             
-    except Exception as error:
-        print(f"❌ Error inicializando base de datos: {error}")
-        import traceback
-        traceback.print_exc()
+        except Exception as e:
+        print(f"❌ Error creando datos de flota: {e}")
             return False
 
 def main():
     """Función principal"""
-    print("🚀 Iniciando script de inicialización de usuarios...")
-    print("=" * 50)
+    print("🚀 Inicializando usuarios y flota...")
+    print("=" * 40)
     
     try:
-        success = initialize_database()
+        # Cambiar al directorio del script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_dir = os.path.dirname(script_dir)
         
-<<<<<<< HEAD
-        if success:
-=======
-<<<<<<< HEAD
         # Si estamos en un subdirectorio, cambiar al directorio padre
         if os.path.basename(script_dir) == 'scripts':
             os.chdir(project_dir)
@@ -122,20 +188,14 @@ def main():
         sys.exit(1)
 
         print("=" * 40)
-=======
-        if success:
->>>>>>> b604eec0ed3465b1f7cfd3b2f39bea70a8f6f706
->>>>>>> 5e1dd54 (backups todo rehecho)
         print("✅ Inicialización completada exitosamente")
-            return 0
-        else:
-            print("❌ Error en la inicialización")
-            return 1
-            
-    except Exception as error:
-        print(f"❌ Error general: {error}")
-        return 1
+        print(f"🕐 Timestamp: {datetime.now().isoformat()}")
+        
+    except Exception as e:
+        print(f"❌ Error en función main: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
 if __name__ == "__main__":
-    exit_code = main()
-    sys.exit(exit_code)
+    main()
