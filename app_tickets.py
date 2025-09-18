@@ -23,22 +23,38 @@ login_manager.login_view = 'login'
 
 # Registrar blueprint de DevOps (importación robusta)
 try:
-    # Intento directo si el cwd es la raíz del proyecto
+    # Intento directo
     from devops_routes import devops_bp
     app.register_blueprint(devops_bp)
-    print("✅ Blueprint de DevOps registrado en app_tickets (directo)")
-except Exception as e:
+    print("✅ DevOps en app_tickets: blueprint registrado (directo)")
+except Exception as e_direct:
+    import sys
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_dir)
+    # Intento con current_dir
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
     try:
-        import sys
-        project_root = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(project_root)
-        if project_root not in sys.path:
-            sys.path.insert(0, project_root)
-        from devops_routes import devops_bp as devops_bp_root
-        app.register_blueprint(devops_bp_root)
-        print("✅ Blueprint de DevOps registrado en app_tickets (sys.path raíz)")
-    except Exception as e2:
-        print(f"⚠️ No se pudo registrar DevOps en app_tickets: {e2}")
+        from devops_routes import devops_bp as devops_bp_here
+        app.register_blueprint(devops_bp_here)
+        print("✅ DevOps en app_tickets: blueprint registrado (current_dir)")
+    except Exception as e_here:
+        # Intento con parent_dir
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
+        try:
+            from devops_routes import devops_bp as devops_bp_parent
+            app.register_blueprint(devops_bp_parent)
+            print("✅ DevOps en app_tickets: blueprint registrado (parent_dir)")
+    except Exception as e_parent:
+        print(f"⚠️ DevOps no disponible en app_tickets: {e_parent}")
+
+# Log de rutas DevOps registradas (diagnóstico en arranque)
+try:
+    devops_rules = [str(r.rule) for r in app.url_map.iter_rules() if str(r.rule).startswith('/devops')]
+    print(f"🧭 app_tickets rutas DevOps: {devops_rules}")
+except Exception as _e_list_devops:
+    print(f"⚠️ No se pudieron listar rutas DevOps en app_tickets: {_e_list_devops}")
 
 # =================================================================
 # MODELOS

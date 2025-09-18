@@ -100,6 +100,13 @@ try:
 except Exception as e:
     print(f"❌ Error importando/registrando devops_routes: {e}")
     # No crítico: continuar sin DevOps
+    
+# Diagnóstico: listar rutas DevOps registradas
+try:
+    devops_rules = [str(r.rule) for r in app.url_map.iter_rules() if str(r.rule).startswith('/devops')]
+    print(f"🧭 app.py rutas DevOps: {devops_rules}")
+except Exception as _e_list_devops:
+    print(f"⚠️ No se pudieron listar rutas DevOps en app.py: {_e_list_devops}")
 
 # ==========================================
 # CONFIGURACIÓN DE COMUNICACIÓN API
