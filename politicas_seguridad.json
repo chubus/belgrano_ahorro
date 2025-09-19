@@ -1,0 +1,42 @@
+{
+  "fecha_creacion": "2025-09-19T14:45:44.373818",
+  "version": "1.0",
+  "politicas": {
+    "contraseñas": {
+      "longitud_minima": 8,
+      "requiere_mayusculas": true,
+      "requiere_minusculas": true,
+      "requiere_numeros": true,
+      "requiere_simbolos": true,
+      "expira_en_dias": 90
+    },
+    "rate_limiting": {
+      "intentos_login_max": 5,
+      "ventana_tiempo_minutos": 15,
+      "bloqueo_temporal_horas": 1
+    },
+    "sesiones": {
+      "duracion_horas": 24,
+      "renovacion_automatica": true,
+      "max_sesiones_por_usuario": 3
+    },
+    "auditoria": {
+      "retener_logs_dias": 365,
+      "eventos_auditados": [
+        "LOGIN_EXITOSO",
+        "LOGIN_FALLIDO",
+        "REGISTRO_USUARIO",
+        "CAMBIO_CONTRASEÑA",
+        "ACCESO_DENEGADO"
+      ]
+    }
+  },
+  "recomendaciones": [
+    "Implementar autenticación de dos factores (2FA)",
+    "Usar HTTPS en producción",
+    "Implementar CSP (Content Security Policy)",
+    "Configurar headers de seguridad",
+    "Realizar backups regulares",
+    "Monitorear logs de seguridad"
+  ]
+}

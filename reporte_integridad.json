@@ -1,0 +1,47 @@
+{
+  "fecha": "2025-09-19T14:02:50.406972",
+  "bases_datos": [
+    {
+      "nombre": "Belgrano Ahorro",
+      "integridad": true,
+      "foreign_keys": true,
+      "tablas": 15,
+      "errores_fk": 0,
+      "estado": "OK"
+    },
+    {
+      "nombre": "Belgrano Tickets",
+      "integridad": true,
+      "foreign_keys": true,
+      "tablas": 3,
+      "errores_fk": 0,
+      "estado": "OK"
+    }
+  ],
+  "sincronizacion": {
+    "total_pedidos": 8,
+    "pedidos_sincronizados": 8,
+    "total_tickets": 8,
+    "porcentaje_sincronizacion": 100.0,
+    "estado": "OK"
+  },
+  "productos": {
+    "total_productos": 51,
+    "productos_activos": 51,
+    "productos_destacados": 4,
+    "productos_nuevos": 7,
+    "estado": "OK"
+  },
+  "usuarios": {
+    "usuarios_ahorro": 11,
+    "usuarios_tickets": 8,
+    "estado": "OK"
+  },
+  "resumen": {
+    "bases_datos_ok": true,
+    "sincronizacion_ok": true,
+    "productos_ok": true,
+    "estado_general": "OK",
+    "timestamp": "2025-09-19T14:02:50.435062"
+  }
+}

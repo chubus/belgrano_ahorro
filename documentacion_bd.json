@@ -1,0 +1,1379 @@
+{
+  "version": "1.0",
+  "fecha_generacion": "2025-09-19T14:48:53.266877",
+  "tablas": {
+    "usuarios": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "nombre",
+          "tipo": "VARCHAR(50)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "apellido",
+          "tipo": "VARCHAR(50)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "email",
+          "tipo": "VARCHAR(100)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "telefono",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "direccion",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_registro",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        },
+        {
+          "nombre": "password",
+          "tipo": "VARCHAR(100)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "rol",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": "'cliente'",
+          "primary_key": false
+        }
+      ],
+      "indices": [
+        "idx_usuarios_rol",
+        "idx_usuarios_email",
+        "sqlite_autoindex_usuarios_1"
+      ],
+      "foreign_keys": [],
+      "total_registros": 14
+    },
+    "sqlite_sequence": {
+      "columnas": [
+        {
+          "nombre": "name",
+          "tipo": "",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "seq",
+          "tipo": "",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        }
+      ],
+      "indices": [],
+      "foreign_keys": [],
+      "total_registros": 10
+    },
+    "productos": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "nombre",
+          "tipo": "VARCHAR(100)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "store",
+          "tipo": "VARCHAR(50)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "precio",
+          "tipo": "DECIMAL(10,2)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "original_price",
+          "tipo": "DECIMAL(10,2)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "discount",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "new",
+          "tipo": "BOOLEAN",
+          "not_null": false,
+          "default": "0",
+          "primary_key": false
+        },
+        {
+          "nombre": "imagen",
+          "tipo": "VARCHAR(255)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "categoria",
+          "tipo": "VARCHAR(50)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "destacado",
+          "tipo": "BOOLEAN",
+          "not_null": false,
+          "default": "0",
+          "primary_key": false
+        },
+        {
+          "nombre": "activo",
+          "tipo": "BOOLEAN",
+          "not_null": false,
+          "default": "1",
+          "primary_key": false
+        }
+      ],
+      "indices": [
+        "idx_productos_new",
+        "idx_productos_precio",
+        "idx_productos_categoria",
+        "idx_productos_destacado",
+        "idx_productos_activo"
+      ],
+      "foreign_keys": [],
+      "total_registros": 51
+    },
+    "carrito": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "usuario_id",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "producto_id",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "cantidad",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_agregado",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        }
+      ],
+      "indices": [],
+      "foreign_keys": [
+        {
+          "columna": "producto_id",
+          "tabla_referenciada": "productos",
+          "columna_referenciada": "id"
+        },
+        {
+          "columna": "usuario_id",
+          "tabla_referenciada": "usuarios",
+          "columna_referenciada": "id"
+        }
+      ],
+      "total_registros": 0
+    },
+    "pedidos": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "usuario_id",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "numero_pedido",
+          "tipo": "VARCHAR(50)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        },
+        {
+          "nombre": "total",
+          "tipo": "DECIMAL(10,2)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "estado",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": "'pendiente'",
+          "primary_key": false
+        },
+        {
+          "nombre": "metodo_pago",
+          "tipo": "VARCHAR(50)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "direccion_entrega",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "notas",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "ticket_confirmado",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": "0",
+          "primary_key": false
+        },
+        {
+          "nombre": "ticket_estado",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": "\"pendiente\"",
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_confirmacion",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        }
+      ],
+      "indices": [
+        "idx_pedidos_ticket",
+        "idx_pedidos_fecha",
+        "idx_pedidos_estado",
+        "idx_pedidos_usuario",
+        "sqlite_autoindex_pedidos_1"
+      ],
+      "foreign_keys": [
+        {
+          "columna": "usuario_id",
+          "tabla_referenciada": "usuarios",
+          "columna_referenciada": "id"
+        }
+      ],
+      "total_registros": 8
+    },
+    "pedido_items": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "pedido_id",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "producto_id",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "cantidad",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "precio_unitario",
+          "tipo": "DECIMAL(10,2)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "subtotal",
+          "tipo": "DECIMAL(10,2)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        }
+      ],
+      "indices": [
+        "idx_pedido_items_producto",
+        "idx_pedido_items_pedido"
+      ],
+      "foreign_keys": [
+        {
+          "columna": "producto_id",
+          "tabla_referenciada": "productos",
+          "columna_referenciada": "id"
+        },
+        {
+          "columna": "pedido_id",
+          "tabla_referenciada": "pedidos",
+          "columna_referenciada": "id"
+        }
+      ],
+      "total_registros": 0
+    },
+    "tokens_recuperacion": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "usuario_id",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "token",
+          "tipo": "VARCHAR(100)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "expiracion",
+          "tipo": "DATETIME",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "usado",
+          "tipo": "BOOLEAN",
+          "not_null": false,
+          "default": "0",
+          "primary_key": false
+        }
+      ],
+      "indices": [
+        "sqlite_autoindex_tokens_recuperacion_1"
+      ],
+      "foreign_keys": [
+        {
+          "columna": "usuario_id",
+          "tabla_referenciada": "usuarios",
+          "columna_referenciada": "id"
+        }
+      ],
+      "total_registros": 1
+    },
+    "comerciantes": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "usuario_id",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "nombre_negocio",
+          "tipo": "VARCHAR(100)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "cuit",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "direccion_comercial",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "telefono_comercial",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "tipo_negocio",
+          "tipo": "VARCHAR(50)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_registro",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        },
+        {
+          "nombre": "activo",
+          "tipo": "BOOLEAN",
+          "not_null": false,
+          "default": "1",
+          "primary_key": false
+        }
+      ],
+      "indices": [
+        "idx_comerciantes_activo",
+        "idx_comerciantes_usuario"
+      ],
+      "foreign_keys": [
+        {
+          "columna": "usuario_id",
+          "tabla_referenciada": "usuarios",
+          "columna_referenciada": "id"
+        }
+      ],
+      "total_registros": 5
+    },
+    "paquetes_comerciantes": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "comerciante_id",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "nombre_paquete",
+          "tipo": "VARCHAR(100)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "descripcion",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_creacion",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        },
+        {
+          "nombre": "activo",
+          "tipo": "BOOLEAN",
+          "not_null": false,
+          "default": "1",
+          "primary_key": false
+        },
+        {
+          "nombre": "frecuencia",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": "'mensual'",
+          "primary_key": false
+        },
+        {
+          "nombre": "proximo_pedido",
+          "tipo": "DATE",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        }
+      ],
+      "indices": [],
+      "foreign_keys": [
+        {
+          "columna": "comerciante_id",
+          "tabla_referenciada": "comerciantes",
+          "columna_referenciada": "id"
+        }
+      ],
+      "total_registros": 2
+    },
+    "paquete_items": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "paquete_id",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "producto_id",
+          "tipo": "VARCHAR(50)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "cantidad",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        }
+      ],
+      "indices": [],
+      "foreign_keys": [
+        {
+          "columna": "paquete_id",
+          "tabla_referenciada": "paquetes_comerciantes",
+          "columna_referenciada": "id"
+        }
+      ],
+      "total_registros": 0
+    },
+    "tickets": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "numero",
+          "tipo": "VARCHAR(50)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "cliente_nombre",
+          "tipo": "VARCHAR(100)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "cliente_direccion",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "cliente_telefono",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "cliente_email",
+          "tipo": "VARCHAR(100)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "productos",
+          "tipo": "TEXT",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "estado",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": "'pendiente'",
+          "primary_key": false
+        },
+        {
+          "nombre": "prioridad",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": "'normal'",
+          "primary_key": false
+        },
+        {
+          "nombre": "indicaciones",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "repartidor",
+          "tipo": "VARCHAR(50)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_creacion",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_actualizacion",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        },
+        {
+          "nombre": "total",
+          "tipo": "DECIMAL(10,2)",
+          "not_null": false,
+          "default": "0.00",
+          "primary_key": false
+        },
+        {
+          "nombre": "estado_envio",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": "\"pendiente\"",
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_envio",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_entrega",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        }
+      ],
+      "indices": [
+        "sqlite_autoindex_tickets_1"
+      ],
+      "foreign_keys": [],
+      "total_registros": 0
+    },
+    "sucursales": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "nombre",
+          "tipo": "VARCHAR(100)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "direccion",
+          "tipo": "TEXT",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "telefono",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "email",
+          "tipo": "VARCHAR(100)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "horario_apertura",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "horario_cierre",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "activo",
+          "tipo": "BOOLEAN",
+          "not_null": false,
+          "default": "1",
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_creacion",
+          "tipo": "TIMESTAMP",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_actualizacion",
+          "tipo": "TIMESTAMP",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        }
+      ],
+      "indices": [],
+      "foreign_keys": [],
+      "total_registros": 6
+    },
+    "ofertas": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "titulo",
+          "tipo": "VARCHAR(200)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "descripcion",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "descuento_porcentaje",
+          "tipo": "DECIMAL(5,2)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "descuento_fijo",
+          "tipo": "DECIMAL(10,2)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_inicio",
+          "tipo": "DATE",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_fin",
+          "tipo": "DATE",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "activa",
+          "tipo": "BOOLEAN",
+          "not_null": false,
+          "default": "1",
+          "primary_key": false
+        },
+        {
+          "nombre": "imagen_url",
+          "tipo": "VARCHAR(500)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_creacion",
+          "tipo": "TIMESTAMP",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_actualizacion",
+          "tipo": "TIMESTAMP",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        }
+      ],
+      "indices": [],
+      "foreign_keys": [],
+      "total_registros": 6
+    },
+    "ofertas_productos": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "oferta_id",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "producto_id",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        }
+      ],
+      "indices": [
+        "sqlite_autoindex_ofertas_productos_1"
+      ],
+      "foreign_keys": [
+        {
+          "columna": "producto_id",
+          "tabla_referenciada": "productos",
+          "columna_referenciada": "id"
+        },
+        {
+          "columna": "oferta_id",
+          "tabla_referenciada": "ofertas",
+          "columna_referenciada": "id"
+        }
+      ],
+      "total_registros": 0
+    },
+    "registro_tickets": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "ticket_id",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "numero",
+          "tipo": "VARCHAR(50)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "cliente_nombre",
+          "tipo": "VARCHAR(100)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "cliente_direccion",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "cliente_telefono",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "cliente_email",
+          "tipo": "VARCHAR(100)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "productos",
+          "tipo": "TEXT",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "total",
+          "tipo": "DECIMAL(10,2)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "estado_final",
+          "tipo": "VARCHAR(20)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "estado_envio_final",
+          "tipo": "VARCHAR(20)",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "prioridad",
+          "tipo": "VARCHAR(20)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "indicaciones",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "repartidor",
+          "tipo": "VARCHAR(50)",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_creacion",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_envio",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_entrega",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "fecha_registro",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        }
+      ],
+      "indices": [],
+      "foreign_keys": [
+        {
+          "columna": "ticket_id",
+          "tabla_referenciada": "tickets",
+          "columna_referenciada": "id"
+        }
+      ],
+      "total_registros": 0
+    },
+    "sqlite_stat1": {
+      "columnas": [
+        {
+          "nombre": "tbl",
+          "tipo": "",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "idx",
+          "tipo": "",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "stat",
+          "tipo": "",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        }
+      ],
+      "indices": [],
+      "foreign_keys": [],
+      "total_registros": 16
+    },
+    "rate_limiting": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "ip_address",
+          "tipo": "TEXT",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "endpoint",
+          "tipo": "TEXT",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "attempts",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": "1",
+          "primary_key": false
+        },
+        {
+          "nombre": "last_attempt",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        },
+        {
+          "nombre": "blocked_until",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        }
+      ],
+      "indices": [
+        "idx_rate_limiting_ip"
+      ],
+      "foreign_keys": [],
+      "total_registros": 0
+    },
+    "auditoria_seguridad": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "usuario_id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "accion",
+          "tipo": "TEXT",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "ip_address",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "user_agent",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "timestamp",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        },
+        {
+          "nombre": "detalles",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        }
+      ],
+      "indices": [
+        "idx_auditoria_timestamp",
+        "idx_auditoria_usuario"
+      ],
+      "foreign_keys": [
+        {
+          "columna": "usuario_id",
+          "tabla_referenciada": "usuarios",
+          "columna_referenciada": "id"
+        }
+      ],
+      "total_registros": 3
+    },
+    "intentos_login_fallidos": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "email",
+          "tipo": "TEXT",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "ip_address",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "timestamp",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        },
+        {
+          "nombre": "user_agent",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        }
+      ],
+      "indices": [
+        "idx_intentos_email"
+      ],
+      "foreign_keys": [],
+      "total_registros": 0
+    },
+    "sesiones_activas": {
+      "columnas": [
+        {
+          "nombre": "id",
+          "tipo": "INTEGER",
+          "not_null": false,
+          "default": null,
+          "primary_key": true
+        },
+        {
+          "nombre": "usuario_id",
+          "tipo": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "session_token",
+          "tipo": "TEXT",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "ip_address",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "user_agent",
+          "tipo": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "created_at",
+          "tipo": "DATETIME",
+          "not_null": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primary_key": false
+        },
+        {
+          "nombre": "expires_at",
+          "tipo": "DATETIME",
+          "not_null": true,
+          "default": null,
+          "primary_key": false
+        },
+        {
+          "nombre": "is_active",
+          "tipo": "BOOLEAN",
+          "not_null": false,
+          "default": "1",
+          "primary_key": false
+        }
+      ],
+      "indices": [
+        "idx_sesiones_token",
+        "idx_sesiones_usuario",
+        "sqlite_autoindex_sesiones_activas_1"
+      ],
+      "foreign_keys": [
+        {
+          "columna": "usuario_id",
+          "tabla_referenciada": "usuarios",
+          "columna_referenciada": "id"
+        }
+      ],
+      "total_registros": 0
+    }
+  }
+}

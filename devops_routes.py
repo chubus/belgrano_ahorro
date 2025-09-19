@@ -542,6 +542,50 @@ def gestion_negocios():
             'source': 'error'
         }), 500
 
+@devops_bp.route('/productos')
+@devops_login_required
+def gestion_productos():
+    """Gestión completa de productos"""
+    try:
+        # Temporalmente devolver datos mock
+        return jsonify({
+            'status': 'success',
+            'data': {'productos': [], 'message': 'Servicio temporalmente en modo mock'},
+            'source': 'mock',
+            'message': 'API de productos temporalmente deshabilitada'
+        })
+                
+    except Exception as e:
+        logger.error(f"Error obteniendo productos: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error obteniendo productos: {str(e)}',
+            'data': [],
+            'source': 'error'
+        }), 500
+
+@devops_bp.route('/precios')
+@devops_login_required
+def gestion_precios():
+    """Gestión completa de precios"""
+    try:
+        # Temporalmente devolver datos mock
+        return jsonify({
+            'status': 'success',
+            'data': {'precios': [], 'message': 'Servicio temporalmente en modo mock'},
+            'source': 'mock',
+            'message': 'API de precios temporalmente deshabilitada'
+        })
+                
+    except Exception as e:
+        logger.error(f"Error obteniendo precios: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error obteniendo precios: {str(e)}',
+            'data': [],
+            'source': 'error'
+        }), 500
+
 # =================================================================
 # SINCRONIZACIÓN Y UTILIDADES
 # =================================================================

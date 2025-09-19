@@ -1,0 +1,87 @@
+{
+  "titulo": "Manual de Usuario - Belgrano Ahorro",
+  "version": "1.0",
+  "fecha": "2025-09-19",
+  "secciones": {
+    "registro": {
+      "titulo": "Cómo registrarse",
+      "pasos": [
+        "1. Ir a la página de registro",
+        "2. Completar datos personales (nombre, apellido, email)",
+        "3. Crear contraseña segura (mínimo 6 caracteres)",
+        "4. Confirmar contraseña",
+        "5. Aceptar términos y condiciones",
+        "6. Hacer clic en \"Crear Cuenta\""
+      ],
+      "notas": [
+        "El email debe ser válido y único",
+        "La contraseña debe tener al menos 6 caracteres",
+        "Los campos marcados con * son obligatorios"
+      ]
+    },
+    "login": {
+      "titulo": "Cómo iniciar sesión",
+      "pasos": [
+        "1. Ir a la página de login",
+        "2. Ingresar email y contraseña",
+        "3. Hacer clic en \"Iniciar Sesión\""
+      ],
+      "notas": [
+        "Si olvidaste tu contraseña, usa la opción de recuperación",
+        "Mantén tu sesión segura cerrando sesión cuando termines"
+      ]
+    },
+    "compras": {
+      "titulo": "Cómo realizar compras",
+      "pasos": [
+        "1. Navegar por los productos",
+        "2. Agregar productos al carrito",
+        "3. Revisar el carrito",
+        "4. Proceder al checkout",
+        "5. Completar datos de entrega",
+        "6. Seleccionar método de pago",
+        "7. Confirmar pedido"
+      ],
+      "notas": [
+        "Puedes filtrar productos por categoría",
+        "Los productos destacados aparecen primero",
+        "Revisa bien los datos antes de confirmar"
+      ]
+    },
+    "comerciantes": {
+      "titulo": "Registro de comerciantes",
+      "pasos": [
+        "1. Ir a registro de comerciantes",
+        "2. Completar datos personales",
+        "3. Completar datos comerciales",
+        "4. Crear contraseña",
+        "5. Enviar registro"
+      ],
+      "notas": [
+        "Los comerciantes pueden gestionar sus productos",
+        "Se requiere información comercial válida",
+        "El CUIT es opcional pero recomendado"
+      ]
+    }
+  },
+  "faq": {
+    "preguntas_frecuentes": [
+      {
+        "pregunta": "¿Cómo recupero mi contraseña?",
+        "respuesta": "Usa la opción \"¿Olvidaste tu contraseña?\" en la página de login"
+      },
+      {
+        "pregunta": "¿Puedo cambiar mis datos?",
+        "respuesta": "Sí, puedes editar tu perfil desde tu cuenta"
+      },
+      {
+        "pregunta": "¿Cómo cancelo un pedido?",
+        "respuesta": "Contacta con soporte si el pedido aún no ha sido procesado"
+      },
+      {
+        "pregunta": "¿Qué métodos de pago aceptan?",
+        "respuesta": "Aceptamos tarjeta, transferencia y MercadoPago"
+      }
+    ]
+  }
+}

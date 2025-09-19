@@ -1,0 +1,66 @@
+{
+  "titulo": "Guía de Desarrollo - Belgrano Ahorro",
+  "version": "1.0",
+  "fecha": "2025-09-19",
+  "tecnologias": {
+    "backend": "Python Flask",
+    "frontend": "HTML, CSS, JavaScript, Bootstrap",
+    "base_datos": "SQLite",
+    "templates": "Jinja2"
+  },
+  "estructura_proyecto": {
+    "archivos_principales": [
+      "app_unificado.py - Aplicación principal",
+      "db.py - Gestión de base de datos",
+      "config.py - Configuración",
+      "auth_middleware.py - Middleware de autenticación"
+    ],
+    "directorios": [
+      "templates/ - Plantillas HTML",
+      "static/ - Archivos estáticos",
+      "belgrano_tickets/ - Módulo de tickets"
+    ]
+  },
+  "configuracion_desarrollo": {
+    "instalacion": [
+      "1. Clonar el repositorio",
+      "2. Crear entorno virtual: python -m venv venv",
+      "3. Activar entorno: venv\\Scripts\\activate (Windows)",
+      "4. Instalar dependencias: pip install -r requirements.txt",
+      "5. Configurar variables de entorno",
+      "6. Ejecutar: python app_unificado.py"
+    ],
+    "variables_entorno": {
+      "FLASK_ENV": "development",
+      "SECRET_KEY": "clave-secreta-desarrollo",
+      "DATABASE_URL": "sqlite:///belgrano_ahorro.db"
+    }
+  },
+  "api_endpoints": {
+    "autenticacion": "/login, /register",
+    "productos": "/api/v1/productos",
+    "pedidos": "/api/v1/pedidos",
+    "comerciantes": "/comerciantes/registro"
+  },
+  "base_datos": {
+    "tablas_principales": [
+      "usuarios - Información de usuarios",
+      "productos - Catálogo de productos",
+      "pedidos - Órdenes de compra",
+      "comerciantes - Información comercial"
+    ],
+    "relaciones": [
+      "usuarios -> pedidos (1:N)",
+      "pedidos -> pedido_items (1:N)",
+      "productos -> pedido_items (1:N)",
+      "usuarios -> comerciantes (1:1)"
+    ]
+  },
+  "mejores_practicas": [
+    "Usar transacciones para operaciones críticas",
+    "Validar todos los inputs del usuario",
+    "Implementar logging para debugging",
+    "Usar índices en consultas frecuentes",
+    "Mantener la base de datos normalizada"
+  ]
+}

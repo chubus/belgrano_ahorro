@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-09-19T15:05:54.956754",
+  "files_ok": true,
+  "structure_ok": true,
+  "integration_ok": true,
+  "databases_ok": true,
+  "frontend_ok": true,
+  "endpoints_ok": false,
+  "overall_status": "CON ERRORES"
+}
