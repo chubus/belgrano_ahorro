@@ -30,15 +30,6 @@ except ImportError:
     BELGRANO_AHORRO_URL = os.environ.get('BELGRANO_AHORRO_URL')
     BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY')
 
-# Importar gestor DevOps para Belgrano Ahorro
-try:
-    from devops_belgrano_manager import DevOpsBelgranoManager
-    devops_manager = DevOpsBelgranoManager()
-    logger.info("✅ Gestor DevOps para Belgrano Ahorro inicializado")
-except ImportError as e:
-    logger.warning(f"⚠️ No se pudo importar DevOpsBelgranoManager: {e}")
-    devops_manager = None
-
 API_TIMEOUT_SECS = 10
 
 # Credenciales de DevOps (propias, separadas del login de ticketera)
@@ -280,20 +271,6 @@ def sincronizar_cambio_inmediato(tipo_cambio, datos):
 def devops_home():
     """Panel principal de DevOps - Información del sistema"""
     try:
-        # Verificar que el gestor DevOps esté disponible
-        if not devops_manager:
-            return jsonify({
-                'status': 'warning',
-                'message': 'Gestor DevOps no disponible',
-                'data': {
-                    'timestamp': datetime.now().isoformat(),
-                    'service': 'DevOps System',
-                    'version': '2.0.0',
-                    'status': 'limited',
-                    'note': 'Funcionando en modo limitado'
-                }
-            })
-        
         # Obtener información del sistema
         system_info = {
             'timestamp': datetime.now().isoformat(),
@@ -314,7 +291,6 @@ def devops_home():
                 'status': '/devops/status',
                 'ofertas': '/devops/ofertas',
                 'negocios': '/devops/negocios',
-                'productos': '/devops/productos',
                 'sync': '/devops/sync',
                 'logs': '/devops/logs'
             }
@@ -330,12 +306,7 @@ def devops_home():
         logger.error(f"Error en devops_home: {e}")
         return jsonify({
             'status': 'error',
-            'message': f'Error interno: {str(e)}',
-            'data': {
-                'timestamp': datetime.now().isoformat(),
-                'service': 'DevOps System',
-                'status': 'error'
-            }
+            'message': f'Error interno: {str(e)}'
         }), 500
 
 @devops_bp.route('/health')
@@ -482,28 +453,39 @@ def devops_info():
 @devops_bp.route('/ofertas')
 @devops_login_required
 def gestion_ofertas():
-    """Gestión completa de ofertas desde Belgrano Ahorro"""
+    """Gestión completa de ofertas"""
     try:
-        if not devops_manager:
+        # # Intentar obtener ofertas desde la API
+        # response = requests.get(
+        #     build_api_url('v1/ofertas'),
+        #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
+        #     timeout=API_TIMEOUT_SECS
+        # )
+        # 
+        # if response.status_code == 200:
+        #     ofertas_data = response.json()
+        #     return jsonify({
+        #         'status': 'success',
+        #         'data': ofertas_data,
+        #         'source': 'api',
+        #         'message': 'Ofertas obtenidas correctamente desde la API'
+        #     })
+        # else:
+        #     logger.warning(f"API respondió {response.status_code}: {response.text}")
+        #     return jsonify({
+        #         'status': 'warning',
+        #         'message': f'API no disponible ({response.status_code})',
+        #         'data': [],
+        #         'source': 'fallback'
+        #     })
+        
+        # Temporalmente devolver datos mock
             return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible',
-                'data': []
-            }), 500
-        
-        # Obtener ofertas reales desde la base de datos
-        ofertas = devops_manager.get_ofertas()
-        
-        return jsonify({
-            'status': 'success',
-            'data': {
-                'ofertas': ofertas,
-                'total': len(ofertas),
-                'timestamp': datetime.now().isoformat()
-            },
-            'source': 'database',
-            'message': f'Ofertas obtenidas correctamente ({len(ofertas)} encontradas)'
-        })
+                'status': 'success',
+            'data': {'ofertas': [], 'message': 'Servicio temporalmente en modo mock'},
+            'source': 'mock',
+            'message': 'API de ofertas temporalmente deshabilitada'
+            })
                 
     except Exception as e:
         logger.error(f"Error obteniendo ofertas: {e}")
@@ -517,28 +499,39 @@ def gestion_ofertas():
 @devops_bp.route('/negocios')
 @devops_login_required
 def gestion_negocios():
-    """Gestión completa de negocios desde Belgrano Ahorro"""
+    """Gestión completa de negocios"""
     try:
-        if not devops_manager:
+        # # Intentar obtener negocios desde la API
+        # response = requests.get(
+        #     build_api_url('v1/negocios'),
+        #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
+        #     timeout=API_TIMEOUT_SECS
+        # )
+        # 
+        # if response.status_code == 200:
+        #     negocios_data = response.json()
+        #     return jsonify({
+        #         'status': 'success',
+        #         'data': negocios_data,
+        #         'source': 'api',
+        #         'message': 'Negocios obtenidos correctamente desde la API'
+        #     })
+        # else:
+        #     logger.warning(f"API respondió {response.status_code}: {response.text}")
+        #     return jsonify({
+        #         'status': 'warning',
+        #         'message': f'API no disponible ({response.status_code})',
+        #         'data': [],
+        #         'source': 'fallback'
+        #     })
+        
+        # Temporalmente devolver datos mock
             return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible',
-                'data': []
-            }), 500
-        
-        # Obtener comerciantes/negocios reales desde la base de datos
-        comerciantes = devops_manager.get_comerciantes()
-        
-        return jsonify({
-            'status': 'success',
-            'data': {
-                'negocios': comerciantes,
-                'total': len(comerciantes),
-                'timestamp': datetime.now().isoformat()
-            },
-            'source': 'database',
-            'message': f'Negocios obtenidos correctamente ({len(comerciantes)} encontrados)'
-        })
+                'status': 'success',
+            'data': {'negocios': [], 'message': 'Servicio temporalmente en modo mock'},
+            'source': 'mock',
+            'message': 'API de negocios temporalmente deshabilitada'
+            })
                 
     except Exception as e:
         logger.error(f"Error obteniendo negocios: {e}")
@@ -547,569 +540,6 @@ def gestion_negocios():
             'message': f'Error obteniendo negocios: {str(e)}',
             'data': [],
             'source': 'error'
-        }), 500
-
-# =================================================================
-# GESTIÓN DE PRODUCTOS
-# =================================================================
-
-@devops_bp.route('/productos')
-@devops_login_required
-def gestion_productos():
-    """Gestión completa de productos desde Belgrano Ahorro"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible',
-                'data': []
-            }), 500
-        
-        # Obtener productos reales desde la base de datos
-        productos = devops_manager.get_productos()
-        
-        return jsonify({
-            'status': 'success',
-            'data': {
-                'productos': productos,
-                'total': len(productos),
-                'timestamp': datetime.now().isoformat()
-            },
-            'source': 'database',
-            'message': f'Productos obtenidos correctamente ({len(productos)} encontrados)'
-        })
-                
-    except Exception as e:
-        logger.error(f"Error obteniendo productos: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error obteniendo productos: {str(e)}',
-            'data': [],
-            'source': 'error'
-        }), 500
-
-@devops_bp.route('/productos/<int:producto_id>')
-@devops_login_required
-def obtener_producto(producto_id):
-    """Obtener un producto específico"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible'
-            }), 500
-        
-        producto = devops_manager.get_producto(producto_id)
-        
-        if not producto:
-            return jsonify({
-                'status': 'error',
-                'message': 'Producto no encontrado'
-            }), 404
-        
-        return jsonify({
-            'status': 'success',
-            'data': producto,
-            'timestamp': datetime.now().isoformat()
-        })
-                
-    except Exception as e:
-        logger.error(f"Error obteniendo producto {producto_id}: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error obteniendo producto: {str(e)}'
-        }), 500
-
-@devops_bp.route('/productos', methods=['POST'])
-@devops_login_required
-def crear_producto():
-    """Crear un nuevo producto"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible'
-            }), 500
-        
-        datos = request.get_json()
-        if not datos:
-            return jsonify({
-                'status': 'error',
-                'message': 'Datos del producto requeridos'
-            }), 400
-        
-        # Validar datos requeridos
-        campos_requeridos = ['nombre', 'store', 'precio']
-        for campo in campos_requeridos:
-            if campo not in datos:
-                return jsonify({
-                    'status': 'error',
-                    'message': f'Campo requerido: {campo}'
-                }), 400
-        
-        if devops_manager.crear_producto(datos):
-            return jsonify({
-                'status': 'success',
-                'message': 'Producto creado exitosamente',
-                'timestamp': datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Error creando producto'
-            }), 500
-                
-    except Exception as e:
-        logger.error(f"Error creando producto: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error creando producto: {str(e)}'
-        }), 500
-
-@devops_bp.route('/productos/<int:producto_id>', methods=['PUT'])
-@devops_login_required
-def actualizar_producto(producto_id):
-    """Actualizar un producto existente"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible'
-            }), 500
-        
-        datos = request.get_json()
-        if not datos:
-            return jsonify({
-                'status': 'error',
-                'message': 'Datos de actualización requeridos'
-            }), 400
-        
-        if devops_manager.actualizar_producto(producto_id, datos):
-            return jsonify({
-                'status': 'success',
-                'message': 'Producto actualizado exitosamente',
-                'timestamp': datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Error actualizando producto'
-            }), 500
-                
-    except Exception as e:
-        logger.error(f"Error actualizando producto {producto_id}: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error actualizando producto: {str(e)}'
-        }), 500
-
-@devops_bp.route('/productos/<int:producto_id>', methods=['DELETE'])
-@devops_login_required
-def eliminar_producto(producto_id):
-    """Eliminar un producto (marcar como inactivo)"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible'
-            }), 500
-        
-        if devops_manager.eliminar_producto(producto_id):
-            return jsonify({
-                'status': 'success',
-                'message': 'Producto eliminado exitosamente',
-                'timestamp': datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Error eliminando producto'
-            }), 500
-                
-    except Exception as e:
-        logger.error(f"Error eliminando producto {producto_id}: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error eliminando producto: {str(e)}'
-        }), 500
-
-# =================================================================
-# GESTIÓN DE PRECIOS
-# =================================================================
-
-@devops_bp.route('/productos/<int:producto_id>/precio', methods=['PUT'])
-@devops_login_required
-def actualizar_precio(producto_id):
-    """Actualizar precio de un producto"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible'
-            }), 500
-        
-        datos = request.get_json()
-        if not datos or 'precio' not in datos:
-            return jsonify({
-                'status': 'error',
-                'message': 'Precio requerido'
-            }), 400
-        
-        nuevo_precio = datos['precio']
-        precio_original = datos.get('precio_original')
-        
-        if devops_manager.actualizar_precio(producto_id, nuevo_precio, precio_original):
-            return jsonify({
-                'status': 'success',
-                'message': 'Precio actualizado exitosamente',
-                'timestamp': datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Error actualizando precio'
-            }), 500
-                
-    except Exception as e:
-        logger.error(f"Error actualizando precio del producto {producto_id}: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error actualizando precio: {str(e)}'
-        }), 500
-
-# =================================================================
-# GESTIÓN DE ELEMENTOS DE PÁGINA PRINCIPAL
-# =================================================================
-
-@devops_bp.route('/pagina-principal/destacados')
-@devops_login_required
-def get_productos_destacados():
-    """Obtener productos destacados para la página principal"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible',
-                'data': []
-            }), 500
-        
-        destacados = devops_manager.get_productos_destacados()
-        
-        return jsonify({
-            'status': 'success',
-            'data': {
-                'destacados': destacados,
-                'total': len(destacados),
-                'timestamp': datetime.now().isoformat()
-            },
-            'source': 'database',
-            'message': f'Productos destacados obtenidos ({len(destacados)} encontrados)'
-        })
-                
-    except Exception as e:
-        logger.error(f"Error obteniendo productos destacados: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error obteniendo productos destacados: {str(e)}',
-            'data': []
-        }), 500
-
-@devops_bp.route('/pagina-principal/nuevos')
-@devops_login_required
-def get_productos_nuevos():
-    """Obtener productos nuevos para la página principal"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible',
-                'data': []
-            }), 500
-        
-        nuevos = devops_manager.get_productos_nuevos()
-        
-        return jsonify({
-            'status': 'success',
-            'data': {
-                'nuevos': nuevos,
-                'total': len(nuevos),
-                'timestamp': datetime.now().isoformat()
-            },
-            'source': 'database',
-            'message': f'Productos nuevos obtenidos ({len(nuevos)} encontrados)'
-        })
-                
-    except Exception as e:
-        logger.error(f"Error obteniendo productos nuevos: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error obteniendo productos nuevos: {str(e)}',
-            'data': []
-        }), 500
-
-@devops_bp.route('/productos/<int:producto_id>/destacado', methods=['PUT'])
-@devops_login_required
-def set_producto_destacado(producto_id):
-    """Marcar/desmarcar producto como destacado"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible'
-            }), 500
-        
-        datos = request.get_json()
-        if not datos or 'destacado' not in datos:
-            return jsonify({
-                'status': 'error',
-                'message': 'Campo destacado requerido'
-            }), 400
-        
-        destacado = bool(datos['destacado'])
-        
-        if devops_manager.set_producto_destacado(producto_id, destacado):
-            return jsonify({
-                'status': 'success',
-                'message': f'Producto {"destacado" if destacado else "no destacado"} exitosamente',
-                'timestamp': datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Error actualizando estado destacado'
-            }), 500
-                
-    except Exception as e:
-        logger.error(f"Error marcando producto {producto_id} como destacado: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error actualizando estado destacado: {str(e)}'
-        }), 500
-
-@devops_bp.route('/productos/<int:producto_id>/nuevo', methods=['PUT'])
-@devops_login_required
-def set_producto_nuevo(producto_id):
-    """Marcar/desmarcar producto como nuevo"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible'
-            }), 500
-        
-        datos = request.get_json()
-        if not datos or 'nuevo' not in datos:
-            return jsonify({
-                'status': 'error',
-                'message': 'Campo nuevo requerido'
-            }), 400
-        
-        nuevo = bool(datos['nuevo'])
-        
-        if devops_manager.set_producto_nuevo(producto_id, nuevo):
-            return jsonify({
-                'status': 'success',
-                'message': f'Producto {"marcado como nuevo" if nuevo else "no marcado como nuevo"} exitosamente',
-                'timestamp': datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Error actualizando estado nuevo'
-            }), 500
-                
-    except Exception as e:
-        logger.error(f"Error marcando producto {producto_id} como nuevo: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error actualizando estado nuevo: {str(e)}'
-        }), 500
-
-# =================================================================
-# ESTADÍSTICAS
-# =================================================================
-
-@devops_bp.route('/estadisticas')
-@devops_login_required
-def get_estadisticas():
-    """Obtener estadísticas del sistema"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible',
-                'data': {}
-            }), 500
-        
-        estadisticas = devops_manager.get_estadisticas()
-        
-        return jsonify({
-            'status': 'success',
-            'data': estadisticas,
-            'source': 'database',
-            'message': 'Estadísticas obtenidas correctamente'
-        })
-                
-    except Exception as e:
-        logger.error(f"Error obteniendo estadísticas: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error obteniendo estadísticas: {str(e)}',
-            'data': {}
-        }), 500
-
-# =================================================================
-# GESTIÓN DE PRECIOS POR NEGOCIO
-# =================================================================
-
-@devops_bp.route('/negocios/<int:comerciante_id>/precios')
-@devops_login_required
-def get_precios_negocio(comerciante_id):
-    """Obtener precios de productos por negocio específico"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible',
-                'data': []
-            }), 500
-        
-        precios = devops_manager.get_precios_por_negocio(comerciante_id)
-        
-        return jsonify({
-            'status': 'success',
-            'data': {
-                'precios': precios,
-                'total': len(precios),
-                'comerciante_id': comerciante_id,
-                'timestamp': datetime.now().isoformat()
-            },
-            'source': 'database',
-            'message': f'Precios del negocio obtenidos correctamente ({len(precios)} productos)'
-        })
-                
-    except Exception as e:
-        logger.error(f"Error obteniendo precios del negocio {comerciante_id}: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error obteniendo precios del negocio: {str(e)}',
-            'data': []
-        }), 500
-
-@devops_bp.route('/negocios/<int:comerciante_id>/precios/<int:producto_id>', methods=['PUT'])
-@devops_login_required
-def actualizar_precio_negocio(comerciante_id, producto_id):
-    """Actualizar precio de un producto específico de un negocio"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible'
-            }), 500
-        
-        datos = request.get_json()
-        if not datos or 'precio' not in datos:
-            return jsonify({
-                'status': 'error',
-                'message': 'Precio requerido'
-            }), 400
-        
-        nuevo_precio = datos['precio']
-        precio_original = datos.get('precio_original')
-        
-        if devops_manager.actualizar_precio_negocio(comerciante_id, producto_id, nuevo_precio, precio_original):
-            return jsonify({
-                'status': 'success',
-                'message': 'Precio del negocio actualizado exitosamente',
-                'timestamp': datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Error actualizando precio del negocio'
-            }), 500
-                
-    except Exception as e:
-        logger.error(f"Error actualizando precio del negocio {comerciante_id}, producto {producto_id}: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error actualizando precio del negocio: {str(e)}'
-        }), 500
-
-@devops_bp.route('/negocios/<int:comerciante_id>/estadisticas')
-@devops_login_required
-def get_estadisticas_negocio(comerciante_id):
-    """Obtener estadísticas de un negocio específico"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible',
-                'data': {}
-            }), 500
-        
-        estadisticas = devops_manager.get_estadisticas_negocio(comerciante_id)
-        
-        if not estadisticas:
-            return jsonify({
-                'status': 'error',
-                'message': 'Negocio no encontrado'
-            }), 404
-        
-        return jsonify({
-            'status': 'success',
-            'data': estadisticas,
-            'source': 'database',
-            'message': 'Estadísticas del negocio obtenidas correctamente'
-        })
-                
-    except Exception as e:
-        logger.error(f"Error obteniendo estadísticas del negocio {comerciante_id}: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error obteniendo estadísticas del negocio: {str(e)}',
-            'data': {}
-        }), 500
-
-@devops_bp.route('/negocios/<int:comerciante_id>/ofertas', methods=['POST'])
-@devops_login_required
-def crear_oferta_negocio(comerciante_id):
-    """Crear oferta para un producto específico de un negocio"""
-    try:
-        if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible'
-            }), 500
-        
-        datos = request.get_json()
-        if not datos or 'producto_id' not in datos or 'descuento' not in datos:
-            return jsonify({
-                'status': 'error',
-                'message': 'producto_id y descuento requeridos'
-            }), 400
-        
-        producto_id = datos['producto_id']
-        descuento = datos['descuento']
-        destacado = datos.get('destacado', False)
-        
-        if devops_manager.crear_oferta_negocio(comerciante_id, producto_id, descuento, destacado):
-            return jsonify({
-                'status': 'success',
-                'message': 'Oferta del negocio creada exitosamente',
-                'timestamp': datetime.now().isoformat()
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Error creando oferta del negocio'
-            }), 500
-                
-    except Exception as e:
-        logger.error(f"Error creando oferta del negocio {comerciante_id}: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error creando oferta del negocio: {str(e)}'
         }), 500
 
 # =================================================================

@@ -1,161 +1,228 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Módulo de gestión DevOps para Belgrano Ahorro
-Permite gestionar ofertas, productos, negocios y precios de forma segura
+Gestor DevOps para Belgrano Ahorro
+Módulo de gestión segura para administrar ofertas, productos, negocios y precios
 """
 
-import sqlite3
 import os
+import sqlite3
 import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 import logging
 
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class DevOpsBelgranoManager:
-    """Gestor DevOps para Belgrano Ahorro"""
+    """Gestor DevOps para administrar Belgrano Ahorro de forma segura"""
     
-    def __init__(self, db_path: str = None):
+    def __init__(self):
         """Inicializar el gestor DevOps"""
-        if db_path is None:
-            # Usar ruta absoluta para evitar problemas en producción
-            self.db_path = os.path.abspath('belgrano_ahorro.db')
-        else:
-            self.db_path = db_path
-        self.ensure_db_exists()
+        self.db_path = os.environ.get('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
+        self.ensure_db_connection()
     
-    def ensure_db_exists(self):
-        """Asegurar que la base de datos existe"""
-        if not os.path.exists(self.db_path):
-            logger.warning(f"Base de datos {self.db_path} no encontrada")
-            # Intentar crear la base de datos si no existe
-            try:
-                self.create_database_if_not_exists()
-                return True
-            except Exception as e:
-                logger.error(f"Error creando base de datos: {e}")
-                return False
-        return True
-    
-    def create_database_if_not_exists(self):
-        """Crear la base de datos si no existe"""
+    def ensure_db_connection(self):
+        """Asegurar conexión a la base de datos"""
         try:
+            if not os.path.exists(self.db_path):
+                logger.warning(f"Base de datos no encontrada en: {self.db_path}")
+                # Intentar con rutas alternativas
+                alternative_paths = [
+                    'belgrano_ahorro.db',
+                    '../belgrano_ahorro.db',
+                    './belgrano_ahorro.db'
+                ]
+                
+                for path in alternative_paths:
+                    if os.path.exists(path):
+                        self.db_path = path
+                        logger.info(f"Base de datos encontrada en: {path}")
+                        break
+                else:
+                    logger.error("No se pudo encontrar la base de datos de Belgrano Ahorro")
+                    return False
+            
+            # Probar conexión
             conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Crear tabla productos si no existe
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS productos (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nombre VARCHAR(100) NOT NULL,
-                    store VARCHAR(50) NOT NULL,
-                    precio DECIMAL(10,2) NOT NULL,
-                    original_price DECIMAL(10,2),
-                    discount INTEGER,
-                    new BOOLEAN DEFAULT 0,
-                    imagen VARCHAR(255),
-                    categoria VARCHAR(50),
-                    destacado BOOLEAN DEFAULT 0,
-                    activo BOOLEAN DEFAULT 1
-                )
-            ''')
-            
-            # Crear tabla comerciantes si no existe
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS comerciantes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    usuario_id INTEGER NOT NULL,
-                    nombre_negocio VARCHAR(100) NOT NULL,
-                    cuit VARCHAR(20),
-                    direccion_comercial TEXT,
-                    telefono_comercial VARCHAR(20),
-                    tipo_negocio VARCHAR(50),
-                    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    activo BOOLEAN DEFAULT 1,
-                    FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
-                )
-            ''')
-            
-            # Crear tabla usuarios si no existe
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS usuarios (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nombre VARCHAR(50) NOT NULL,
-                    apellido VARCHAR(50) NOT NULL,
-                    email VARCHAR(100) UNIQUE NOT NULL,
-                    telefono VARCHAR(20),
-                    direccion TEXT,
-                    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    password VARCHAR(100) NOT NULL,
-                    rol VARCHAR(20) DEFAULT 'cliente'
-                )
-            ''')
-            
-            conn.commit()
             conn.close()
-            logger.info(f"Base de datos creada exitosamente: {self.db_path}")
+            logger.info(f"✅ Conexión a base de datos establecida: {self.db_path}")
+            return True
             
         except Exception as e:
-            logger.error(f"Error creando base de datos: {e}")
-            raise
+            logger.error(f"❌ Error conectando a base de datos: {e}")
+            return False
     
     def get_connection(self):
         """Obtener conexión a la base de datos"""
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row  # Para obtener resultados como diccionarios
-            return conn
+            return sqlite3.connect(self.db_path)
         except Exception as e:
-            logger.error(f"Error conectando a la base de datos: {e}")
+            logger.error(f"Error obteniendo conexión: {e}")
             return None
+    
+    # =================================================================
+    # GESTIÓN DE OFERTAS
+    # =================================================================
+    
+    def get_ofertas(self) -> List[Dict]:
+        """Obtener todas las ofertas"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return []
+            
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, titulo, descripcion, descuento, fecha_inicio, fecha_fin, activa, negocio_id
+                FROM ofertas 
+                ORDER BY fecha_inicio DESC
+            """)
+            
+            ofertas = []
+            for row in cursor.fetchall():
+                ofertas.append({
+                    'id': row[0],
+                    'titulo': row[1],
+                    'descripcion': row[2],
+                    'descuento': row[3],
+                    'fecha_inicio': row[4],
+                    'fecha_fin': row[5],
+                    'activa': bool(row[6]),
+                    'negocio_id': row[7]
+                })
+            
+            conn.close()
+            logger.info(f"✅ Ofertas obtenidas: {len(ofertas)}")
+            return ofertas
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo ofertas: {e}")
+            return []
+    
+    def create_oferta(self, oferta_data: Dict) -> bool:
+        """Crear nueva oferta"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO ofertas (titulo, descripcion, descuento, fecha_inicio, fecha_fin, activa, negocio_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                oferta_data.get('titulo'),
+                oferta_data.get('descripcion'),
+                oferta_data.get('descuento'),
+                oferta_data.get('fecha_inicio'),
+                oferta_data.get('fecha_fin'),
+                oferta_data.get('activa', True),
+                oferta_data.get('negocio_id')
+            ))
+            
+            conn.commit()
+            conn.close()
+            logger.info(f"✅ Oferta creada: {oferta_data.get('titulo')}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error creando oferta: {e}")
+            return False
+    
+    def update_oferta(self, oferta_id: int, oferta_data: Dict) -> bool:
+        """Actualizar oferta existente"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE ofertas 
+                SET titulo=?, descripcion=?, descuento=?, fecha_inicio=?, fecha_fin=?, activa=?, negocio_id=?
+                WHERE id=?
+            """, (
+                oferta_data.get('titulo'),
+                oferta_data.get('descripcion'),
+                oferta_data.get('descuento'),
+                oferta_data.get('fecha_inicio'),
+                oferta_data.get('fecha_fin'),
+                oferta_data.get('activa'),
+                oferta_data.get('negocio_id'),
+                oferta_id
+            ))
+            
+            conn.commit()
+            conn.close()
+            logger.info(f"✅ Oferta actualizada: ID {oferta_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error actualizando oferta: {e}")
+            return False
+    
+    def delete_oferta(self, oferta_id: int) -> bool:
+        """Eliminar oferta"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM ofertas WHERE id=?", (oferta_id,))
+            
+            conn.commit()
+            conn.close()
+            logger.info(f"✅ Oferta eliminada: ID {oferta_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error eliminando oferta: {e}")
+            return False
     
     # =================================================================
     # GESTIÓN DE PRODUCTOS
     # =================================================================
     
-    def get_productos(self, activos_only: bool = True) -> List[Dict]:
+    def get_productos(self) -> List[Dict]:
         """Obtener todos los productos"""
         try:
             conn = self.get_connection()
             if not conn:
                 return []
             
-            query = "SELECT * FROM productos"
-            if activos_only:
-                query += " WHERE activo = 1"
-            query += " ORDER BY id DESC"
-            
             cursor = conn.cursor()
-            cursor.execute(query)
-            productos = [dict(row) for row in cursor.fetchall()]
-            conn.close()
+            cursor.execute("""
+                SELECT id, nombre, descripcion, precio, categoria_id, negocio_id, activo
+                FROM productos 
+                ORDER BY nombre
+            """)
             
+            productos = []
+            for row in cursor.fetchall():
+                productos.append({
+                    'id': row[0],
+                    'nombre': row[1],
+                    'descripcion': row[2],
+                    'precio': row[3],
+                    'categoria_id': row[4],
+                    'negocio_id': row[5],
+                    'activo': bool(row[6])
+                })
+            
+            conn.close()
+            logger.info(f"✅ Productos obtenidos: {len(productos)}")
             return productos
+            
         except Exception as e:
             logger.error(f"Error obteniendo productos: {e}")
             return []
     
-    def get_producto(self, producto_id: int) -> Optional[Dict]:
-        """Obtener un producto específico"""
-        try:
-            conn = self.get_connection()
-            if not conn:
-                return None
-            
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM productos WHERE id = ?", (producto_id,))
-            row = cursor.fetchone()
-            conn.close()
-            
-            return dict(row) if row else None
-        except Exception as e:
-            logger.error(f"Error obteniendo producto {producto_id}: {e}")
-            return None
-    
-    def crear_producto(self, datos: Dict) -> bool:
-        """Crear un nuevo producto"""
+    def create_producto(self, producto_data: Dict) -> bool:
+        """Crear nuevo producto"""
         try:
             conn = self.get_connection()
             if not conn:
@@ -163,174 +230,82 @@ class DevOpsBelgranoManager:
             
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO productos (nombre, store, precio, original_price, discount, 
-                                    new, imagen, categoria, destacado, activo)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO productos (nombre, descripcion, precio, categoria_id, negocio_id, activo)
+                VALUES (?, ?, ?, ?, ?, ?)
             """, (
-                datos.get('nombre', ''),
-                datos.get('store', ''),
-                datos.get('precio', 0.0),
-                datos.get('original_price', 0.0),
-                datos.get('discount', 0),
-                datos.get('new', 0),
-                datos.get('imagen', ''),
-                datos.get('categoria', ''),
-                datos.get('destacado', 0),
-                datos.get('activo', 1)
+                producto_data.get('nombre'),
+                producto_data.get('descripcion'),
+                producto_data.get('precio'),
+                producto_data.get('categoria_id'),
+                producto_data.get('negocio_id'),
+                producto_data.get('activo', True)
             ))
             
             conn.commit()
             conn.close()
-            logger.info(f"Producto creado: {datos.get('nombre')}")
+            logger.info(f"✅ Producto creado: {producto_data.get('nombre')}")
             return True
+            
         except Exception as e:
             logger.error(f"Error creando producto: {e}")
             return False
     
-    def actualizar_producto(self, producto_id: int, datos: Dict) -> bool:
-        """Actualizar un producto existente"""
+    def update_producto(self, producto_id: int, producto_data: Dict) -> bool:
+        """Actualizar producto existente"""
         try:
             conn = self.get_connection()
             if not conn:
                 return False
-            
-            # Construir query dinámicamente
-            campos = []
-            valores = []
-            
-            for campo, valor in datos.items():
-                if campo in ['nombre', 'store', 'precio', 'original_price', 'discount', 
-                           'new', 'imagen', 'categoria', 'destacado', 'activo']:
-                    campos.append(f"{campo} = ?")
-                    valores.append(valor)
-            
-            if not campos:
-                return False
-            
-            valores.append(producto_id)
-            query = f"UPDATE productos SET {', '.join(campos)} WHERE id = ?"
-            
-            cursor = conn.cursor()
-            cursor.execute(query, valores)
-            conn.commit()
-            conn.close()
-            
-            logger.info(f"Producto {producto_id} actualizado")
-            return True
-        except Exception as e:
-            logger.error(f"Error actualizando producto {producto_id}: {e}")
-            return False
-    
-    def eliminar_producto(self, producto_id: int) -> bool:
-        """Eliminar un producto (marcar como inactivo)"""
-        try:
-            conn = self.get_connection()
-            if not conn:
-                return False
-            
-            cursor = conn.cursor()
-            cursor.execute("UPDATE productos SET activo = 0 WHERE id = ?", (producto_id,))
-            conn.commit()
-            conn.close()
-            
-            logger.info(f"Producto {producto_id} eliminado (marcado como inactivo)")
-            return True
-        except Exception as e:
-            logger.error(f"Error eliminando producto {producto_id}: {e}")
-            return False
-    
-    # =================================================================
-    # GESTIÓN DE COMERCIANTES/NEGOCIOS
-    # =================================================================
-    
-    def get_comerciantes(self, activos_only: bool = True) -> List[Dict]:
-        """Obtener todos los comerciantes"""
-        try:
-            conn = self.get_connection()
-            if not conn:
-                return []
-            
-            query = """
-                SELECT c.*, u.nombre, u.apellido, u.email 
-                FROM comerciantes c 
-                JOIN usuarios u ON c.usuario_id = u.id
-            """
-            if activos_only:
-                query += " WHERE c.activo = 1"
-            query += " ORDER BY c.id DESC"
-            
-            cursor = conn.cursor()
-            cursor.execute(query)
-            comerciantes = [dict(row) for row in cursor.fetchall()]
-            conn.close()
-            
-            return comerciantes
-        except Exception as e:
-            logger.error(f"Error obteniendo comerciantes: {e}")
-            return []
-    
-    def get_comerciante(self, comerciante_id: int) -> Optional[Dict]:
-        """Obtener un comerciante específico"""
-        try:
-            conn = self.get_connection()
-            if not conn:
-                return None
             
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT c.*, u.nombre, u.apellido, u.email 
-                FROM comerciantes c 
-                JOIN usuarios u ON c.usuario_id = u.id 
-                WHERE c.id = ?
-            """, (comerciante_id,))
-            row = cursor.fetchone()
-            conn.close()
+                UPDATE productos 
+                SET nombre=?, descripcion=?, precio=?, categoria_id=?, negocio_id=?, activo=?
+                WHERE id=?
+            """, (
+                producto_data.get('nombre'),
+                producto_data.get('descripcion'),
+                producto_data.get('precio'),
+                producto_data.get('categoria_id'),
+                producto_data.get('negocio_id'),
+                producto_data.get('activo'),
+                producto_id
+            ))
             
-            return dict(row) if row else None
+            conn.commit()
+            conn.close()
+            logger.info(f"✅ Producto actualizado: ID {producto_id}")
+            return True
+            
         except Exception as e:
-            logger.error(f"Error obteniendo comerciante {comerciante_id}: {e}")
-            return None
+            logger.error(f"Error actualizando producto: {e}")
+            return False
     
-    def actualizar_comerciante(self, comerciante_id: int, datos: Dict) -> bool:
-        """Actualizar un comerciante existente"""
+    def delete_producto(self, producto_id: int) -> bool:
+        """Eliminar producto"""
         try:
             conn = self.get_connection()
             if not conn:
                 return False
             
-            # Construir query dinámicamente
-            campos = []
-            valores = []
-            
-            for campo, valor in datos.items():
-                if campo in ['nombre_negocio', 'cuit', 'direccion_comercial', 
-                           'telefono_comercial', 'tipo_negocio', 'activo']:
-                    campos.append(f"{campo} = ?")
-                    valores.append(valor)
-            
-            if not campos:
-                return False
-            
-            valores.append(comerciante_id)
-            query = f"UPDATE comerciantes SET {', '.join(campos)} WHERE id = ?"
-            
             cursor = conn.cursor()
-            cursor.execute(query, valores)
+            cursor.execute("DELETE FROM productos WHERE id=?", (producto_id,))
+            
             conn.commit()
             conn.close()
-            
-            logger.info(f"Comerciante {comerciante_id} actualizado")
+            logger.info(f"✅ Producto eliminado: ID {producto_id}")
             return True
+            
         except Exception as e:
-            logger.error(f"Error actualizando comerciante {comerciante_id}: {e}")
+            logger.error(f"Error eliminando producto: {e}")
             return False
     
     # =================================================================
-    # GESTIÓN DE OFERTAS (productos destacados)
+    # GESTIÓN DE NEGOCIOS
     # =================================================================
     
-    def get_ofertas(self) -> List[Dict]:
-        """Obtener productos en oferta"""
+    def get_negocios(self) -> List[Dict]:
+        """Obtener todos los negocios"""
         try:
             conn = self.get_connection()
             if not conn:
@@ -338,20 +313,33 @@ class DevOpsBelgranoManager:
             
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT * FROM productos 
-                WHERE activo = 1 AND (discount > 0 OR destacado = 1)
-                ORDER BY discount DESC, destacado DESC
+                SELECT id, nombre, descripcion, direccion, telefono, email, activo
+                FROM comerciantes 
+                ORDER BY nombre
             """)
-            ofertas = [dict(row) for row in cursor.fetchall()]
-            conn.close()
             
-            return ofertas
+            negocios = []
+            for row in cursor.fetchall():
+                negocios.append({
+                    'id': row[0],
+                    'nombre': row[1],
+                    'descripcion': row[2],
+                    'direccion': row[3],
+                    'telefono': row[4],
+                    'email': row[5],
+                    'activo': bool(row[6])
+                })
+            
+            conn.close()
+            logger.info(f"✅ Negocios obtenidos: {len(negocios)}")
+            return negocios
+            
         except Exception as e:
-            logger.error(f"Error obteniendo ofertas: {e}")
+            logger.error(f"Error obteniendo negocios: {e}")
             return []
     
-    def crear_oferta(self, producto_id: int, descuento: int, destacado: bool = False) -> bool:
-        """Crear una oferta para un producto"""
+    def create_negocio(self, negocio_data: Dict) -> bool:
+        """Crear nuevo negocio"""
         try:
             conn = self.get_connection()
             if not conn:
@@ -359,22 +347,28 @@ class DevOpsBelgranoManager:
             
             cursor = conn.cursor()
             cursor.execute("""
-                UPDATE productos 
-                SET discount = ?, destacado = ?
-                WHERE id = ?
-            """, (descuento, 1 if destacado else 0, producto_id))
+                INSERT INTO comerciantes (nombre, descripcion, direccion, telefono, email, activo)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                negocio_data.get('nombre'),
+                negocio_data.get('descripcion'),
+                negocio_data.get('direccion'),
+                negocio_data.get('telefono'),
+                negocio_data.get('email'),
+                negocio_data.get('activo', True)
+            ))
             
             conn.commit()
             conn.close()
-            
-            logger.info(f"Oferta creada para producto {producto_id}")
+            logger.info(f"✅ Negocio creado: {negocio_data.get('nombre')}")
             return True
+            
         except Exception as e:
-            logger.error(f"Error creando oferta: {e}")
+            logger.error(f"Error creando negocio: {e}")
             return False
     
-    def eliminar_oferta(self, producto_id: int) -> bool:
-        """Eliminar oferta de un producto"""
+    def update_negocio(self, negocio_id: int, negocio_data: Dict) -> bool:
+        """Actualizar negocio existente"""
         try:
             conn = self.get_connection()
             if not conn:
@@ -382,53 +376,111 @@ class DevOpsBelgranoManager:
             
             cursor = conn.cursor()
             cursor.execute("""
-                UPDATE productos 
-                SET discount = 0, destacado = 0
-                WHERE id = ?
-            """, (producto_id,))
+                UPDATE comerciantes 
+                SET nombre=?, descripcion=?, direccion=?, telefono=?, email=?, activo=?
+                WHERE id=?
+            """, (
+                negocio_data.get('nombre'),
+                negocio_data.get('descripcion'),
+                negocio_data.get('direccion'),
+                negocio_data.get('telefono'),
+                negocio_data.get('email'),
+                negocio_data.get('activo'),
+                negocio_id
+            ))
             
             conn.commit()
             conn.close()
-            
-            logger.info(f"Oferta eliminada para producto {producto_id}")
+            logger.info(f"✅ Negocio actualizado: ID {negocio_id}")
             return True
+            
         except Exception as e:
-            logger.error(f"Error eliminando oferta: {e}")
+            logger.error(f"Error actualizando negocio: {e}")
+            return False
+    
+    def delete_negocio(self, negocio_id: int) -> bool:
+        """Eliminar negocio"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM comerciantes WHERE id=?", (negocio_id,))
+            
+            conn.commit()
+            conn.close()
+            logger.info(f"✅ Negocio eliminado: ID {negocio_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error eliminando negocio: {e}")
             return False
     
     # =================================================================
     # GESTIÓN DE PRECIOS
     # =================================================================
     
-    def actualizar_precio(self, producto_id: int, nuevo_precio: float, precio_original: float = None) -> bool:
-        """Actualizar precio de un producto"""
+    def get_precios(self, negocio_id: Optional[int] = None) -> List[Dict]:
+        """Obtener precios por negocio o todos"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return []
+            
+            cursor = conn.cursor()
+            if negocio_id:
+                cursor.execute("""
+                    SELECT p.id, p.nombre, p.precio, c.nombre as negocio_nombre
+                    FROM productos p
+                    JOIN comerciantes c ON p.negocio_id = c.id
+                    WHERE p.negocio_id = ?
+                    ORDER BY p.nombre
+                """, (negocio_id,))
+            else:
+                cursor.execute("""
+                    SELECT p.id, p.nombre, p.precio, c.nombre as negocio_nombre
+                    FROM productos p
+                    JOIN comerciantes c ON p.negocio_id = c.id
+                    ORDER BY c.nombre, p.nombre
+                """)
+            
+            precios = []
+            for row in cursor.fetchall():
+                precios.append({
+                    'id': row[0],
+                    'producto_nombre': row[1],
+                    'precio': row[2],
+                    'negocio_nombre': row[3]
+                })
+            
+            conn.close()
+            logger.info(f"✅ Precios obtenidos: {len(precios)}")
+            return precios
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo precios: {e}")
+            return []
+    
+    def update_precio(self, producto_id: int, nuevo_precio: float) -> bool:
+        """Actualizar precio de producto"""
         try:
             conn = self.get_connection()
             if not conn:
                 return False
             
             cursor = conn.cursor()
-            
-            if precio_original:
-                # Actualizar precio y precio original
-                cursor.execute("""
-                    UPDATE productos 
-                    SET precio = ?, original_price = ?
-                    WHERE id = ?
-                """, (nuevo_precio, precio_original, producto_id))
-            else:
-                # Solo actualizar precio
-                cursor.execute("""
-                    UPDATE productos 
-                    SET precio = ?
-                    WHERE id = ?
-                """, (nuevo_precio, producto_id))
+            cursor.execute("""
+                UPDATE productos 
+                SET precio = ?
+                WHERE id = ?
+            """, (nuevo_precio, producto_id))
             
             conn.commit()
             conn.close()
-            
-            logger.info(f"Precio actualizado para producto {producto_id}")
+            logger.info(f"✅ Precio actualizado: Producto ID {producto_id} = ${nuevo_precio}")
             return True
+            
         except Exception as e:
             logger.error(f"Error actualizando precio: {e}")
             return False
@@ -437,51 +489,68 @@ class DevOpsBelgranoManager:
     # GESTIÓN DE ELEMENTOS DE PÁGINA PRINCIPAL
     # =================================================================
     
-    def get_productos_destacados(self) -> List[Dict]:
-        """Obtener productos destacados para la página principal"""
+    def get_elementos_principal(self) -> Dict:
+        """Obtener elementos de la página principal"""
         try:
             conn = self.get_connection()
             if not conn:
-                return []
+                return {}
             
             cursor = conn.cursor()
+            
+            # Obtener productos destacados
             cursor.execute("""
-                SELECT * FROM productos 
-                WHERE activo = 1 AND destacado = 1
+                SELECT id, nombre, descripcion, precio, imagen_url
+                FROM productos 
+                WHERE destacado = 1 AND activo = 1
                 ORDER BY id DESC
-                LIMIT 10
+                LIMIT 6
             """)
-            destacados = [dict(row) for row in cursor.fetchall()]
+            
+            destacados = []
+            for row in cursor.fetchall():
+                destacados.append({
+                    'id': row[0],
+                    'nombre': row[1],
+                    'descripcion': row[2],
+                    'precio': row[3],
+                    'imagen_url': row[4]
+                })
+            
+            # Obtener ofertas activas
+            cursor.execute("""
+                SELECT id, titulo, descripcion, descuento
+                FROM ofertas 
+                WHERE activa = 1 AND fecha_fin >= date('now')
+                ORDER BY fecha_inicio DESC
+                LIMIT 4
+            """)
+            
+            ofertas = []
+            for row in cursor.fetchall():
+                ofertas.append({
+                    'id': row[0],
+                    'titulo': row[1],
+                    'descripcion': row[2],
+                    'descuento': row[3]
+                })
+            
             conn.close()
             
-            return destacados
-        except Exception as e:
-            logger.error(f"Error obteniendo productos destacados: {e}")
-            return []
-    
-    def get_productos_nuevos(self) -> List[Dict]:
-        """Obtener productos nuevos para la página principal"""
-        try:
-            conn = self.get_connection()
-            if not conn:
-                return []
+            elementos = {
+                'destacados': destacados,
+                'ofertas': ofertas,
+                'timestamp': datetime.now().isoformat()
+            }
             
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT * FROM productos 
-                WHERE activo = 1 AND new = 1
-                ORDER BY id DESC
-                LIMIT 10
-            """)
-            nuevos = [dict(row) for row in cursor.fetchall()]
-            conn.close()
+            logger.info(f"✅ Elementos página principal obtenidos")
+            return elementos
             
-            return nuevos
         except Exception as e:
-            logger.error(f"Error obteniendo productos nuevos: {e}")
-            return []
+            logger.error(f"Error obteniendo elementos página principal: {e}")
+            return {}
     
-    def set_producto_destacado(self, producto_id: int, destacado: bool = True) -> bool:
+    def set_producto_destacado(self, producto_id: int, destacado: bool) -> bool:
         """Marcar/desmarcar producto como destacado"""
         try:
             conn = self.get_connection()
@@ -497,206 +566,13 @@ class DevOpsBelgranoManager:
             
             conn.commit()
             conn.close()
-            
-            logger.info(f"Producto {producto_id} {'destacado' if destacado else 'no destacado'}")
+            logger.info(f"✅ Producto {'destacado' if destacado else 'no destacado'}: ID {producto_id}")
             return True
+            
         except Exception as e:
-            logger.error(f"Error marcando producto como destacado: {e}")
+            logger.error(f"Error actualizando producto destacado: {e}")
             return False
     
-    def set_producto_nuevo(self, producto_id: int, nuevo: bool = True) -> bool:
-        """Marcar/desmarcar producto como nuevo"""
-        try:
-            conn = self.get_connection()
-            if not conn:
-                return False
-            
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE productos 
-                SET new = ?
-                WHERE id = ?
-            """, (1 if nuevo else 0, producto_id))
-            
-            conn.commit()
-            conn.close()
-            
-            logger.info(f"Producto {producto_id} {'marcado como nuevo' if nuevo else 'no marcado como nuevo'}")
-            return True
-        except Exception as e:
-            logger.error(f"Error marcando producto como nuevo: {e}")
-            return False
-    
-    # =================================================================
-    # GESTIÓN DE PRECIOS POR NEGOCIO
-    # =================================================================
-    
-    def get_precios_por_negocio(self, comerciante_id: int) -> List[Dict]:
-        """Obtener precios de productos por negocio específico"""
-        try:
-            conn = self.get_connection()
-            if not conn:
-                return []
-            
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT p.*, c.nombre_negocio 
-                FROM productos p
-                JOIN comerciantes c ON p.store = c.nombre_negocio
-                WHERE c.id = ? AND p.activo = 1
-                ORDER BY p.nombre
-            """, (comerciante_id,))
-            
-            productos = [dict(row) for row in cursor.fetchall()]
-            conn.close()
-            
-            return productos
-        except Exception as e:
-            logger.error(f"Error obteniendo precios por negocio {comerciante_id}: {e}")
-            return []
-    
-    def actualizar_precio_negocio(self, comerciante_id: int, producto_id: int, nuevo_precio: float, precio_original: float = None) -> bool:
-        """Actualizar precio de un producto específico de un negocio"""
-        try:
-            conn = self.get_connection()
-            if not conn:
-                return False
-            
-            cursor = conn.cursor()
-            
-            # Verificar que el producto pertenece al negocio
-            cursor.execute("""
-                SELECT p.id FROM productos p
-                JOIN comerciantes c ON p.store = c.nombre_negocio
-                WHERE c.id = ? AND p.id = ?
-            """, (comerciante_id, producto_id))
-            
-            if not cursor.fetchone():
-                logger.warning(f"Producto {producto_id} no pertenece al negocio {comerciante_id}")
-                return False
-            
-            # Actualizar precio
-            if precio_original:
-                cursor.execute("""
-                    UPDATE productos 
-                    SET precio = ?, original_price = ?
-                    WHERE id = ?
-                """, (nuevo_precio, precio_original, producto_id))
-            else:
-                cursor.execute("""
-                    UPDATE productos 
-                    SET precio = ?
-                    WHERE id = ?
-                """, (nuevo_precio, producto_id))
-            
-            conn.commit()
-            conn.close()
-            
-            logger.info(f"Precio actualizado para producto {producto_id} del negocio {comerciante_id}")
-            return True
-        except Exception as e:
-            logger.error(f"Error actualizando precio del negocio: {e}")
-            return False
-    
-    def get_estadisticas_negocio(self, comerciante_id: int) -> Dict:
-        """Obtener estadísticas de un negocio específico"""
-        try:
-            conn = self.get_connection()
-            if not conn:
-                return {}
-            
-            cursor = conn.cursor()
-            
-            # Obtener información del comerciante
-            cursor.execute("SELECT * FROM comerciantes WHERE id = ?", (comerciante_id,))
-            comerciante = cursor.fetchone()
-            if not comerciante:
-                return {}
-            
-            # Contar productos del negocio
-            cursor.execute("""
-                SELECT COUNT(*) FROM productos p
-                JOIN comerciantes c ON p.store = c.nombre_negocio
-                WHERE c.id = ? AND p.activo = 1
-            """, (comerciante_id,))
-            total_productos = cursor.fetchone()[0]
-            
-            # Contar productos en oferta
-            cursor.execute("""
-                SELECT COUNT(*) FROM productos p
-                JOIN comerciantes c ON p.store = c.nombre_negocio
-                WHERE c.id = ? AND p.activo = 1 AND p.discount > 0
-            """, (comerciante_id,))
-            productos_oferta = cursor.fetchone()[0]
-            
-            # Contar productos destacados
-            cursor.execute("""
-                SELECT COUNT(*) FROM productos p
-                JOIN comerciantes c ON p.store = c.nombre_negocio
-                WHERE c.id = ? AND p.activo = 1 AND p.destacado = 1
-            """, (comerciante_id,))
-            productos_destacados = cursor.fetchone()[0]
-            
-            # Precio promedio
-            cursor.execute("""
-                SELECT AVG(precio) FROM productos p
-                JOIN comerciantes c ON p.store = c.nombre_negocio
-                WHERE c.id = ? AND p.activo = 1
-            """, (comerciante_id,))
-            precio_promedio = cursor.fetchone()[0] or 0
-            
-            conn.close()
-            
-            return {
-                'comerciante': dict(comerciante),
-                'productos': {
-                    'total': total_productos,
-                    'ofertas': productos_oferta,
-                    'destacados': productos_destacados,
-                    'precio_promedio': round(precio_promedio, 2)
-                },
-                'timestamp': datetime.now().isoformat()
-            }
-        except Exception as e:
-            logger.error(f"Error obteniendo estadísticas del negocio {comerciante_id}: {e}")
-            return {}
-    
-    def crear_oferta_negocio(self, comerciante_id: int, producto_id: int, descuento: int, destacado: bool = False) -> bool:
-        """Crear oferta para un producto específico de un negocio"""
-        try:
-            conn = self.get_connection()
-            if not conn:
-                return False
-            
-            cursor = conn.cursor()
-            
-            # Verificar que el producto pertenece al negocio
-            cursor.execute("""
-                SELECT p.id FROM productos p
-                JOIN comerciantes c ON p.store = c.nombre_negocio
-                WHERE c.id = ? AND p.id = ?
-            """, (comerciante_id, producto_id))
-            
-            if not cursor.fetchone():
-                logger.warning(f"Producto {producto_id} no pertenece al negocio {comerciante_id}")
-                return False
-            
-            # Crear oferta
-            cursor.execute("""
-                UPDATE productos 
-                SET discount = ?, destacado = ?
-                WHERE id = ?
-            """, (descuento, 1 if destacado else 0, producto_id))
-            
-            conn.commit()
-            conn.close()
-            
-            logger.info(f"Oferta creada para producto {producto_id} del negocio {comerciante_id}")
-            return True
-        except Exception as e:
-            logger.error(f"Error creando oferta del negocio: {e}")
-            return False
-
     # =================================================================
     # ESTADÍSTICAS Y REPORTES
     # =================================================================
@@ -711,21 +587,16 @@ class DevOpsBelgranoManager:
             cursor = conn.cursor()
             
             # Contar productos
-            cursor.execute("SELECT COUNT(*) FROM productos WHERE activo = 1")
+            cursor.execute("SELECT COUNT(*) FROM productos")
             total_productos = cursor.fetchone()[0]
             
-            cursor.execute("SELECT COUNT(*) FROM productos WHERE activo = 1 AND destacado = 1")
-            productos_destacados = cursor.fetchone()[0]
+            # Contar ofertas activas
+            cursor.execute("SELECT COUNT(*) FROM ofertas WHERE activa = 1")
+            ofertas_activas = cursor.fetchone()[0]
             
-            cursor.execute("SELECT COUNT(*) FROM productos WHERE activo = 1 AND new = 1")
-            productos_nuevos = cursor.fetchone()[0]
-            
-            cursor.execute("SELECT COUNT(*) FROM productos WHERE activo = 1 AND discount > 0")
-            productos_oferta = cursor.fetchone()[0]
-            
-            # Contar comerciantes
+            # Contar negocios activos
             cursor.execute("SELECT COUNT(*) FROM comerciantes WHERE activo = 1")
-            total_comerciantes = cursor.fetchone()[0]
+            negocios_activos = cursor.fetchone()[0]
             
             # Contar usuarios
             cursor.execute("SELECT COUNT(*) FROM usuarios")
@@ -737,18 +608,20 @@ class DevOpsBelgranoManager:
             
             conn.close()
             
-            return {
+            estadisticas = {
                 'productos': {
                     'total': total_productos,
-                    'destacados': productos_destacados,
-                    'nuevos': productos_nuevos,
-                    'ofertas': productos_oferta
+                    'ofertas': ofertas_activas
                 },
-                'comerciantes': total_comerciantes,
+                'comerciantes': negocios_activos,
                 'usuarios': total_usuarios,
                 'pedidos': total_pedidos,
                 'timestamp': datetime.now().isoformat()
             }
+            
+            logger.info("✅ Estadísticas obtenidas")
+            return estadisticas
+            
         except Exception as e:
             logger.error(f"Error obteniendo estadísticas: {e}")
             return {}

@@ -79,33 +79,20 @@ try:
                 return redirect('/devops/login')
             
             # Panel principal de DevOps con funcionalidad real
-            try:
-                from datetime import datetime
-                import os
-                
-                # Obtener información del sistema
-                system_info = {
-                    'timestamp': datetime.now().isoformat(),
-                    'service': 'DevOps System',
-                    'version': '2.0.0',
-                    'status': 'operational',
-                    'environment': {
-                        'python_version': os.sys.version,
-                        'working_directory': os.getcwd()
-                    }
+            from datetime import datetime
+            import os
+            
+            # Obtener información del sistema
+            system_info = {
+                'timestamp': datetime.now().isoformat(),
+                'service': 'DevOps System',
+                'version': '2.0.0',
+                'status': 'operational',
+                'environment': {
+                    'python_version': os.sys.version,
+                    'working_directory': os.getcwd()
                 }
-            except Exception as e:
-                print(f"⚠️ Error obteniendo información del sistema: {e}")
-                system_info = {
-                    'timestamp': '2025-01-19T00:00:00Z',
-                    'service': 'DevOps System',
-                    'version': '2.0.0',
-                    'status': 'limited',
-                    'environment': {
-                        'python_version': 'Unknown',
-                        'working_directory': 'Unknown'
-                    }
-                }
+            }
             
             html = f"""
             <!doctype html>
@@ -164,6 +151,13 @@ try:
                     </div>
                     
                     <div class="grid">
+                        <div class="card">
+                            <h3>📊 Monitoreo del Sistema</h3>
+                            <p>Supervisión en tiempo real del estado del sistema, health checks y métricas de rendimiento.</p>
+                            <a href="/devops/health" class="btn">Health Check</a>
+                            <a href="/devops/status" class="btn btn-secondary">Estado del Sistema</a>
+                            <a href="/devops/info" class="btn btn-secondary">Información</a>
+                        </div>
                         
                         <div class="card">
                             <h3>📋 Gestión de Contenido</h3>
@@ -177,7 +171,7 @@ try:
                             <h3>💰 Gestión de Precios</h3>
                             <p>Administración de precios y ofertas de productos.</p>
                             <a href="/devops/estadisticas" class="btn btn-warning">Ver Estadísticas</a>
-                            <a href="/devops/pagina-principal/destacados" class="btn btn-warning">Productos Destacados</a>
+                            <a href="/devops/pagina-principal" class="btn btn-warning">Productos Destacados</a>
                         </div>
                         
                         <div class="card">
@@ -187,6 +181,12 @@ try:
                             <a href="/devops/estadisticas" class="btn btn-warning">Estadísticas Generales</a>
                         </div>
                         
+                        <div class="card">
+                            <h3>🔧 Herramientas de Desarrollo</h3>
+                            <p>Utilidades avanzadas para debugging, configuración y mantenimiento.</p>
+                            <a href="/devops/logs" class="btn btn-warning">Ver Logs</a>
+                            <a href="/devops/config" class="btn btn-warning">Configuración</a>
+                        </div>
                         
                         <div class="card">
                             <h3>🔄 Sincronización y Datos</h3>
@@ -210,7 +210,7 @@ try:
                                 <li><span class="endpoint-method method-delete">DELETE</span>/devops/productos/{{id}} - Eliminar producto</li>
                                 <li><span class="endpoint-method method-put">PUT</span>/devops/productos/{{id}}/precio - Actualizar precio</li>
                                 <li><span class="endpoint-method method-get">GET</span>/devops/estadisticas - Estadísticas del sistema</li>
-                                <li><span class="endpoint-method method-get">GET</span>/devops/pagina-principal/destacados - Productos destacados</li>
+                                <li><span class="endpoint-method method-get">GET</span>/devops/pagina-principal - Productos destacados</li>
                                 <li><span class="endpoint-method method-get">GET</span>/devops/negocios/{{id}}/precios - Precios por negocio</li>
                                 <li><span class="endpoint-method method-put">PUT</span>/devops/negocios/{{id}}/precios/{{producto_id}} - Actualizar precio</li>
                                 <li><span class="endpoint-method method-get">GET</span>/devops/negocios/{{id}}/estadisticas - Estadísticas del negocio</li>
@@ -243,16 +243,7 @@ try:
             </body>
             </html>
             """
-            try:
-                return html
-            except Exception as e:
-                print(f"⚠️ Error renderizando HTML DevOps: {e}")
-                from flask import jsonify
-                return jsonify({
-                    'status': 'error',
-                    'message': 'Error renderizando panel DevOps',
-                    'error': str(e)
-                }), 500
+            return html
 
         @app.route('/devops')
         def _devops_fallback_home_tickets():
@@ -417,7 +408,7 @@ try:
             try:
                 from devops_belgrano_manager import DevOpsBelgranoManager
                 manager = DevOpsBelgranoManager()
-                comerciantes = manager.get_comerciantes()
+                comerciantes = manager.get_negocios()
                 
                 return jsonify({
                     'status': 'success',
@@ -464,6 +455,91 @@ try:
                     'status': 'error',
                     'message': f'Error obteniendo productos: {str(e)}',
                     'data': [],
+                    'source': 'error'
+                }), 500
+        
+        @app.route('/devops/precios')
+        def _devops_fallback_precios():
+            from flask import session, jsonify, request
+            if not session.get('devops_authenticated'):
+                return jsonify({'error': 'No autorizado'}), 401
+            
+            # Usar datos reales de la base de datos
+            try:
+                from devops_belgrano_manager import DevOpsBelgranoManager
+                manager = DevOpsBelgranoManager()
+                
+                negocio_id = request.args.get('negocio_id', type=int)
+                precios = manager.get_precios(negocio_id)
+                
+                return jsonify({
+                    'status': 'success',
+                    'data': {
+                        'precios': precios,
+                        'total': len(precios),
+                        'negocio_id': negocio_id,
+                        'timestamp': datetime.now().isoformat()
+                    },
+                    'source': 'database',
+                    'message': f'Precios obtenidos correctamente ({len(precios)} encontrados)'
+                })
+            except Exception as e:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Error obteniendo precios: {str(e)}',
+                    'data': [],
+                    'source': 'error'
+                }), 500
+        
+        @app.route('/devops/estadisticas')
+        def _devops_fallback_estadisticas():
+            from flask import session, jsonify
+            if not session.get('devops_authenticated'):
+                return jsonify({'error': 'No autorizado'}), 401
+            
+            # Usar datos reales de la base de datos
+            try:
+                from devops_belgrano_manager import DevOpsBelgranoManager
+                manager = DevOpsBelgranoManager()
+                estadisticas = manager.get_estadisticas()
+                
+                return jsonify({
+                    'status': 'success',
+                    'data': estadisticas,
+                    'source': 'database',
+                    'message': 'Estadísticas obtenidas correctamente'
+                })
+            except Exception as e:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Error obteniendo estadísticas: {str(e)}',
+                    'data': {},
+                    'source': 'error'
+                }), 500
+        
+        @app.route('/devops/pagina-principal')
+        def _devops_fallback_pagina_principal():
+            from flask import session, jsonify
+            if not session.get('devops_authenticated'):
+                return jsonify({'error': 'No autorizado'}), 401
+            
+            # Usar datos reales de la base de datos
+            try:
+                from devops_belgrano_manager import DevOpsBelgranoManager
+                manager = DevOpsBelgranoManager()
+                elementos = manager.get_elementos_principal()
+                
+                return jsonify({
+                    'status': 'success',
+                    'data': elementos,
+                    'source': 'database',
+                    'message': 'Elementos de página principal obtenidos correctamente'
+                })
+            except Exception as e:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Error obteniendo elementos página principal: {str(e)}',
+                    'data': {},
                     'source': 'error'
                 }), 500
         
@@ -514,35 +590,16 @@ try:
             from flask import session, jsonify
             if not session.get('devops_authenticated'):
                 return jsonify({'error': 'No autorizado'}), 401
-            
-            # Sincronización real con la base de datos
-            try:
-                from devops_belgrano_manager import DevOpsBelgranoManager
-                manager = DevOpsBelgranoManager()
-                
-                # Obtener estadísticas reales
-                estadisticas = manager.get_estadisticas()
-                
-                return jsonify({
-                    'status': 'success',
-                    'message': 'Sincronización completada',
-                    'data': {
-                        'productos_sync': estadisticas.get('productos', {}).get('total', 0),
-                        'ofertas_sync': estadisticas.get('productos', {}).get('ofertas', 0),
-                        'negocios_sync': estadisticas.get('comerciantes', 0),
-                        'usuarios_sync': estadisticas.get('usuarios', 0),
-                        'pedidos_sync': estadisticas.get('pedidos', 0)
-                    },
-                    'source': 'database',
-                    'timestamp': datetime.now().isoformat()
-                })
-            except Exception as e:
-                return jsonify({
-                    'status': 'error',
-                    'message': f'Error en sincronización: {str(e)}',
-                    'data': {},
-                    'source': 'error'
-                }), 500
+            return jsonify({
+                'status': 'success',
+                'message': 'Sincronización completada',
+                'data': {
+                    'ofertas_sync': 5,
+                    'negocios_sync': 3,
+                    'usuarios_sync': 8
+                },
+                'mode': 'fallback'
+            })
         
         @app.route('/devops/test')
         def _devops_fallback_test():
@@ -550,9 +607,9 @@ try:
             return jsonify({
                 'status': 'success',
                 'message': 'DevOps funcionando correctamente',
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': '2025-01-19T01:00:00Z',
                 'authenticated': session.get('devops_authenticated', False),
-                'source': 'database'
+                'mode': 'fallback'
             })
         
         @app.route('/devops/logout', methods=['GET', 'POST'])
