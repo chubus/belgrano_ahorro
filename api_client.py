@@ -80,8 +80,28 @@ except ImportError:
         """Crear cliente API"""
         return BelgranoAhorroAPIClient(base_url, api_key)
     
+    def test_api_connection(base_url, api_key):
+        """
+        Probar conexión con la API
+        
+        Args:
+            base_url (str): URL base de la API
+            api_key (str): Clave de API
+            
+        Returns:
+            bool: True si la conexión es exitosa
+        """
+        client = BelgranoAhorroAPIClient(base_url, api_key)
+        if client:
+            try:
+                response = client.get('/health')
+                return response is not None
+            except:
+                return False
+        return False
+    
     # Cliente global por defecto
     global_api_client = None
 
 # Exportar las funciones y clases
-__all__ = ['BelgranoAhorroAPIClient', 'create_api_client', 'global_api_client']
+__all__ = ['BelgranoAhorroAPIClient', 'create_api_client', 'test_api_connection', 'global_api_client']

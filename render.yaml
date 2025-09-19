@@ -2,8 +2,12 @@ services:
   - type: web
     name: belgrano-ahorro
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    buildCommand: |
+      pip install -r requirements.txt
+      echo "Build completado"
+    startCommand: |
+      echo "Iniciando aplicación..."
+      gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: FLASK_ENV
         value: production
@@ -15,3 +19,5 @@ services:
         value: https://ticketerabelgrano.onrender.com
       - key: TICKETERA_API_KEY
         value: ticketera_api_key_2025
+      - key: SECRET_KEY
+        value: belgrano_ahorro_secret_key_2025
