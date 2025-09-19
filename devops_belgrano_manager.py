@@ -17,9 +17,13 @@ logger = logging.getLogger(__name__)
 class DevOpsBelgranoManager:
     """Gestor DevOps para Belgrano Ahorro"""
     
-    def __init__(self, db_path: str = 'belgrano_ahorro.db'):
+    def __init__(self, db_path: str = None):
         """Inicializar el gestor DevOps"""
-        self.db_path = db_path
+        if db_path is None:
+            # Usar ruta absoluta para evitar problemas en producción
+            self.db_path = os.path.abspath('belgrano_ahorro.db')
+        else:
+            self.db_path = db_path
         self.ensure_db_exists()
     
     def ensure_db_exists(self):
