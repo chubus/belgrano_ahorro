@@ -24,12 +24,15 @@ login_manager.login_message = 'Por favor, inicie sesión para acceder a esta pá
 login_manager.login_message_category = 'info'
 
 # Registrar blueprint de DevOps (importación robusta)
+devops_registrado = False
 try:
     # Intento directo
     from devops_routes import devops_bp
     app.register_blueprint(devops_bp)
+    devops_registrado = True
     print("✅ DevOps en app_tickets: blueprint registrado (directo)")
 except Exception as e_direct:
+    print(f"⚠️ Error en importación directa: {e_direct}")
     import sys
     current_dir = os.path.dirname(os.path.abspath(__file__))
     parent_dir = os.path.dirname(current_dir)
@@ -39,21 +42,31 @@ except Exception as e_direct:
     try:
         from devops_routes import devops_bp as devops_bp_here
         app.register_blueprint(devops_bp_here)
+        devops_registrado = True
         print("✅ DevOps en app_tickets: blueprint registrado (current_dir)")
     except Exception as e_here:
+        print(f"⚠️ Error en current_dir: {e_here}")
         # Intento con parent_dir
         if parent_dir not in sys.path:
             sys.path.insert(0, parent_dir)
         try:
             from devops_routes import devops_bp as devops_bp_parent
             app.register_blueprint(devops_bp_parent)
+            devops_registrado = True
             print("✅ DevOps en app_tickets: blueprint registrado (parent_dir)")
         except Exception as e_parent:
             print(f"⚠️ DevOps no disponible en app_tickets: {e_parent}")
 
+# Verificar que DevOps esté registrado correctamente
+if devops_registrado:
+    print("✅ DevOps blueprint registrado exitosamente")
+else:
+    print("❌ DevOps blueprint NO registrado")
+
 # Fallback: si no hay rutas /devops, registrar endpoints mínimos
 try:
     has_devops = any(str(r.rule).startswith('/devops') for r in app.url_map.iter_rules())
+    print(f"🔍 Verificando rutas DevOps: {has_devops}")
     if not has_devops:
         @app.route('/devops/')
         def _devops_fallback_home_tickets_slash():
@@ -65,13 +78,66 @@ try:
             from flask import jsonify
             return jsonify({'status': 'success', 'message': 'DevOps activo (fallback)'}), 200
 
-        @app.route('/devops/login')
+        @app.route('/devops/login', methods=['GET', 'POST'])
         def _devops_fallback_login_tickets():
-            from flask import redirect, url_for, jsonify
-            try:
-                return redirect(url_for('login'))
-            except Exception:
-                return jsonify({'status': 'success', 'login_url': '/login'}), 200
+            from flask import redirect, url_for, jsonify, request, session, make_response
+            print("🔧 Usando fallback de DevOps login")
+            
+            if request.method == 'POST':
+                username = request.form.get('username', '').strip()
+                password = request.form.get('password', '').strip()
+                print(f"🔧 Intento de login DevOps: {username}")
+                
+                if username == 'devops' and password == 'DevOps2025!Secure':
+                    session['devops_authenticated'] = True
+                    session.permanent = True
+                    print("✅ Login DevOps exitoso (fallback)")
+                    return redirect('/devops/')
+                else:
+                    print(f"❌ Login DevOps falló: {username}")
+                    return jsonify({'status': 'error', 'message': 'Credenciales incorrectas'}), 401
+            else:
+                # Mostrar formulario de login de DevOps
+                print("🔧 Mostrando formulario de login DevOps (fallback)")
+                html = """
+                <!doctype html>
+                <html>
+                <head>
+                    <title>DevOps Login</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 50px; background: #f5f5f5; }
+                        .container { max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                        .form-group { margin: 15px 0; }
+                        label { display: block; margin-bottom: 5px; font-weight: bold; }
+                        input { padding: 10px; width: 100%; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+                        button { padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }
+                        button:hover { background: #0056b3; }
+                        .header { text-align: center; margin-bottom: 30px; }
+                        .header h2 { color: #333; margin: 0; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h2>🔧 DevOps Login</h2>
+                            <p>Sistema de gestión DevOps</p>
+                        </div>
+                        <form method="POST">
+                            <div class="form-group">
+                                <label>Usuario:</label>
+                                <input type="text" name="username" required placeholder="Ingrese su usuario">
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña:</label>
+                                <input type="password" name="password" required placeholder="Ingrese su contraseña">
+                            </div>
+                            <button type="submit">Iniciar Sesión</button>
+                        </form>
+                    </div>
+                </body>
+                </html>
+                """
+                return make_response(html, 200)
         print("✅ Fallback DevOps registrado en app_tickets")
 except Exception as _e_devops_fb:
     print(f"⚠️ Error registrando fallback DevOps en app_tickets: {_e_devops_fb}")
