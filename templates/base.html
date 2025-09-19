@@ -291,6 +291,61 @@
             color: #2c3e50 !important;
             font-weight: 600;
         }
+        
+        /* Estilos para notificaciones mejoradas */
+        .notification-alert {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            margin-bottom: 10px;
+            animation: slideInRight 0.5s ease-out;
+        }
+        
+        .notification-alert.alert-success {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            border-left: 5px solid #28a745;
+            color: #155724;
+        }
+        
+        .notification-alert.alert-danger {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            border-left: 5px solid #dc3545;
+            color: #721c24;
+        }
+        
+        .notification-alert.alert-warning {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border-left: 5px solid #ffc107;
+            color: #856404;
+        }
+        
+        .notification-alert.alert-info {
+            background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+            border-left: 5px solid #17a2b8;
+            color: #0c5460;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .notification-alert .btn-close {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            opacity: 0.7;
+        }
+        
+        .notification-alert .btn-close:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -372,6 +427,31 @@
             </div>
         </div>
     </nav>
+
+    <!-- Sistema de Notificaciones Flash -->
+    <div id="notifications-container" class="position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'danger' else 'warning' if category == 'warning' else 'info' }} alert-dismissible fade show notification-alert" role="alert" style="min-width: 350px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                        <div class="d-flex align-items-center">
+                            {% if category == 'success' %}
+                                <i class="fas fa-check-circle me-2 text-success"></i>
+                            {% elif category == 'danger' %}
+                                <i class="fas fa-exclamation-circle me-2 text-danger"></i>
+                            {% elif category == 'warning' %}
+                                <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                            {% else %}
+                                <i class="fas fa-info-circle me-2 text-info"></i>
+                            {% endif %}
+                            <span class="fw-bold">{{ message }}</span>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
 
     <!-- CONTENIDO PRINCIPAL -->
     <main class="container-fluid">

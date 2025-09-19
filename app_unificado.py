@@ -468,19 +468,19 @@ def login():
         # Validación de campos
         if not email or not password:
             logger.warning("Login fallido - Campos incompletos")
-            flash('Por favor completa todos los campos', 'danger')
+            flash('❌ Por favor completa todos los campos obligatorios', 'danger')
             return render_template('login.html')
         
         # Validación de formato de email
         if not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
             logger.warning(f"Login fallido - Email inválido: {email}")
-            flash('Por favor ingresa un email válido', 'danger')
+            flash('❌ Por favor ingresa un email válido', 'danger')
             return render_template('login.html')
         
         # Verificar credenciales
         if database is None:
             logger.error("Login fallido - Database es None")
-            flash('Error del sistema. Intenta más tarde.', 'danger')
+            flash('❌ Error del sistema. Intenta más tarde.', 'danger')
             return render_template('login.html')
         
         logger.info("Intentando verificar credenciales...")
@@ -496,12 +496,12 @@ def login():
             session['usuario_rol'] = usuario.get('rol', 'cliente')
             
             logger.info(f"Login exitoso - Usuario: {usuario.get('nombre')}, ID: {usuario.get('id')}")
-            flash(f'¡Bienvenido, {usuario.get("nombre", "Usuario")}!', 'success')
+            flash(f'✅ ¡Bienvenido, {usuario.get("nombre", "Usuario")}! Has iniciado sesión correctamente', 'success')
             return redirect(url_for('index'))
         else:
             # Login fallido
             logger.warning(f"Login fallido - Email: {email}")
-            flash('Email o contraseña incorrectos', 'danger')
+            flash('❌ Email o contraseña incorrectos. Verifica tus credenciales', 'danger')
     
     return render_template('login.html')
 
@@ -542,35 +542,35 @@ def register():
         # Validar términos y condiciones
         if not terminos:
             logger.warning("Registro fallido - Términos y condiciones no aceptados")
-            flash('Debes aceptar los términos y condiciones', 'danger')
+            flash('❌ Debes aceptar los términos y condiciones', 'danger')
             return render_template('register.html')
         
         if len(password) < 6:
             logger.warning("Registro fallido - Contraseña muy corta")
-            flash('La contraseña debe tener al menos 6 caracteres', 'danger')
+            flash('❌ La contraseña debe tener al menos 6 caracteres', 'danger')
             return render_template('register.html')
         
         if password != confirmar_password:
             logger.warning("Registro fallido - Contraseñas no coinciden")
-            flash('Las contraseñas no coinciden', 'danger')
+            flash('❌ Las contraseñas no coinciden', 'danger')
             return render_template('register.html')
         
         # Validar email
         if not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
             logger.warning("Registro fallido - Email inválido")
-            flash('Por favor ingresa un email válido', 'danger')
+            flash('❌ Por favor ingresa un email válido', 'danger')
             return render_template('register.html')
         
         # Validar teléfono (opcional)
         if telefono and not re.match(r"^[\d\-\+\s]+$", telefono):
             logger.warning("Registro fallido - Teléfono inválido")
-            flash('Por favor ingresa un teléfono válido', 'danger')
+            flash('❌ Por favor ingresa un teléfono válido', 'danger')
             return render_template('register.html')
         
         # Crear usuario
         if database is None:
             logger.error("Registro fallido - Database es None")
-            flash('Error del sistema. Intenta más tarde.', 'danger')
+            flash('❌ Error del sistema. Intenta más tarde.', 'danger')
             return render_template('register.html')
         
         logger.info("Intentando crear usuario en la base de datos...")
@@ -579,11 +579,11 @@ def register():
         
         if resultado['exito']:
             logger.info(f"Usuario creado exitosamente - ID: {resultado.get('usuario_id')}")
-            flash('¡Registro exitoso! Ya puedes iniciar sesión', 'success')
+            flash(f'¡Registro exitoso! Bienvenido {nombre}, ya puedes iniciar sesión con tu cuenta', 'success')
             return redirect(url_for('index'))
         else:
             logger.error(f"Error al crear usuario: {resultado.get('mensaje')}")
-            flash(f'Error al crear usuario: {resultado["mensaje"]}', 'danger')
+            flash(f'❌ Error al crear usuario: {resultado["mensaje"]}', 'danger')
     
     return render_template('register.html')
 
@@ -1471,7 +1471,7 @@ def registro_comerciante():
         
         # Validaciones
         if not all([nombre, apellido, email, password, nombre_negocio]):
-            flash('Por favor completa todos los campos obligatorios', 'danger')
+            flash('❌ Por favor completa todos los campos obligatorios', 'danger')
             return render_template("comerciantes/registro.html")
         
         # Crear usuario con rol comerciante
@@ -1489,12 +1489,12 @@ def registro_comerciante():
             )
             
             if comerciante_resultado['exito']:
-                flash('¡Comerciante registrado exitosamente! Ya puedes iniciar sesión.', 'success')
+                flash(f'✅ ¡Comerciante registrado exitosamente! Bienvenido {nombre_negocio}, ya puedes iniciar sesión.', 'success')
                 return redirect(url_for('login_comerciante'))
             else:
-                flash(f'Error al crear perfil comercial: {comerciante_resultado["mensaje"]}', 'danger')
+                flash(f'❌ Error al crear perfil comercial: {comerciante_resultado["mensaje"]}', 'danger')
         else:
-            flash(f'Error al crear usuario: {resultado["mensaje"]}', 'danger')
+            flash(f'❌ Error al crear usuario: {resultado["mensaje"]}', 'danger')
     
     return render_template("comerciantes/registro.html")
 
@@ -1506,7 +1506,7 @@ def login_comerciante():
         password = request.form.get('password')
         
         if not email or not password:
-            flash('Por favor ingresa email y contraseña', 'danger')
+            flash('❌ Por favor ingresa email y contraseña', 'danger')
             return render_template("comerciantes/login.html")
         
         resultado = database.verificar_usuario(email, password)
@@ -1516,7 +1516,7 @@ def login_comerciante():
             
             # Verificar que sea comerciante
             if usuario.get('rol') != 'comerciante':
-                flash('Esta cuenta no está registrada como comerciante', 'danger')
+                flash('❌ Esta cuenta no está registrada como comerciante', 'danger')
                 return render_template("comerciantes/login.html")
             
             # Obtener información del comerciante
@@ -1530,12 +1530,12 @@ def login_comerciante():
                 session['comerciante_id'] = comerciante['id']
                 session['nombre_negocio'] = comerciante['nombre_negocio']
                 
-                flash(f'¡Bienvenido, {comerciante["nombre_negocio"]}!', 'success')
+                flash(f'✅ ¡Bienvenido, {comerciante["nombre_negocio"]}! Has iniciado sesión como comerciante', 'success')
                 return redirect(url_for('comerciantes_home'))
             else:
-                flash('Error al cargar información del comerciante', 'danger')
+                flash('❌ Error al cargar información del comerciante', 'danger')
         else:
-            flash(resultado['mensaje'], 'danger')
+            flash(f'❌ {resultado["mensaje"]}', 'danger')
     
     return render_template("comerciantes/login.html")
 
