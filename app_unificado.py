@@ -73,6 +73,18 @@ app = Flask(__name__)
 app.secret_key = 'belgrano_ahorro_secret_key_2025'  # Clave secreta para sesiones
 
 # Configurar entorno
+# Configurar variables de entorno por defecto
+if 'FLASK_ENV' not in os.environ:
+    os.environ['FLASK_ENV'] = 'development'
+if 'BELGRANO_AHORRO_URL' not in os.environ:
+    os.environ['BELGRANO_AHORRO_URL'] = 'https://belgranoahorro-hp30.onrender.com'
+if 'BELGRANO_AHORRO_API_KEY' not in os.environ:
+    os.environ['BELGRANO_AHORRO_API_KEY'] = 'belgrano_ahorro_api_key_2025'
+if 'TICKETERA_URL' not in os.environ:
+    os.environ['TICKETERA_URL'] = 'https://ticketerabelgrano.onrender.com'
+if 'TICKETERA_API_KEY' not in os.environ:
+    os.environ['TICKETERA_API_KEY'] = 'ticketera_api_key_2025'
+
 app.config['ENV'] = os.environ.get('FLASK_ENV', 'development')
 
 # Registrar manejadores de errores
