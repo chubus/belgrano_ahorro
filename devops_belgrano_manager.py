@@ -456,6 +456,176 @@ class DevOpsBelgranoManager:
             return False
     
     # =================================================================
+    # GESTIÓN DE PRECIOS POR NEGOCIO
+    # =================================================================
+    
+    def get_precios_por_negocio(self, comerciante_id: int) -> List[Dict]:
+        """Obtener precios de productos por negocio específico"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return []
+            
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT p.*, c.nombre_negocio 
+                FROM productos p
+                JOIN comerciantes c ON p.store = c.nombre_negocio
+                WHERE c.id = ? AND p.activo = 1
+                ORDER BY p.nombre
+            """, (comerciante_id,))
+            
+            productos = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            
+            return productos
+        except Exception as e:
+            logger.error(f"Error obteniendo precios por negocio {comerciante_id}: {e}")
+            return []
+    
+    def actualizar_precio_negocio(self, comerciante_id: int, producto_id: int, nuevo_precio: float, precio_original: float = None) -> bool:
+        """Actualizar precio de un producto específico de un negocio"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            # Verificar que el producto pertenece al negocio
+            cursor.execute("""
+                SELECT p.id FROM productos p
+                JOIN comerciantes c ON p.store = c.nombre_negocio
+                WHERE c.id = ? AND p.id = ?
+            """, (comerciante_id, producto_id))
+            
+            if not cursor.fetchone():
+                logger.warning(f"Producto {producto_id} no pertenece al negocio {comerciante_id}")
+                return False
+            
+            # Actualizar precio
+            if precio_original:
+                cursor.execute("""
+                    UPDATE productos 
+                    SET precio = ?, original_price = ?
+                    WHERE id = ?
+                """, (nuevo_precio, precio_original, producto_id))
+            else:
+                cursor.execute("""
+                    UPDATE productos 
+                    SET precio = ?
+                    WHERE id = ?
+                """, (nuevo_precio, producto_id))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"Precio actualizado para producto {producto_id} del negocio {comerciante_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error actualizando precio del negocio: {e}")
+            return False
+    
+    def get_estadisticas_negocio(self, comerciante_id: int) -> Dict:
+        """Obtener estadísticas de un negocio específico"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return {}
+            
+            cursor = conn.cursor()
+            
+            # Obtener información del comerciante
+            cursor.execute("SELECT * FROM comerciantes WHERE id = ?", (comerciante_id,))
+            comerciante = cursor.fetchone()
+            if not comerciante:
+                return {}
+            
+            # Contar productos del negocio
+            cursor.execute("""
+                SELECT COUNT(*) FROM productos p
+                JOIN comerciantes c ON p.store = c.nombre_negocio
+                WHERE c.id = ? AND p.activo = 1
+            """, (comerciante_id,))
+            total_productos = cursor.fetchone()[0]
+            
+            # Contar productos en oferta
+            cursor.execute("""
+                SELECT COUNT(*) FROM productos p
+                JOIN comerciantes c ON p.store = c.nombre_negocio
+                WHERE c.id = ? AND p.activo = 1 AND p.discount > 0
+            """, (comerciante_id,))
+            productos_oferta = cursor.fetchone()[0]
+            
+            # Contar productos destacados
+            cursor.execute("""
+                SELECT COUNT(*) FROM productos p
+                JOIN comerciantes c ON p.store = c.nombre_negocio
+                WHERE c.id = ? AND p.activo = 1 AND p.destacado = 1
+            """, (comerciante_id,))
+            productos_destacados = cursor.fetchone()[0]
+            
+            # Precio promedio
+            cursor.execute("""
+                SELECT AVG(precio) FROM productos p
+                JOIN comerciantes c ON p.store = c.nombre_negocio
+                WHERE c.id = ? AND p.activo = 1
+            """, (comerciante_id,))
+            precio_promedio = cursor.fetchone()[0] or 0
+            
+            conn.close()
+            
+            return {
+                'comerciante': dict(comerciante),
+                'productos': {
+                    'total': total_productos,
+                    'ofertas': productos_oferta,
+                    'destacados': productos_destacados,
+                    'precio_promedio': round(precio_promedio, 2)
+                },
+                'timestamp': datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error obteniendo estadísticas del negocio {comerciante_id}: {e}")
+            return {}
+    
+    def crear_oferta_negocio(self, comerciante_id: int, producto_id: int, descuento: int, destacado: bool = False) -> bool:
+        """Crear oferta para un producto específico de un negocio"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return False
+            
+            cursor = conn.cursor()
+            
+            # Verificar que el producto pertenece al negocio
+            cursor.execute("""
+                SELECT p.id FROM productos p
+                JOIN comerciantes c ON p.store = c.nombre_negocio
+                WHERE c.id = ? AND p.id = ?
+            """, (comerciante_id, producto_id))
+            
+            if not cursor.fetchone():
+                logger.warning(f"Producto {producto_id} no pertenece al negocio {comerciante_id}")
+                return False
+            
+            # Crear oferta
+            cursor.execute("""
+                UPDATE productos 
+                SET discount = ?, destacado = ?
+                WHERE id = ?
+            """, (descuento, 1 if destacado else 0, producto_id))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"Oferta creada para producto {producto_id} del negocio {comerciante_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error creando oferta del negocio: {e}")
+            return False
+
+    # =================================================================
     # ESTADÍSTICAS Y REPORTES
     # =================================================================
     
