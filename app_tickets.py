@@ -79,20 +79,33 @@ try:
                 return redirect('/devops/login')
             
             # Panel principal de DevOps con funcionalidad real
-            from datetime import datetime
-            import os
-            
-            # Obtener información del sistema
-            system_info = {
-                'timestamp': datetime.now().isoformat(),
-                'service': 'DevOps System',
-                'version': '2.0.0',
-                'status': 'operational',
-                'environment': {
-                    'python_version': os.sys.version,
-                    'working_directory': os.getcwd()
+            try:
+                from datetime import datetime
+                import os
+                
+                # Obtener información del sistema
+                system_info = {
+                    'timestamp': datetime.now().isoformat(),
+                    'service': 'DevOps System',
+                    'version': '2.0.0',
+                    'status': 'operational',
+                    'environment': {
+                        'python_version': os.sys.version,
+                        'working_directory': os.getcwd()
+                    }
                 }
-            }
+            except Exception as e:
+                print(f"⚠️ Error obteniendo información del sistema: {e}")
+                system_info = {
+                    'timestamp': '2025-01-19T00:00:00Z',
+                    'service': 'DevOps System',
+                    'version': '2.0.0',
+                    'status': 'limited',
+                    'environment': {
+                        'python_version': 'Unknown',
+                        'working_directory': 'Unknown'
+                    }
+                }
             
             html = f"""
             <!doctype html>
@@ -230,7 +243,16 @@ try:
             </body>
             </html>
             """
-            return html
+            try:
+                return html
+            except Exception as e:
+                print(f"⚠️ Error renderizando HTML DevOps: {e}")
+                from flask import jsonify
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Error renderizando panel DevOps',
+                    'error': str(e)
+                }), 500
 
         @app.route('/devops')
         def _devops_fallback_home_tickets():

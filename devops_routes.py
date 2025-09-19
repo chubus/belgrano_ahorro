@@ -280,6 +280,20 @@ def sincronizar_cambio_inmediato(tipo_cambio, datos):
 def devops_home():
     """Panel principal de DevOps - Información del sistema"""
     try:
+        # Verificar que el gestor DevOps esté disponible
+        if not devops_manager:
+            return jsonify({
+                'status': 'warning',
+                'message': 'Gestor DevOps no disponible',
+                'data': {
+                    'timestamp': datetime.now().isoformat(),
+                    'service': 'DevOps System',
+                    'version': '2.0.0',
+                    'status': 'limited',
+                    'note': 'Funcionando en modo limitado'
+                }
+            })
+        
         # Obtener información del sistema
         system_info = {
             'timestamp': datetime.now().isoformat(),
@@ -300,6 +314,7 @@ def devops_home():
                 'status': '/devops/status',
                 'ofertas': '/devops/ofertas',
                 'negocios': '/devops/negocios',
+                'productos': '/devops/productos',
                 'sync': '/devops/sync',
                 'logs': '/devops/logs'
             }
@@ -315,7 +330,12 @@ def devops_home():
         logger.error(f"Error en devops_home: {e}")
         return jsonify({
             'status': 'error',
-            'message': f'Error interno: {str(e)}'
+            'message': f'Error interno: {str(e)}',
+            'data': {
+                'timestamp': datetime.now().isoformat(),
+                'service': 'DevOps System',
+                'status': 'error'
+            }
         }), 500
 
 @devops_bp.route('/health')

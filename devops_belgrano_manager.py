@@ -30,8 +30,76 @@ class DevOpsBelgranoManager:
         """Asegurar que la base de datos existe"""
         if not os.path.exists(self.db_path):
             logger.warning(f"Base de datos {self.db_path} no encontrada")
-            return False
+            # Intentar crear la base de datos si no existe
+            try:
+                self.create_database_if_not_exists()
+                return True
+            except Exception as e:
+                logger.error(f"Error creando base de datos: {e}")
+                return False
         return True
+    
+    def create_database_if_not_exists(self):
+        """Crear la base de datos si no existe"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Crear tabla productos si no existe
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS productos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre VARCHAR(100) NOT NULL,
+                    store VARCHAR(50) NOT NULL,
+                    precio DECIMAL(10,2) NOT NULL,
+                    original_price DECIMAL(10,2),
+                    discount INTEGER,
+                    new BOOLEAN DEFAULT 0,
+                    imagen VARCHAR(255),
+                    categoria VARCHAR(50),
+                    destacado BOOLEAN DEFAULT 0,
+                    activo BOOLEAN DEFAULT 1
+                )
+            ''')
+            
+            # Crear tabla comerciantes si no existe
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS comerciantes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    usuario_id INTEGER NOT NULL,
+                    nombre_negocio VARCHAR(100) NOT NULL,
+                    cuit VARCHAR(20),
+                    direccion_comercial TEXT,
+                    telefono_comercial VARCHAR(20),
+                    tipo_negocio VARCHAR(50),
+                    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    activo BOOLEAN DEFAULT 1,
+                    FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+                )
+            ''')
+            
+            # Crear tabla usuarios si no existe
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre VARCHAR(50) NOT NULL,
+                    apellido VARCHAR(50) NOT NULL,
+                    email VARCHAR(100) UNIQUE NOT NULL,
+                    telefono VARCHAR(20),
+                    direccion TEXT,
+                    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    password VARCHAR(100) NOT NULL,
+                    rol VARCHAR(20) DEFAULT 'cliente'
+                )
+            ''')
+            
+            conn.commit()
+            conn.close()
+            logger.info(f"Base de datos creada exitosamente: {self.db_path}")
+            
+        except Exception as e:
+            logger.error(f"Error creando base de datos: {e}")
+            raise
     
     def get_connection(self):
         """Obtener conexión a la base de datos"""
