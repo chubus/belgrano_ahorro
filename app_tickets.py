@@ -161,7 +161,15 @@ try:
                 password = request.form.get('password', '').strip()
                 print(f"🔧 Intento de login DevOps: {username}")
                 
-                if username == 'devops' and password == 'DevOps2025!Secure':
+                # Usar las mismas credenciales que el blueprint principal
+                from werkzeug.security import generate_password_hash, check_password_hash
+                
+                # Credenciales de DevOps (consistentes con devops_routes.py)
+                DEVOPS_USERNAME = 'devops'
+                DEVOPS_PASSWORD_PLAIN = 'DevOps2025!Secure'
+                DEVOPS_PASSWORD_HASH = generate_password_hash(DEVOPS_PASSWORD_PLAIN)
+                
+                if username == DEVOPS_USERNAME and check_password_hash(DEVOPS_PASSWORD_HASH, password):
                     session['devops_authenticated'] = True
                     session.permanent = True
                     print("✅ Login DevOps exitoso (fallback)")
