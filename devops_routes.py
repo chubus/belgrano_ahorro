@@ -88,15 +88,9 @@ def devops_login_required(fn):
     """Decorador para requerir autenticación de DevOps"""
     def wrapper(*args, **kwargs):
         if not devops_is_authenticated():
-            # Redirigir al login de DevOps, no al de ticketera
-            try:
-                # Intentar redirección con url_for
-                return redirect(url_for('devops.devops_login'))
-            except Exception as e:
-                # Fallback si hay problema con url_for
-                logger.error(f"Error en redirección DevOps: {e}")
-                # Redirección directa al login de DevOps
-                return redirect('/devops/login')
+            # Redirigir directamente al login de DevOps
+            logger.info("Redirigiendo a DevOps login")
+            return redirect('/devops/login')
         return fn(*args, **kwargs)
     wrapper.__name__ = fn.__name__
     return wrapper
@@ -552,7 +546,7 @@ def gestion_negocios():
 # SINCRONIZACIÓN Y UTILIDADES
 # =================================================================
 
-@devops_bp.route('/sync', methods=['POST'])
+@devops_bp.route('/sync', methods=['GET', 'POST'])
 @devops_login_required
 def sincronizacion_manual():
     """Forzar sincronización manual"""

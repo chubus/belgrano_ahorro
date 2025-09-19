@@ -556,12 +556,47 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
+@app.route('/panel')
+@login_required
+def panel():
+    """Panel principal de tickets"""
+    tickets_list = obtener_todos_los_tickets()
+    return render_template('tickets.html', tickets=tickets_list)
+
 @app.route('/tickets')
 @login_required
 def tickets():
     """Panel principal de tickets"""
     tickets_list = obtener_todos_los_tickets()
     return render_template('tickets.html', tickets=tickets_list)
+
+@app.route('/usuarios')
+@login_required
+def usuarios():
+    """Gestión de usuarios"""
+    try:
+        # Obtener todos los usuarios
+        usuarios_list = []
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, username, email, nombre, role, activo FROM usuarios")
+        usuarios = cursor.fetchall()
+        conn.close()
+        
+        for usuario in usuarios:
+            usuarios_list.append({
+                'id': usuario[0],
+                'username': usuario[1],
+                'email': usuario[2],
+                'nombre': usuario[3],
+                'role': usuario[4],
+                'activo': usuario[5]
+            })
+        
+        return render_template('usuarios.html', usuarios=usuarios_list)
+    except Exception as e:
+        print(f"Error obteniendo usuarios: {e}")
+        return render_template('usuarios.html', usuarios=[])
 
 @app.route('/health')
 def health_check():
