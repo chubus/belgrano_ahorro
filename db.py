@@ -1,6 +1,7 @@
 import sqlite3
 import hashlib
 import secrets
+import os
 from datetime import datetime
 import logging
 
@@ -10,11 +11,42 @@ logger = logging.getLogger(__name__)
 # CONFIGURACIÓN DE BASE DE DATOS
 # ==========================================
 
+def inicializar_base_datos():
+    """Inicializar la base de datos si no existe"""
+    if not os.path.exists('belgrano_ahorro.db'):
+        logger.info("Base de datos no existe, creando...")
+        crear_base_datos()
+    else:
+        # Verificar que las tablas principales existen
+        try:
+            conn = sqlite3.connect('belgrano_ahorro.db')
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios'")
+            if not cursor.fetchone():
+                logger.warning("Tabla usuarios no existe, recreando base de datos...")
+                conn.close()
+                os.remove('belgrano_ahorro.db')
+                crear_base_datos()
+            else:
+                conn.close()
+        except Exception as e:
+            logger.error(f"Error verificando base de datos: {e}")
+            if os.path.exists('belgrano_ahorro.db'):
+                os.remove('belgrano_ahorro.db')
+            crear_base_datos()
+
 def crear_base_datos():
     """Crear todas las tablas de la base de datos"""
     try:
+        # Verificar que el directorio existe
+        if not os.path.exists('.'):
+            os.makedirs('.', exist_ok=True)
+        
         conn = sqlite3.connect('belgrano_ahorro.db')
         cursor = conn.cursor()
+        
+        # Habilitar foreign keys
+        cursor.execute('PRAGMA foreign_keys = ON')
         
         # Tabla usuarios
         cursor.execute('''
@@ -168,19 +200,46 @@ def verificar_password(password, hashed):
         return False
 
 def crear_usuario(nombre, apellido, email, password, telefono=None, direccion=None, rol='cliente'):
+    """
+    Crear un nuevo usuario en la base de datos
+    """
     try:
+        # Inicializar base de datos si es necesario
+        inicializar_base_datos()
+        
         conn = sqlite3.connect('belgrano_ahorro.db')
         cursor = conn.cursor()
+        
+        # Verificar que la tabla usuarios existe
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios'")
+        if not cursor.fetchone():
+            logger.error("Tabla usuarios no existe")
+            conn.close()
+            return {'exito': False, 'mensaje': 'Tabla usuarios no existe'}
+        
+        # Verificar si el email ya existe
         cursor.execute('SELECT id FROM usuarios WHERE email = ?', (email,))
         if cursor.fetchone():
             conn.close()
             return {'exito': False, 'mensaje': 'El email ya está registrado'}
+        
+        # Crear hash de la contraseña
         password_hash = hash_password(password)
-        cursor.execute('''INSERT INTO usuarios (nombre, apellido, email, password, telefono, direccion, rol) VALUES (?, ?, ?, ?, ?, ?, ?)''', (nombre, apellido, email, password_hash, telefono, direccion, rol))
+        
+        # Insertar usuario
+        cursor.execute('''INSERT INTO usuarios (nombre, apellido, email, password, telefono, direccion, rol) VALUES (?, ?, ?, ?, ?, ?, ?)''', 
+                      (nombre, apellido, email, password_hash, telefono, direccion, rol))
+        
         usuario_id = cursor.lastrowid
         conn.commit()
         conn.close()
+        
+        logger.info(f"Usuario creado exitosamente: {email} (ID: {usuario_id})")
         return {'exito': True, 'usuario_id': usuario_id, 'mensaje': 'Usuario creado exitosamente'}
+        
+    except sqlite3.OperationalError as e:
+        logger.error(f"Error de base de datos: {e}")
+        return {'exito': False, 'mensaje': f'Error de base de datos: {str(e)}'}
     except Exception as e:
         logger.error(f"Error al crear usuario: {e}")
         return {'exito': False, 'mensaje': f'Error al crear usuario: {str(e)}'}

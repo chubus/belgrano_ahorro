@@ -4173,6 +4173,25 @@ def ver_configuracion():
     return make_response(html, 200)
 
 # =================================================================
+# INTERFAZ WEB DEVOPS UI
+# =================================================================
+
+@devops_bp.route('/ui')
+@devops_login_required
+def devops_ui():
+    """Interfaz web para gestión de endpoints DevOps"""
+    from flask import render_template
+    
+    try:
+        return render_template('devops.html')
+    except Exception as e:
+        logger.error(f"Error cargando interfaz DevOps UI: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error cargando interfaz: {str(e)}'
+        }), 500
+
+# =================================================================
 # MANEJO DE ERRORES
 # =================================================================
 
