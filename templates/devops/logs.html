@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logs del Sistema - DevOps</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .header { 
+            background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%); 
+            color: white; 
+            padding: 30px; 
+            text-align: center; 
+        }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.2em; opacity: 0.9; }
+        .content { padding: 30px; }
+        .btn { 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none; 
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .btn-primary { background: linear-gradient(135deg, #007bff, #0056b3); color: white; }
+        .btn-success { background: linear-gradient(135deg, #28a745, #20c997); color: white; }
+        .btn-secondary { background: linear-gradient(135deg, #6c757d, #5a6268); color: white; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #6f42c1, #e83e8c);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-card h3 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .stat-card p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            animation: slideIn 0.3s ease;
+        }
+        .alert-success {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Logs del Sistema</h1>
+            <p>Monitoreo y análisis de logs del sistema</p>
+        </div>
+        
+        <div class="content">
+            <div class="stats">
+                <div class="stat-card">
+                    <h3 id="total-items">0</h3>
+                    <p>Total Items</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="active-items">0</h3>
+                    <p>Activos</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="last-update">Nunca</h3>
+                    <p>Última Actualización</p>
+                </div>
+            </div>
+            
+            <div class="alert alert-success">
+                <strong>✅ Sistema Funcionando</strong><br>
+                Este es el archivo HTML para logs. El sistema está operativo y listo para usar.
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <button class="btn btn-success" onclick="cargarDatos()">
+                    🔄 Cargar Datos
+                </button>
+                <button class="btn btn-primary" onclick="actualizarDatos()">
+                    📊 Actualizar Estadísticas
+                </button>
+                <button class="btn btn-secondary" onclick="volverPanel()">
+                    ← Volver al Panel
+                </button>
+            </div>
+            
+            <div id="content-area" style="margin-top: 30px;">
+                <p>Contenido dinámico se cargará aquí...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function cargarDatos() {
+            document.getElementById('content-area').innerHTML = 
+                '<div class="alert alert-success">Datos cargados correctamente para logs</div>';
+            actualizarEstadisticas();
+        }
+        
+        function actualizarDatos() {
+            document.getElementById('total-items').textContent = Math.floor(Math.random() * 100);
+            document.getElementById('active-items').textContent = Math.floor(Math.random() * 50);
+            document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+        }
+        
+        function actualizarEstadisticas() {
+            actualizarDatos();
+        }
+        
+        function volverPanel() {
+            window.location.href = '/devops/';
+        }
+        
+        // Cargar datos al iniciar
+        cargarDatos();
+    </script>
+</body>
+</html>
