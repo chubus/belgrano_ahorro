@@ -224,12 +224,140 @@ def devops_logout():
 @devops_bp.route('/test')
 def devops_test():
     """Endpoint de prueba para verificar que DevOps funciona"""
-    return jsonify({
-        'status': 'success',
-        'message': 'DevOps funcionando correctamente',
-        'timestamp': datetime.now().isoformat(),
-        'authenticated': devops_is_authenticated()
-    })
+    from flask import request, make_response
+    
+    # Si es una petición AJAX, devolver JSON
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'status': 'success',
+            'message': 'DevOps funcionando correctamente',
+            'timestamp': datetime.now().isoformat(),
+            'authenticated': devops_is_authenticated(),
+            'endpoints': {
+                'health': '/devops/health',
+                'status': '/devops/status',
+                'ofertas': '/devops/ofertas',
+                'negocios': '/devops/negocios',
+                'productos': '/devops/productos',
+                'precios': '/devops/precios'
+            }
+        })
+    
+    # Si no es AJAX, devolver HTML formateado
+    html = """
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Test DevOps - Belgrano Tickets</title>
+        <style>
+            body { 
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                margin: 0;
+                padding: 20px;
+            }
+            .container { 
+                max-width: 800px; 
+                margin: 50px auto; 
+                background: white; 
+                border-radius: 15px; 
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                overflow: hidden;
+            }
+            .header { 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                color: white; 
+                padding: 30px; 
+                text-align: center; 
+            }
+            .content { padding: 30px; }
+            .status-card {
+                background: linear-gradient(135deg, #28a745, #20c997);
+                color: white;
+                padding: 20px;
+                border-radius: 10px;
+                margin: 20px 0;
+                text-align: center;
+            }
+            .endpoint-list {
+                background: #f8f9fa;
+                padding: 20px;
+                border-radius: 10px;
+                margin: 20px 0;
+            }
+            .endpoint-item {
+                padding: 10px;
+                margin: 5px 0;
+                background: white;
+                border-radius: 5px;
+                border-left: 4px solid #667eea;
+            }
+            .btn {
+                display: inline-block;
+                padding: 12px 24px;
+                background: linear-gradient(135deg, #667eea, #764ba2);
+                color: white;
+                text-decoration: none;
+                border-radius: 8px;
+                font-weight: 600;
+                transition: all 0.3s ease;
+                margin: 5px;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🔧 Test DevOps</h1>
+                <p>Sistema DevOps funcionando correctamente</p>
+            </div>
+            
+            <div class="content">
+                <div class="status-card">
+                    <h3>✅ Sistema Operativo</h3>
+                    <p>DevOps está funcionando correctamente</p>
+                    <p><strong>Timestamp:</strong> """ + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + """</p>
+                </div>
+                
+                <div class="endpoint-list">
+                    <h4>📋 Endpoints Disponibles</h4>
+                    <div class="endpoint-item">
+                        <strong>GET</strong> /devops/health - Health check del sistema
+                    </div>
+                    <div class="endpoint-item">
+                        <strong>GET</strong> /devops/status - Estado detallado del sistema
+                    </div>
+                    <div class="endpoint-item">
+                        <strong>GET</strong> /devops/ofertas - Gestión de ofertas
+                    </div>
+                    <div class="endpoint-item">
+                        <strong>GET</strong> /devops/negocios - Gestión de negocios
+                    </div>
+                    <div class="endpoint-item">
+                        <strong>GET</strong> /devops/productos - Gestión de productos
+                    </div>
+                    <div class="endpoint-item">
+                        <strong>GET</strong> /devops/precios - Gestión de precios
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 30px;">
+                    <a href="/devops/" class="btn">🏠 Panel Principal</a>
+                    <a href="/devops/health" class="btn">💚 Health Check</a>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return make_response(html, 200)
 
 # Función para construir URLs de API
 def build_api_url(endpoint):
@@ -469,6 +597,7 @@ def devops_home():
                         <h3>🔄 Sincronización y Datos</h3>
                         <p>Gestiona la sincronización de datos entre sistemas.</p>
                         <a href="/devops/sync" class="btn btn-success">Sincronizar Datos</a>
+                        <a href="/devops/conectar-belgrano" class="btn btn-info">Conectar Belgrano Ahorro</a>
                         <button class="btn btn-warning" onclick="actualizarEstadisticas()">Actualizar Stats</button>
                     </div>
                     
@@ -1472,6 +1601,378 @@ def ver_configuracion():
     
     # Si no es AJAX, devolver template HTML
     return render_template('devops/config.html')
+
+@devops_bp.route('/conectar-belgrano')
+@devops_login_required
+def conectar_belgrano():
+    """Conectar con Belgrano Ahorro y verificar estado"""
+    from flask import request, make_response
+    
+    # Solo devolver JSON si se solicita explícitamente con todos los parámetros
+    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
+        request.args.get('ajax') == 'true' and 
+        request.args.get('format') == 'json' and 
+        request.args.get('api') == 'true' and
+        request.args.get('json') == 'true'):
+        try:
+            # Verificar conexión con Belgrano Ahorro
+            connection_status = {
+                'timestamp': datetime.now().isoformat(),
+                'belgrano_ahorro': {
+                    'url': BELGRANO_AHORRO_URL,
+                    'api_key_configured': bool(BELGRANO_AHORRO_API_KEY),
+                    'status': 'checking'
+                },
+                'devops_api_client': {
+                    'available': devops_api_client is not None,
+                    'status': 'active' if devops_api_client else 'inactive'
+                }
+            }
+            
+            # Intentar conectar con Belgrano Ahorro
+            if BELGRANO_AHORRO_URL and BELGRANO_AHORRO_API_KEY:
+                try:
+                    # response = requests.get(
+                    #     build_api_url('healthz'),
+                    #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
+                    #     timeout=5
+                    # )
+                    # if response.status_code == 200:
+                    #     connection_status['belgrano_ahorro']['status'] = 'connected'
+                    #     connection_status['belgrano_ahorro']['response_time'] = response.elapsed.total_seconds()
+                    # else:
+                    #     connection_status['belgrano_ahorro']['status'] = 'error'
+                    #     connection_status['belgrano_ahorro']['error'] = f'HTTP {response.status_code}'
+                    connection_status['belgrano_ahorro']['status'] = 'disabled'
+                    connection_status['belgrano_ahorro']['message'] = 'API temporalmente deshabilitada'
+                except Exception as e:
+                    connection_status['belgrano_ahorro']['status'] = 'error'
+                    connection_status['belgrano_ahorro']['error'] = str(e)
+            else:
+                connection_status['belgrano_ahorro']['status'] = 'not_configured'
+                connection_status['belgrano_ahorro']['message'] = 'Variables de entorno no configuradas'
+            
+            return jsonify({
+                'status': 'success',
+                'data': connection_status
+            })
+            
+        except Exception as e:
+            logger.error(f"Error verificando conexión: {e}")
+            return jsonify({
+                'status': 'error',
+                'message': f'Error verificando conexión: {str(e)}'
+            }), 500
+    
+    # Si no es AJAX, devolver HTML completo
+    html = """
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Conexión Belgrano Ahorro - DevOps</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+                min-height: 100vh;
+                padding: 20px;
+            }
+            .container { 
+                max-width: 1200px; 
+                margin: 0 auto; 
+                background: white; 
+                border-radius: 15px; 
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                overflow: hidden;
+            }
+            .header { 
+                background: linear-gradient(135deg, #28a745 0%, #20c997 100%); 
+                color: white; 
+                padding: 30px; 
+                text-align: center; 
+            }
+            .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+            .header p { font-size: 1.2em; opacity: 0.9; }
+            .content { padding: 30px; }
+            .connection-card {
+                background: white;
+                border-radius: 10px;
+                padding: 25px;
+                margin: 20px 0;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                border-left: 4px solid #28a745;
+            }
+            .status-indicator {
+                display: inline-block;
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                margin-right: 8px;
+            }
+            .status-connected { background: #28a745; }
+            .status-disconnected { background: #dc3545; }
+            .status-checking { background: #ffc107; }
+            .status-disabled { background: #6c757d; }
+            .btn {
+                display: inline-block;
+                padding: 12px 24px;
+                background: linear-gradient(135deg, #28a745, #20c997);
+                color: white;
+                text-decoration: none;
+                border-radius: 8px;
+                font-weight: 600;
+                transition: all 0.3s ease;
+                margin: 5px;
+                border: none;
+                cursor: pointer;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            }
+            .btn-secondary {
+                background: linear-gradient(135deg, #6c757d, #5a6268);
+            }
+            .btn-info {
+                background: linear-gradient(135deg, #17a2b8, #138496);
+            }
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+                margin: 20px 0;
+            }
+            .stat-card {
+                background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+                padding: 20px;
+                border-radius: 10px;
+                text-align: center;
+                border-left: 4px solid #28a745;
+            }
+            .stat-card h3 {
+                font-size: 2em;
+                color: #28a745;
+                margin-bottom: 10px;
+            }
+            .loading {
+                text-align: center;
+                padding: 40px;
+                color: #6c757d;
+            }
+            .spinner {
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #28a745;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 20px;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🔗 Conexión Belgrano Ahorro</h1>
+                <p>Verificación y gestión de conexión con el sistema Belgrano Ahorro</p>
+            </div>
+            
+            <div class="content">
+                <div class="stats-grid" id="stats-container">
+                    <div class="stat-card">
+                        <h3 id="connection-status">Verificando...</h3>
+                        <p>Estado de Conexión</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="response-time">-</h3>
+                        <p>Tiempo de Respuesta</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="api-status">-</h3>
+                        <p>Estado API</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="last-check">-</h3>
+                        <p>Última Verificación</p>
+                    </div>
+                </div>
+                
+                <div class="connection-card">
+                    <h3>🔧 Configuración Actual</h3>
+                    <div id="config-details">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Cargando configuración...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="connection-card">
+                    <h3>📊 Estado de Conexión</h3>
+                    <div id="connection-details">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Verificando conexión...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 30px;">
+                    <button class="btn" onclick="verificarConexion()">🔄 Verificar Conexión</button>
+                    <button class="btn btn-info" onclick="verConfiguracion()">⚙️ Ver Configuración</button>
+                    <button class="btn btn-secondary" onclick="volverPanel()">🏠 Volver al Panel</button>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            function verificarConexion() {
+                document.getElementById('connection-details').innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Verificando conexión...</p>
+                    </div>
+                `;
+                
+                fetch('/devops/conectar-belgrano?ajax=true&format=json&api=true&json=true', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        mostrarEstadoConexion(data.data);
+                        actualizarEstadisticas(data.data);
+                    } else {
+                        mostrarError('Error verificando conexión: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    mostrarError('Error verificando conexión: ' + error);
+                });
+            }
+            
+            function verConfiguracion() {
+                fetch('/devops/config?ajax=true&format=json&api=true&json=true', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        mostrarConfiguracion(data.data);
+                    } else {
+                        mostrarError('Error cargando configuración: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    mostrarError('Error cargando configuración: ' + error);
+                });
+            }
+            
+            function mostrarEstadoConexion(data) {
+                const container = document.getElementById('connection-details');
+                const belgrano = data.belgrano_ahorro;
+                const devops = data.devops_api_client;
+                
+                let statusClass = 'status-disconnected';
+                let statusText = 'Desconectado';
+                
+                if (belgrano.status === 'connected') {
+                    statusClass = 'status-connected';
+                    statusText = 'Conectado';
+                } else if (belgrano.status === 'checking') {
+                    statusClass = 'status-checking';
+                    statusText = 'Verificando...';
+                } else if (belgrano.status === 'disabled') {
+                    statusClass = 'status-disabled';
+                    statusText = 'Deshabilitado';
+                }
+                
+                container.innerHTML = `
+                    <div class="connection-item">
+                        <h4>🌐 Belgrano Ahorro</h4>
+                        <p><span class="status-indicator ${statusClass}"></span>${statusText}</p>
+                        <p><strong>URL:</strong> ${belgrano.url || 'No configurada'}</p>
+                        <p><strong>API Key:</strong> ${belgrano.api_key_configured ? 'Configurada' : 'No configurada'}</p>
+                        ${belgrano.error ? `<p class="text-danger"><strong>Error:</strong> ${belgrano.error}</p>` : ''}
+                        ${belgrano.message ? `<p class="text-info"><strong>Mensaje:</strong> ${belgrano.message}</p>` : ''}
+                    </div>
+                    <div class="connection-item">
+                        <h4>🔧 DevOps API Client</h4>
+                        <p><span class="status-indicator ${devops.status === 'active' ? 'status-connected' : 'status-disconnected'}"></span>${devops.status === 'active' ? 'Activo' : 'Inactivo'}</p>
+                        <p><strong>Disponible:</strong> ${devops.available ? 'Sí' : 'No'}</p>
+                    </div>
+                `;
+            }
+            
+            function mostrarConfiguracion(data) {
+                const container = document.getElementById('config-details');
+                container.innerHTML = `
+                    <div class="config-item">
+                        <h4>🌐 Variables de Entorno</h4>
+                        <p><strong>BELGRANO_AHORRO_URL:</strong> ${data.environment.BELGRANO_AHORRO_URL || 'No configurada'}</p>
+                        <p><strong>BELGRANO_AHORRO_API_KEY:</strong> ${data.environment.BELGRANO_AHORRO_API_KEY}</p>
+                        <p><strong>API_TIMEOUT_SECS:</strong> ${data.environment.API_TIMEOUT_SECS}</p>
+                    </div>
+                    <div class="config-item">
+                        <h4>💻 Sistema</h4>
+                        <p><strong>Python:</strong> ${data.system.python_version}</p>
+                        <p><strong>Directorio:</strong> ${data.system.working_directory}</p>
+                        <p><strong>Blueprint:</strong> ${data.system.blueprint_prefix}</p>
+                    </div>
+                    <div class="config-item">
+                        <h4>🔗 Endpoints</h4>
+                        <p><strong>Base URL:</strong> ${data.endpoints.base_url || 'No configurada'}</p>
+                        <p><strong>API Prefix:</strong> ${data.endpoints.api_prefix}</p>
+                        <p><strong>Timeout:</strong> ${data.endpoints.timeout}s</p>
+                    </div>
+                `;
+            }
+            
+            function actualizarEstadisticas(data) {
+                const belgrano = data.belgrano_ahorro;
+                const now = new Date().toLocaleString();
+                
+                document.getElementById('connection-status').textContent = 
+                    belgrano.status === 'connected' ? 'Conectado' : 
+                    belgrano.status === 'disabled' ? 'Deshabilitado' : 'Desconectado';
+                
+                document.getElementById('response-time').textContent = 
+                    belgrano.response_time ? belgrano.response_time + 's' : '-';
+                
+                document.getElementById('api-status').textContent = 
+                    belgrano.api_key_configured ? 'Configurada' : 'No configurada';
+                
+                document.getElementById('last-check').textContent = now;
+            }
+            
+            function mostrarError(mensaje) {
+                const container = document.getElementById('connection-details');
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        <strong>Error:</strong> ${mensaje}
+                    </div>
+                `;
+            }
+            
+            function volverPanel() {
+                window.location.href = '/devops/';
+            }
+            
+            // Cargar información inicial
+            verificarConexion();
+            verConfiguracion();
+        </script>
+    </body>
+    </html>
+    """
+    return make_response(html, 200)
 
 # =================================================================
 # INTERFAZ WEB DEVOPS UI

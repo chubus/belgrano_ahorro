@@ -315,7 +315,7 @@
             document.getElementById('empty-state').style.display = 'none';
             
             try {
-                const response = await fetch('/devops/productos?ajax=true&format=json&api=true', {
+                const response = await fetch('/devops/productos?ajax=true&format=json&api=true&json=true', {
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
                 const data = await response.json();
