@@ -10,14 +10,14 @@
         body { 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
             min-height: 100vh; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
         }
         .main-container { 
             background: white; 
             border-radius: 15px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             margin: 20px auto; 
-            overflow: hidden; 
+            overflow: hidden;
         }
         .header-section { 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
@@ -40,8 +40,8 @@
         .btn-modern { 
             border-radius: 25px; 
             padding: 10px 25px; 
-            font-weight: 600; 
-            transition: all 0.3s ease; 
+            font-weight: 600;
+            transition: all 0.3s ease;
             border: none;
         }
         .btn-modern:hover { 
@@ -169,8 +169,8 @@
                                 <!-- Config items will be loaded here -->
                             </div>
                         </div>
-                    </div>
-
+        </div>
+        
                     <!-- Database Config -->
                     <div class="col-md-6 mb-4">
                         <div class="config-card">
@@ -179,7 +179,7 @@
                                 <!-- Config items will be loaded here -->
                             </div>
                         </div>
-                    </div>
+                </div>
 
                     <!-- API Config -->
                     <div class="col-md-6 mb-4">
@@ -187,10 +187,10 @@
                             <h5><i class="bi bi-cloud"></i> Configuración de API</h5>
                             <div id="api-config">
                                 <!-- Config items will be loaded here -->
-                            </div>
-                        </div>
-                    </div>
-
+                </div>
+                </div>
+            </div>
+            
                     <!-- Security Config -->
                     <div class="col-md-6 mb-4">
                         <div class="config-card">
@@ -200,8 +200,8 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
+            </div>
+            
                 <!-- Export Section -->
                 <div class="export-section">
                     <h5><i class="bi bi-download"></i> Exportar Configuración</h5>
@@ -209,19 +209,19 @@
                     <div class="d-flex gap-2">
                         <button class="btn btn-outline-primary" onclick="exportarJSON()">
                             <i class="bi bi-file-earmark-code"></i> JSON
-                        </button>
+                </button>
                         <button class="btn btn-outline-success" onclick="exportarYAML()">
                             <i class="bi bi-file-earmark-text"></i> YAML
-                        </button>
+                </button>
                         <button class="btn btn-outline-info" onclick="exportarENV()">
                             <i class="bi bi-file-earmark"></i> ENV
-                        </button>
-                    </div>
+                </button>
+            </div>
                 </div>
             </div>
         </div>
     </div>
-
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let configData = {};
