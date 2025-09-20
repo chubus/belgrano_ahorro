@@ -28,14 +28,14 @@ except ImportError as e:
     print(f"❌ Error importando app_unificado: {e}")
     # Crear una aplicación Flask básica como fallback
     from flask import Flask
-app = Flask(__name__)
+    app = Flask(__name__)
     app.secret_key = os.environ.get('SECRET_KEY', 'belgrano_ahorro_secret_key_2025')
-    
+
     @app.route('/')
-def index():
+    def index():
         return "Belgrano Ahorro - Aplicación en mantenimiento"
 
-@app.route('/health')
+    @app.route('/health')
     def health():
         return "OK"
 

@@ -573,7 +573,7 @@ def devops_health():
             }), 500
     
     # Si no es AJAX, devolver template HTML
-    return render_template(\'devops/health.html\')
+    return render_template('devops/health.html')
 
 @devops_bp.route('/status')
 @devops_login_required
@@ -728,7 +728,7 @@ def gestion_ofertas():
             }), 500
     
     # Si no es AJAX, devolver template HTML
-    return render_template(\'devops/ofertas.html\')
+    return render_template('devops/ofertas.html')
 
 @devops_bp.route('/negocios')
 @devops_login_required
@@ -795,7 +795,7 @@ def gestion_negocios():
             }), 500
     
     # Si no es AJAX, devolver template HTML
-    return render_template(\'devops/negocios.html\')
+    return render_template('devops/negocios.html')
 
 @devops_bp.route('/productos')
 @devops_login_required
@@ -862,7 +862,7 @@ def gestion_productos():
             }), 500
     
     # Si no es AJAX, devolver template HTML
-    return render_template(\'devops/productos.html\')
+    return render_template('devops/productos.html')
 
 @devops_bp.route('/precios')
 @devops_login_required
@@ -932,7 +932,7 @@ def gestion_precios():
             }), 500
     
     # Si no es AJAX, devolver template HTML
-    return render_template(\'devops/precios.html\')
+    return render_template('devops/precios.html')
 
 # =================================================================
 # SINCRONIZACIÓN Y UTILIDADES
@@ -1424,7 +1424,7 @@ def ver_logs():
             }), 500
     
     # Si no es AJAX, devolver template HTML
-    return render_template(\'devops/logs.html\')
+    return render_template('devops/logs.html')
 
 @devops_bp.route('/config')
 @devops_login_required
@@ -1471,7 +1471,7 @@ def ver_configuracion():
             }), 500
     
     # Si no es AJAX, devolver template HTML
-    return render_template(\'devops/config.html\')
+    return render_template('devops/config.html')
 
 # =================================================================
 # INTERFAZ WEB DEVOPS UI
