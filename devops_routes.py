@@ -229,9 +229,9 @@ def devops_test():
     # Si es una petición AJAX, devolver JSON
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
-            'status': 'success',
-            'message': 'DevOps funcionando correctamente',
-            'timestamp': datetime.now().isoformat(),
+        'status': 'success',
+        'message': 'DevOps funcionando correctamente',
+        'timestamp': datetime.now().isoformat(),
             'authenticated': devops_is_authenticated(),
             'endpoints': {
                 'health': '/devops/health',
