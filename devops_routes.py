@@ -273,7 +273,7 @@ def devops_home():
     from flask import request, make_response
     
     # Si es una petición AJAX específica, devolver JSON
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true':
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true' and request.args.get('format') == 'json' and request.args.get('api') == 'true':
         try:
             # Obtener información del sistema
             system_info = {
@@ -521,7 +521,7 @@ def devops_health():
     from flask import request, make_response
     
     # Si es una petición AJAX específica, devolver JSON
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true':
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true' and request.args.get('format') == 'json' and request.args.get('api') == 'true':
         try:
             health_status = {
                 'timestamp': datetime.now().isoformat(),
@@ -857,7 +857,7 @@ def gestion_ofertas():
     from flask import request, make_response
     
     # Si es una petición AJAX específica, devolver JSON
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true':
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true' and request.args.get('format') == 'json' and request.args.get('api') == 'true':
         try:
             from datetime import datetime
             
@@ -1407,7 +1407,7 @@ def gestion_negocios():
     from flask import request, make_response
     
     # Si es una petición AJAX específica, devolver JSON
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true':
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true' and request.args.get('format') == 'json' and request.args.get('api') == 'true':
         try:
             from datetime import datetime
             
@@ -1979,7 +1979,7 @@ def gestion_productos():
     from flask import request, make_response
     
     # Si es una petición AJAX específica, devolver JSON
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true':
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true' and request.args.get('format') == 'json' and request.args.get('api') == 'true':
         try:
             from datetime import datetime
             
@@ -2564,7 +2564,7 @@ def gestion_precios():
     from flask import request, make_response
     
     # Si es una petición AJAX específica, devolver JSON
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true':
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true' and request.args.get('format') == 'json' and request.args.get('api') == 'true':
         try:
             from datetime import datetime
             
@@ -2860,7 +2860,7 @@ def sincronizacion_manual():
     from flask import request, make_response
     
     # Si es una petición AJAX específica, devolver JSON
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true':
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true' and request.args.get('format') == 'json' and request.args.get('api') == 'true':
         try:
             sync_results = {
                 'timestamp': datetime.now().isoformat(),
@@ -3278,7 +3278,7 @@ def ver_logs():
     from flask import request, make_response
     
     # Si es una petición AJAX específica, devolver JSON
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true':
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true' and request.args.get('format') == 'json' and request.args.get('api') == 'true':
         try:
             # Simular logs del sistema
             logs = [
@@ -3729,7 +3729,7 @@ def ver_configuracion():
     from flask import request, make_response
     
     # Si es una petición AJAX específica, devolver JSON
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true':
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == 'true' and request.args.get('format') == 'json' and request.args.get('api') == 'true':
         try:
             config = {
                 'timestamp': datetime.now().isoformat(),
