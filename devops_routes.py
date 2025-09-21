@@ -445,8 +445,13 @@ def devops_home():
                 'message': f'Error interno: {str(e)}'
             }), 500
     
-    # Si no es AJAX, devolver HTML completo
-    html = """
+    # Si no es AJAX, devolver template HTML
+    try:
+        return render_template('devops/dashboard.html')
+    except Exception as e:
+        logger.error(f"Error cargando dashboard: {e}")
+        # Fallback con HTML básico
+        html = """
     <!DOCTYPE html>
     <html lang="es">
     <head>
@@ -856,14 +861,99 @@ def gestion_ofertas():
                 'source': 'error'
             }), 500
     
-    # Si no es AJAX, devolver template HTML
-    return render_template('devops/ofertas.html')
+    # Si no es AJAX, devolver template HTML con datos
+    try:
+        # Cargar datos de productos para el template
+        from app_unificado import cargar_datos_completos
+        datos = cargar_datos_completos()
+        productos = datos.get('productos', []) if datos else []
+        
+        # Simular datos de ofertas para el template
+        ofertas = [
+            {
+                'id': 1,
+                'titulo': 'Oferta Especial 50%',
+                'descripcion': 'Descuento del 50% en productos seleccionados',
+                'descuento': 50,
+                'fecha_inicio': '2025-01-19',
+                'fecha_fin': '2025-01-31',
+                'activa': True,
+                'producto_id': 1,
+                'producto_nombre': 'Producto Ejemplo'
+            },
+            {
+                'id': 2,
+                'titulo': 'Oferta 2x1',
+                'descripcion': 'Lleva 2 productos y paga solo 1',
+                'descuento': 100,
+                'fecha_inicio': '2025-01-20',
+                'fecha_fin': '2025-02-15',
+                'activa': True,
+                'producto_id': 2,
+                'producto_nombre': 'Otro Producto'
+            }
+        ]
+        
+        return render_template('devops/ofertas.html', ofertas=ofertas, productos=productos)
+    except Exception as e:
+        logger.error(f"Error cargando datos para ofertas: {e}")
+        # Fallback con datos mínimos
+        return render_template('devops/ofertas.html', ofertas=[], productos=[])
 
-@devops_bp.route('/negocios')
+@devops_bp.route('/negocios', methods=['GET', 'POST'])
 @devops_login_required
 def gestion_negocios():
     """Gestión completa de negocios"""
-    from flask import request, make_response, render_template
+    from flask import request, make_response, render_template, flash, redirect, url_for
+    
+    # Manejar POST requests (crear negocio)
+    if request.method == 'POST':
+        try:
+            nombre = request.form.get('nombre', '').strip()
+            descripcion = request.form.get('descripcion', '').strip()
+            
+            if not all([nombre, descripcion]):
+                flash('Nombre y descripción son requeridos', 'error')
+                return redirect(url_for('devops.gestion_negocios'))
+            
+            # Cargar datos actuales
+            from app_unificado import cargar_datos_completos, guardar_datos_json
+            import uuid
+            datos = cargar_datos_completos()
+            if not datos:
+                datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+            
+            # Crear nuevo negocio
+            negocio_id = str(uuid.uuid4())
+            nuevo_negocio = {
+                'id': negocio_id,
+                'nombre': nombre,
+                'descripcion': descripcion,
+                'logo': request.form.get('logo', ''),
+                'telefono': request.form.get('telefono', ''),
+                'direccion': request.form.get('direccion', ''),
+                'email': request.form.get('email', ''),
+                'activo': True,
+                'fecha_creacion': datetime.now().isoformat()
+            }
+            
+            # Agregar al diccionario
+            if 'negocios' not in datos:
+                datos['negocios'] = {}
+            datos['negocios'][negocio_id] = nuevo_negocio
+            
+            # Guardar
+            if guardar_datos_json(datos):
+                flash(f'Negocio "{nombre}" creado exitosamente', 'success')
+                logger.info(f"Negocio creado desde DevOps: {nombre}")
+            else:
+                flash('Error al guardar el negocio', 'error')
+                
+        except Exception as e:
+            logger.error(f"Error creando negocio desde DevOps: {e}")
+            flash('Error interno al crear el negocio', 'error')
+        
+        return redirect(url_for('devops.gestion_negocios'))
     
     # Solo devolver JSON si se solicita explícitamente con todos los parámetros
     if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
@@ -924,13 +1014,79 @@ def gestion_negocios():
             }), 500
     
     # Si no es AJAX, devolver template HTML
-    return render_template('devops/negocios.html')
+    try:
+        # Cargar datos de negocios para el template
+        from app_unificado import cargar_datos_completos
+        datos = cargar_datos_completos()
+        negocios = list(datos.get('negocios', {}).values()) if datos else []
+        
+        return render_template('devops/negocios.html', negocios=negocios)
+    except Exception as e:
+        logger.error(f"Error cargando datos para negocios: {e}")
+        return render_template('devops/negocios.html', negocios=[])
 
-@devops_bp.route('/productos')
+@devops_bp.route('/productos', methods=['GET', 'POST'])
 @devops_login_required
 def gestion_productos():
     """Gestión completa de productos"""
-    from flask import request, make_response, render_template
+    from flask import request, make_response, render_template, flash, redirect, url_for
+    
+    # Manejar POST requests (crear producto)
+    if request.method == 'POST':
+        try:
+            nombre = request.form.get('nombre', '').strip()
+            precio = request.form.get('precio', '').strip()
+            categoria = request.form.get('categoria', '').strip()
+            negocio = request.form.get('negocio', '').strip()
+            
+            if not all([nombre, precio, categoria, negocio]):
+                flash('Todos los campos son requeridos', 'error')
+                return redirect(url_for('devops.gestion_productos'))
+            
+            try:
+                precio_float = float(precio)
+            except ValueError:
+                flash('El precio debe ser un número válido', 'error')
+                return redirect(url_for('devops.gestion_productos'))
+            
+            # Cargar datos actuales
+            from app_unificado import cargar_datos_completos, guardar_datos_json
+            import uuid
+            datos = cargar_datos_completos()
+            if not datos:
+                datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+            
+            # Crear nuevo producto
+            producto_id = str(uuid.uuid4())
+            nuevo_producto = {
+                'id': producto_id,
+                'nombre': nombre,
+                'precio': precio_float,
+                'categoria': categoria,
+                'negocio': negocio,
+                'descripcion': request.form.get('descripcion', ''),
+                'imagen': request.form.get('imagen', ''),
+                'activo': True,
+                'fecha_creacion': datetime.now().isoformat()
+            }
+            
+            # Agregar a la lista
+            if 'productos' not in datos:
+                datos['productos'] = []
+            datos['productos'].append(nuevo_producto)
+            
+            # Guardar
+            if guardar_datos_json(datos):
+                flash(f'Producto "{nombre}" creado exitosamente', 'success')
+                logger.info(f"Producto creado desde DevOps: {nombre}")
+            else:
+                flash('Error al guardar el producto', 'error')
+                
+        except Exception as e:
+            logger.error(f"Error creando producto desde DevOps: {e}")
+            flash('Error interno al crear el producto', 'error')
+        
+        return redirect(url_for('devops.gestion_productos'))
     
     # Solo devolver JSON si se solicita explícitamente con todos los parámetros
     if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
@@ -990,8 +1146,19 @@ def gestion_productos():
                 'source': 'error'
             }), 500
     
-    # Si no es AJAX, devolver template HTML
-    return render_template('devops/productos.html')
+    # Si no es AJAX, devolver template HTML con datos
+    try:
+        # Cargar datos de productos para el template
+        from app_unificado import cargar_datos_completos
+        datos = cargar_datos_completos()
+        productos = datos.get('productos', []) if datos else []
+        negocios = list(datos.get('negocios', {}).values()) if datos else []
+        categorias = list(datos.get('categorias', {}).values()) if datos else []
+        
+        return render_template('devops/productos.html', productos=productos, negocios=negocios, categorias=categorias)
+    except Exception as e:
+        logger.error(f"Error cargando datos para productos: {e}")
+        return render_template('devops/productos.html', productos=[], negocios=[], categorias=[])
 
 @devops_bp.route('/precios')
 @devops_login_required
@@ -1073,12 +1240,8 @@ def sincronizacion_manual():
     """Forzar sincronización manual"""
     from flask import request, make_response
     
-    # Solo devolver JSON si se solicita explícitamente con todos los parámetros
-    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
-        request.args.get('ajax') == 'true' and 
-        request.args.get('format') == 'json' and 
-        request.args.get('api') == 'true' and
-        request.args.get('json') == 'true'):
+    # Devolver JSON si es una petición AJAX
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         try:
             sync_results = {
                 'timestamp': datetime.now().isoformat(),
@@ -1495,12 +1658,8 @@ def ver_logs():
     """Ver logs del sistema"""
     from flask import request, make_response, render_template
     
-    # Solo devolver JSON si se solicita explícitamente con todos los parámetros
-    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
-        request.args.get('ajax') == 'true' and 
-        request.args.get('format') == 'json' and 
-        request.args.get('api') == 'true' and
-        request.args.get('json') == 'true'):
+    # Devolver JSON si es una petición AJAX
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         try:
             # Simular logs del sistema
             logs = [
@@ -1561,12 +1720,8 @@ def ver_configuracion():
     """Ver configuración actual del sistema"""
     from flask import request, make_response, render_template
     
-    # Solo devolver JSON si se solicita explícitamente con todos los parámetros
-    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
-        request.args.get('ajax') == 'true' and 
-        request.args.get('format') == 'json' and 
-        request.args.get('api') == 'true' and
-        request.args.get('json') == 'true'):
+    # Devolver JSON si es una petición AJAX
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         try:
             config = {
                 'timestamp': datetime.now().isoformat(),
