@@ -451,7 +451,7 @@ def devops_home():
     except Exception as e:
         logger.error(f"Error cargando dashboard: {e}")
         # Fallback con HTML básico
-        html = """
+    html = """
     <!DOCTYPE html>
     <html lang="es">
     <head>
@@ -1506,66 +1506,66 @@ def sincronizacion_manual():
     from flask import request, make_response
     
     # Siempre devolver JSON para este endpoint
-    try:
-        sync_results = {
-            'timestamp': datetime.now().isoformat(),
-            'ofertas': {'status': 'pending'},
-            'negocios': {'status': 'pending'},
-            'overall_status': 'running'
-        }
-        
-        # Sincronizar ofertas
         try:
-            # response = requests.get(
-            #     build_api_url('v1/ofertas'),
-            #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
-            #     timeout=API_TIMEOUT_SECS
-            # )
-            # sync_results['ofertas'] = {
-            #     'status': 'success' if response.status_code == 200 else 'error',
-            #     'status_code': response.status_code,
-            #     'count': len(response.json()) if response.status_code == 200 else 0
-            # }
-            sync_results['ofertas'] = {'status': 'disabled', 'message': 'API temporalmente deshabilitada'}
+            sync_results = {
+                'timestamp': datetime.now().isoformat(),
+                'ofertas': {'status': 'pending'},
+                'negocios': {'status': 'pending'},
+                'overall_status': 'running'
+            }
+            
+            # Sincronizar ofertas
+            try:
+                # response = requests.get(
+                #     build_api_url('v1/ofertas'),
+                #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
+                #     timeout=API_TIMEOUT_SECS
+                # )
+                # sync_results['ofertas'] = {
+                #     'status': 'success' if response.status_code == 200 else 'error',
+                #     'status_code': response.status_code,
+                #     'count': len(response.json()) if response.status_code == 200 else 0
+                # }
+                sync_results['ofertas'] = {'status': 'disabled', 'message': 'API temporalmente deshabilitada'}
+            except Exception as e:
+                sync_results['ofertas'] = {'status': 'error', 'error': str(e)}
+            
+            # Sincronizar negocios
+            try:
+                # response = requests.get(
+                #     build_api_url('v1/negocios'),
+                #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
+                #     timeout=API_TIMEOUT_SECS
+                # )
+                # sync_results['negocios'] = {
+                #     'status': 'success' if response.status_code == 200 else 'error',
+                #     'status_code': response.status_code,
+                #     'count': len(response.json()) if response.status_code == 200 else 0
+                # }
+                sync_results['negocios'] = {'status': 'disabled', 'message': 'API temporalmente deshabilitada'}
+            except Exception as e:
+                sync_results['negocios'] = {'status': 'error', 'error': str(e)}
+            
+            # Determinar estado general
+            if all(item['status'] == 'success' for item in [sync_results['ofertas'], sync_results['negocios']]):
+                sync_results['overall_status'] = 'success'
+            elif any(item['status'] == 'success' for item in [sync_results['ofertas'], sync_results['negocios']]):
+                sync_results['overall_status'] = 'partial'
+            else:
+                sync_results['overall_status'] = 'error'
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Sincronización completada',
+                'data': sync_results
+            })
+            
         except Exception as e:
-            sync_results['ofertas'] = {'status': 'error', 'error': str(e)}
-        
-        # Sincronizar negocios
-        try:
-            # response = requests.get(
-            #     build_api_url('v1/negocios'),
-            #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
-            #     timeout=API_TIMEOUT_SECS
-            # )
-            # sync_results['negocios'] = {
-            #     'status': 'success' if response.status_code == 200 else 'error',
-            #     'status_code': response.status_code,
-            #     'count': len(response.json()) if response.status_code == 200 else 0
-            # }
-            sync_results['negocios'] = {'status': 'disabled', 'message': 'API temporalmente deshabilitada'}
-        except Exception as e:
-            sync_results['negocios'] = {'status': 'error', 'error': str(e)}
-        
-        # Determinar estado general
-        if all(item['status'] == 'success' for item in [sync_results['ofertas'], sync_results['negocios']]):
-            sync_results['overall_status'] = 'success'
-        elif any(item['status'] == 'success' for item in [sync_results['ofertas'], sync_results['negocios']]):
-            sync_results['overall_status'] = 'partial'
-        else:
-            sync_results['overall_status'] = 'error'
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Sincronización completada',
-            'data': sync_results
-        })
-        
-    except Exception as e:
-        logger.error(f"Error en sincronización manual: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error en sincronización: {str(e)}'
-        }), 500
+            logger.error(f"Error en sincronización manual: {e}")
+            return jsonify({
+                'status': 'error',
+                'message': f'Error en sincronización: {str(e)}'
+            }), 500
     html = """
     <!DOCTYPE html>
     <html lang="es">
@@ -1921,56 +1921,56 @@ def ver_logs():
     from flask import request, make_response, render_template
     
     # Siempre devolver JSON para este endpoint
-    try:
-        # Simular logs del sistema
-        logs = [
-            {
-                'timestamp': datetime.now().isoformat(),
-                'level': 'INFO',
-                'message': 'Sistema DevOps iniciado correctamente',
-                'service': 'devops'
-            },
-            {
-                'timestamp': datetime.now().isoformat(),
-                'level': 'INFO',
-                'message': 'Blueprint de DevOps registrado',
-                'service': 'app'
-            },
-            {
-                'timestamp': datetime.now().isoformat(),
-                'level': 'INFO',
-                'message': 'Conexión con API establecida',
-                'service': 'api_client'
-            },
-            {
-                'timestamp': datetime.now().isoformat(),
-                'level': 'WARNING',
-                'message': 'Fallback mode activado',
-                'service': 'devops'
-            },
-            {
-                'timestamp': datetime.now().isoformat(),
-                'level': 'INFO',
-                'message': 'Usuarios sincronizados correctamente',
-                'service': 'sync'
-            }
-        ]
-        
-        return jsonify({
-            'status': 'success',
-            'data': {
-                'logs': logs,
-                'total_logs': len(logs),
-                'timestamp': datetime.now().isoformat()
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo logs: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error obteniendo logs: {str(e)}'
-        }), 500
+        try:
+            # Simular logs del sistema
+            logs = [
+                {
+                    'timestamp': datetime.now().isoformat(),
+                    'level': 'INFO',
+                    'message': 'Sistema DevOps iniciado correctamente',
+                    'service': 'devops'
+                },
+                {
+                    'timestamp': datetime.now().isoformat(),
+                    'level': 'INFO',
+                    'message': 'Blueprint de DevOps registrado',
+                    'service': 'app'
+                },
+                {
+                    'timestamp': datetime.now().isoformat(),
+                    'level': 'INFO',
+                    'message': 'Conexión con API establecida',
+                    'service': 'api_client'
+                },
+                {
+                    'timestamp': datetime.now().isoformat(),
+                    'level': 'WARNING',
+                    'message': 'Fallback mode activado',
+                    'service': 'devops'
+                },
+                {
+                    'timestamp': datetime.now().isoformat(),
+                    'level': 'INFO',
+                    'message': 'Usuarios sincronizados correctamente',
+                    'service': 'sync'
+                }
+            ]
+            
+            return jsonify({
+                'status': 'success',
+                'data': {
+                    'logs': logs,
+                    'total_logs': len(logs),
+                    'timestamp': datetime.now().isoformat()
+                }
+            })
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo logs: {e}")
+            return jsonify({
+                'status': 'error',
+                'message': f'Error obteniendo logs: {str(e)}'
+            }), 500
 
 @devops_bp.route('/config')
 @devops_login_required
@@ -1979,37 +1979,37 @@ def ver_configuracion():
     from flask import request, make_response, render_template
     
     # Siempre devolver JSON para este endpoint
-    try:
-        config = {
-            'timestamp': datetime.now().isoformat(),
-            'environment': {
-                'BELGRANO_AHORRO_URL': BELGRANO_AHORRO_URL,
-                'BELGRANO_AHORRO_API_KEY': '***configurada***' if BELGRANO_AHORRO_API_KEY else 'No configurada',
-                'API_TIMEOUT_SECS': API_TIMEOUT_SECS
-            },
-            'system': {
-                'python_version': os.sys.version,
-                'working_directory': os.getcwd(),
-                'blueprint_prefix': '/devops'
-            },
-            'endpoints': {
-                'base_url': BELGRANO_AHORRO_URL,
-                'api_prefix': '/api',
-                'timeout': API_TIMEOUT_SECS
+        try:
+            config = {
+                'timestamp': datetime.now().isoformat(),
+                'environment': {
+                    'BELGRANO_AHORRO_URL': BELGRANO_AHORRO_URL,
+                    'BELGRANO_AHORRO_API_KEY': '***configurada***' if BELGRANO_AHORRO_API_KEY else 'No configurada',
+                    'API_TIMEOUT_SECS': API_TIMEOUT_SECS
+                },
+                'system': {
+                    'python_version': os.sys.version,
+                    'working_directory': os.getcwd(),
+                    'blueprint_prefix': '/devops'
+                },
+                'endpoints': {
+                    'base_url': BELGRANO_AHORRO_URL,
+                    'api_prefix': '/api',
+                    'timeout': API_TIMEOUT_SECS
+                }
             }
-        }
-        
-        return jsonify({
-            'status': 'success',
-            'data': config
-        })
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo configuración: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error obteniendo configuración: {str(e)}'
-        }), 500
+            
+            return jsonify({
+                'status': 'success',
+                'data': config
+            })
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo configuración: {e}")
+            return jsonify({
+                'status': 'error',
+                'message': f'Error obteniendo configuración: {str(e)}'
+            }), 500
 
 @devops_bp.route('/conectar-belgrano')
 @devops_login_required
