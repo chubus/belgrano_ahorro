@@ -12,7 +12,7 @@ from functools import wraps
 from datetime import datetime
 import logging
 from urllib.parse import urljoin
-from flask import Blueprint, request, jsonify, redirect, url_for, session, make_response
+from flask import Blueprint, request, jsonify, redirect, url_for, session, make_response, render_template
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Configuración de logging
