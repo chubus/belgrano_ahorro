@@ -863,7 +863,7 @@ def gestion_ofertas():
 @devops_login_required
 def gestion_negocios():
     """Gestión completa de negocios"""
-    from flask import request, make_response
+    from flask import request, make_response, render_template
     
     # Solo devolver JSON si se solicita explícitamente con todos los parámetros
     if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
@@ -930,7 +930,7 @@ def gestion_negocios():
 @devops_login_required
 def gestion_productos():
     """Gestión completa de productos"""
-    from flask import request, make_response
+    from flask import request, make_response, render_template
     
     # Solo devolver JSON si se solicita explícitamente con todos los parámetros
     if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
@@ -997,7 +997,7 @@ def gestion_productos():
 @devops_login_required
 def gestion_precios():
     """Gestión completa de precios"""
-    from flask import request, make_response
+    from flask import request, make_response, render_template
     
     # Solo devolver JSON si se solicita explícitamente con todos los parámetros
     if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
@@ -1493,7 +1493,7 @@ def sincronizacion_manual():
 @devops_login_required
 def ver_logs():
     """Ver logs del sistema"""
-    from flask import request, make_response
+    from flask import request, make_response, render_template
     
     # Solo devolver JSON si se solicita explícitamente con todos los parámetros
     if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
@@ -1559,7 +1559,7 @@ def ver_logs():
 @devops_login_required
 def ver_configuracion():
     """Ver configuración actual del sistema"""
-    from flask import request, make_response
+    from flask import request, make_response, render_template
     
     # Solo devolver JSON si se solicita explícitamente con todos los parámetros
     if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
