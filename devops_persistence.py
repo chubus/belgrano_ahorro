@@ -109,6 +109,19 @@ class DevOpsPersistence:
                     )
                 ''')
                 
+                # Crear historial de precios si no existe
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS precios_historial (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        producto_id INTEGER NOT NULL,
+                        precio_anterior REAL NOT NULL,
+                        precio_nuevo REAL NOT NULL,
+                        motivo TEXT,
+                        fecha_cambio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (producto_id) REFERENCES productos(id)
+                    )
+                ''')
+
                 # Crear tabla de categorías si no existe
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS categorias (
@@ -271,6 +284,87 @@ class DevOpsPersistence:
                 
         except Exception as e:
             logger.error(f"Error obteniendo productos: {e}")
+            return []
+
+    def obtener_categorias(self) -> List[Dict]:
+        """Obtener todas las categorías"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT id, nombre, descripcion, activa, fecha_creacion FROM categorias ORDER BY nombre ASC')
+                rows = cursor.fetchall()
+                categorias: List[Dict] = []
+                for row in rows:
+                    categorias.append({
+                        'id': row[0],
+                        'nombre': row[1],
+                        'descripcion': row[2],
+                        'activa': bool(row[3]),
+                        'fecha_creacion': row[4]
+                    })
+                return categorias
+        except Exception as e:
+            logger.error(f"Error obteniendo categorías: {e}")
+            return []
+
+    def actualizar_precio_producto(self, producto_id: int, nuevo_precio: float, motivo: str = '') -> Dict:
+        """Actualizar el precio de un producto y registrar el historial"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                # Obtener precio anterior
+                cursor.execute('SELECT precio FROM productos WHERE id = ?', (int(producto_id),))
+                row = cursor.fetchone()
+                if not row:
+                    raise ValueError('Producto no encontrado')
+                precio_anterior = float(row[0])
+
+                # Actualizar precio
+                cursor.execute('UPDATE productos SET precio = ?, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id = ?', (float(nuevo_precio), int(producto_id)))
+
+                # Registrar historial
+                cursor.execute('INSERT INTO precios_historial (producto_id, precio_anterior, precio_nuevo, motivo) VALUES (?, ?, ?, ?)', (int(producto_id), precio_anterior, float(nuevo_precio), motivo or 'Actualización desde DevOps'))
+
+                conn.commit()
+
+                # Devolver producto actualizado
+                cursor.execute('SELECT * FROM productos WHERE id = ?', (int(producto_id),))
+                p = cursor.fetchone()
+                return {
+                    'id': p[0], 'nombre': p[1], 'descripcion': p[2], 'precio': p[3], 'categoria': p[4],
+                    'stock': p[5], 'stock_minimo': p[6], 'negocio_id': p[7], 'activo': bool(p[8]),
+                    'fecha_creacion': p[9], 'fecha_actualizacion': p[10]
+                }
+        except Exception as e:
+            logger.error(f"Error actualizando precio: {e}")
+            raise
+
+    def obtener_precios(self) -> List[Dict]:
+        """Obtener lista de productos con sus precios y último cambio"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT p.id, p.nombre, p.precio, p.categoria,
+                           (SELECT ph.precio_nuevo FROM precios_historial ph WHERE ph.producto_id = p.id ORDER BY ph.fecha_cambio DESC LIMIT 1) AS ultimo_precio,
+                           (SELECT ph.fecha_cambio FROM precios_historial ph WHERE ph.producto_id = p.id ORDER BY ph.fecha_cambio DESC LIMIT 1) AS fecha_ultimo
+                    FROM productos p
+                    ORDER BY p.fecha_actualizacion DESC
+                ''')
+                rows = cursor.fetchall()
+                precios = []
+                for r in rows:
+                    precios.append({
+                        'producto_id': r[0],
+                        'nombre': r[1],
+                        'precio': r[2],
+                        'categoria': r[3],
+                        'ultimo_precio': r[4] if r[4] is not None else r[2],
+                        'fecha_ultimo': r[5]
+                    })
+                return precios
+        except Exception as e:
+            logger.error(f"Error obteniendo precios: {e}")
             return []
     
     def crear_oferta(self, datos: Dict) -> Dict:
