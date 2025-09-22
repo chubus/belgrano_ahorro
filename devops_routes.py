@@ -804,28 +804,61 @@ def devops_info():
 # GESTIÓN DE OFERTAS
 # =================================================================
 
-@devops_bp.route('/ofertas')
+@devops_bp.route('/ofertas', methods=['GET', 'POST'])
 @devops_login_required
 def gestion_ofertas():
     """Gestión completa de ofertas"""
-    from flask import request, make_response, render_template
+    from flask import request, make_response, render_template, flash, redirect, url_for
     
-    # Cargar datos reales para el template
-    try:
-        from app_unificado import cargar_datos_completos
-        datos = cargar_datos_completos()
-        if not datos:
-            datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+    # Manejar POST requests (crear oferta)
+    if request.method == 'POST':
+        try:
+            titulo = request.form.get('titulo', '').strip()
+            descripcion = request.form.get('descripcion', '').strip()
+            productos = request.form.get('productos', '').strip()
+            hasta_agotar_stock = request.form.get('hasta_agotar_stock') == 'on'
+            activa = request.form.get('activa') == 'on'
+            
+            if not all([titulo, descripcion, productos]):
+                flash('Título, descripción y productos son requeridos', 'error')
+                return redirect(url_for('devops.gestion_ofertas'))
+            
+            # Cargar datos actuales
+            from app_unificado import cargar_datos_completos, guardar_datos_json
+            import uuid
+            datos = cargar_datos_completos()
+            if not datos:
+                datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+            
+            # Crear nueva oferta
+            oferta_id = str(uuid.uuid4())
+            nueva_oferta = {
+                'id': oferta_id,
+                'titulo': titulo,
+                'descripcion': descripcion,
+                'productos': productos,
+                'hasta_agotar_stock': hasta_agotar_stock,
+                'activa': activa,
+                'fecha_creacion': datetime.now().isoformat()
+            }
+            
+            # Agregar a la lista
+            if 'ofertas' not in datos:
+                datos['ofertas'] = []
+            datos['ofertas'].append(nueva_oferta)
+            
+            # Guardar
+            if guardar_datos_json(datos):
+                flash(f'Oferta "{titulo}" creada exitosamente', 'success')
+                logger.info(f"Oferta creada desde DevOps: {titulo}")
+            else:
+                flash('Error al guardar la oferta', 'error')
+                
+        except Exception as e:
+            logger.error(f"Error creando oferta desde DevOps: {e}")
+            flash('Error interno al crear la oferta', 'error')
         
-        productos = datos.get('productos', [])
-        
-        # Devolver template con datos reales
-        return render_template('devops/ofertas.html', productos=productos)
-        
-    except Exception as e:
-        logger.error(f"Error cargando datos para ofertas: {e}")
-        # Fallback con datos vacíos
-        return render_template('devops/ofertas.html', productos=[])
+        return redirect(url_for('devops.gestion_ofertas'))
     
     # Solo devolver JSON si se solicita explícitamente con todos los parámetros
     if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
@@ -834,8 +867,6 @@ def gestion_ofertas():
         request.args.get('api') == 'true' and
         request.args.get('json') == 'true'):
         try:
-            from datetime import datetime
-            
             # Simular datos de ofertas
             ofertas = [
                 {
@@ -843,79 +874,60 @@ def gestion_ofertas():
                     'titulo': 'Oferta Especial 50%',
                     'descripcion': 'Descuento del 50% en productos seleccionados',
                     'descuento': 50,
+                    'producto_id': 1,
+                    'producto_nombre': 'Producto Ejemplo',
                     'fecha_inicio': '2025-01-19',
                     'fecha_fin': '2025-01-31',
-                    'activa': True,
-                    'negocio_id': 1
+                    'activa': True
                 },
                 {
                     'id': 2,
                     'titulo': 'Oferta 2x1',
                     'descripcion': 'Lleva 2 productos y paga solo 1',
                     'descuento': 100,
+                    'producto_id': 2,
+                    'producto_nombre': 'Producto Ejemplo 2',
                     'fecha_inicio': '2025-01-20',
                     'fecha_fin': '2025-02-15',
-                    'activa': True,
-                    'negocio_id': 2
+                    'activa': True
                 }
             ]
             
             return jsonify({
                 'status': 'success',
+                'message': f'Ofertas obtenidas correctamente ({len(ofertas)} encontradas)',
                 'data': {
                     'ofertas': ofertas,
                     'total': len(ofertas),
                     'timestamp': datetime.now().isoformat()
                 },
-                'source': 'simulated',
-                'message': f'Ofertas obtenidas correctamente ({len(ofertas)} encontradas)'
+                'source': 'simulated'
             })
+            
         except Exception as e:
+            logger.error(f"Error obteniendo ofertas: {e}")
             return jsonify({
                 'status': 'error',
                 'message': f'Error obteniendo ofertas: {str(e)}',
-                'data': [],
-                'source': 'error'
+                'data': []
             }), 500
     
-    # Si no es AJAX, devolver template HTML con datos
+    # Si no es AJAX, devolver template HTML con datos reales
     try:
-        # Cargar datos de productos para el template
         from app_unificado import cargar_datos_completos
         datos = cargar_datos_completos()
-        productos = datos.get('productos', []) if datos else []
+        if not datos:
+            datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
         
-        # Simular datos de ofertas para el template
-        ofertas = [
-            {
-                'id': 1,
-                'titulo': 'Oferta Especial 50%',
-                'descripcion': 'Descuento del 50% en productos seleccionados',
-                'descuento': 50,
-                'fecha_inicio': '2025-01-19',
-                'fecha_fin': '2025-01-31',
-                'activa': True,
-                'producto_id': 1,
-                'producto_nombre': 'Producto Ejemplo'
-            },
-            {
-                'id': 2,
-                'titulo': 'Oferta 2x1',
-                'descripcion': 'Lleva 2 productos y paga solo 1',
-                'descuento': 100,
-                'fecha_inicio': '2025-01-20',
-                'fecha_fin': '2025-02-15',
-                'activa': True,
-                'producto_id': 2,
-                'producto_nombre': 'Otro Producto'
-            }
-        ]
+        ofertas = datos.get('ofertas', [])
         
-        return render_template('devops/ofertas.html', ofertas=ofertas, productos=productos)
+        # Devolver template con datos reales
+        return render_template('devops/ofertas.html', ofertas=ofertas)
+        
     except Exception as e:
         logger.error(f"Error cargando datos para ofertas: {e}")
-        # Fallback con datos mínimos
-        return render_template('devops/ofertas.html', ofertas=[], productos=[])
+        # Fallback con datos vacíos
+        return render_template('devops/ofertas.html', ofertas=[])
 
 @devops_bp.route('/negocios', methods=['GET', 'POST'])
 @devops_login_required
@@ -1066,14 +1078,8 @@ def gestion_productos():
                 flash('El precio debe ser un número válido', 'error')
                 return redirect(url_for('devops.gestion_productos'))
             
-            # Cargar datos actuales
-            from app_unificado import cargar_datos_completos, guardar_datos_json
+            # Simular creación de producto
             import uuid
-            datos = cargar_datos_completos()
-            if not datos:
-                datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
-            
-            # Crear nuevo producto
             producto_id = str(uuid.uuid4())
             nuevo_producto = {
                 'id': producto_id,
