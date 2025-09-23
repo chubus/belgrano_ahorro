@@ -47,6 +47,14 @@ except Exception as e:
     print(f"❌ Error importando db: {e}")
     raise  # Detén la app si el import falla
 
+# Importar API RESTful
+try:
+    from api_belgrano_ahorro import api_bp
+    print("✅ API RESTful importada correctamente")
+except Exception as e:
+    print(f"❌ Error importando API: {e}")
+    api_bp = None
+
 # Función para obtener conexión a la base de datos
 def get_db_connection():
     """Obtener conexión a la base de datos"""
@@ -71,6 +79,11 @@ logger = logging.getLogger(__name__)
 # Crear la instancia de Flask
 app = Flask(__name__)
 app.secret_key = 'belgrano_ahorro_secret_key_2025'  # Clave secreta para sesiones
+
+# Registrar API RESTful
+if api_bp:
+    app.register_blueprint(api_bp)
+    print("✅ API RESTful registrada en /api/*")
 
 # Configurar entorno
 # Configurar variables de entorno por defecto
@@ -135,6 +148,7 @@ else:
 def buscar_productos(productos, busqueda):
     """
     Buscar productos por nombre, descripción o categoría
+    holi
     
     PARÁMETROS:
     - productos: lista de productos a buscar
