@@ -79,8 +79,8 @@ class DevOpsPersistence:
                 )
             ''')
             
-                # Crear tabla de sucursales si no existe
-                cursor.execute('''
+            # Crear tabla de sucursales si no existe
+            cursor.execute('''
                     CREATE TABLE IF NOT EXISTS sucursales (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         nombre TEXT NOT NULL,
@@ -94,9 +94,9 @@ class DevOpsPersistence:
                         FOREIGN KEY (negocio_id) REFERENCES negocios(id)
                     )
                 ''')
-
-                # Crear tabla de ofertas si no existe
-                cursor.execute('''
+            
+            # Crear tabla de ofertas si no existe
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS ofertas (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     titulo TEXT NOT NULL,
@@ -109,8 +109,8 @@ class DevOpsPersistence:
                 )
             ''')
             
-                # Crear historial de precios si no existe
-                cursor.execute('''
+            # Crear historial de precios si no existe
+            cursor.execute('''
                     CREATE TABLE IF NOT EXISTS precios_historial (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         producto_id INTEGER NOT NULL,
@@ -134,7 +134,7 @@ class DevOpsPersistence:
             ''')
             
             conn.commit()
-                logger.info("Base de datos DevOps inicializada correctamente")
+            logger.info("Base de datos DevOps inicializada correctamente")
                 
         except Exception as e:
             logger.error(f"Error inicializando base de datos: {e}")
@@ -166,7 +166,7 @@ class DevOpsPersistence:
                 row = cursor.fetchone()
                 
                 if row:
-                return {
+                    return {
                         'id': row[0],
                         'nombre': row[1],
                         'descripcion': row[2],
@@ -238,7 +238,7 @@ class DevOpsPersistence:
                 row = cursor.fetchone()
                 
                 if row:
-                return {
+                    return {
                         'id': row[0],
                         'nombre': row[1],
                         'descripcion': row[2],
@@ -395,7 +395,7 @@ class DevOpsPersistence:
                 row = cursor.fetchone()
                 
                 if row:
-                return {
+                    return {
                         'id': row[0],
                         'titulo': row[1],
                         'descripcion': row[2],
@@ -459,7 +459,7 @@ class DevOpsPersistence:
                 cursor.execute('SELECT * FROM sucursales WHERE id = ?', (sucursal_id,))
                 row = cursor.fetchone()
                 if row:
-                return {
+                    return {
                         'id': row[0],
                         'nombre': row[1],
                         'direccion': row[2],
