@@ -53,21 +53,71 @@ if not BELGRANO_AHORRO_API_KEY:
     else:
         logger.warning("⚠️ Variable de entorno BELGRANO_AHORRO_API_KEY no está definida")
 
-# Importar cliente API
+# Importar cliente API (dos estrategias)
+devops_api_client = None
 try:
-    from belgrano_tickets.api_client import create_api_client, api_client as global_api_client
+    from belgrano_tickets.api_client import create_api_client
     if BELGRANO_AHORRO_URL and BELGRANO_AHORRO_API_KEY:
         devops_api_client = create_api_client(BELGRANO_AHORRO_URL, BELGRANO_AHORRO_API_KEY)
-        logger.info("Cliente API de Belgrano Ahorro inicializado para DevOps")
-    else:
+        logger.info("Cliente API de Belgrano Ahorro inicializado (api_client)")
+except Exception as e:
+    logger.info(f"api_client no disponible: {e}")
+
+if devops_api_client is None:
+    try:
+        from belgrano_client import BelgranoAhorroClient
+        devops_api_client = BelgranoAhorroClient()
+        logger.info("Cliente API de Belgrano Ahorro inicializado (belgrano_client)")
+    except Exception as e:
+        logger.warning(f"belgrano_client no disponible: {e}")
         devops_api_client = None
-        if env_status == 'production':
-            logger.warning("Variables de entorno no configuradas para cliente API de DevOps")
-        else:
-            logger.info("Cliente API de DevOps no inicializado (variables no configuradas)")
-except ImportError as e:
-    logger.error(f"No se pudo inicializar el cliente API: {e}")
-    devops_api_client = None
+
+def api_get(path: str):
+    if devops_api_client is None:
+        raise RuntimeError("Cliente API no disponible")
+    # Compatibilidad: ambos clientes devuelven dict JSON
+    if hasattr(devops_api_client, 'get'):
+        return devops_api_client.get(path)
+    # BelgranoAhorroClient
+    mapping = {
+        'businesses': devops_api_client.get_businesses,
+        'products': devops_api_client.get_products,
+        'branches': devops_api_client.get_branches,
+        'offers': devops_api_client.get_offers,
+        'health': devops_api_client.health_check,
+    }
+    if path in mapping:
+        return mapping[path]()
+    raise ValueError(f"GET no soportado: {path}")
+
+def api_post(path: str, data: dict):
+    if devops_api_client is None:
+        raise RuntimeError("Cliente API no disponible")
+    if hasattr(devops_api_client, 'post'):
+        return devops_api_client.post(path, json=data)
+    mapping = {
+        'businesses': devops_api_client.create_business,
+        'products': devops_api_client.create_product,
+        'branches': devops_api_client.create_branch,
+        'offers': devops_api_client.create_offer,
+    }
+    if path in mapping:
+        return mapping[path](data)
+    raise ValueError(f"POST no soportado: {path}")
+
+def api_put(path: str, item_id: int, data: dict):
+    if devops_api_client is None:
+        raise RuntimeError("Cliente API no disponible")
+    mapping = {
+        'businesses': getattr(devops_api_client, 'update_business', None),
+        'products': getattr(devops_api_client, 'update_product', None),
+        'branches': getattr(devops_api_client, 'update_branch', None),
+        'offers': getattr(devops_api_client, 'update_offer', None),
+    }
+    fn = mapping.get(path)
+    if fn is None:
+        raise ValueError(f"PUT no soportado: {path}")
+    return fn(item_id, data)
 
 # Crear blueprint con prefijo
 devops_bp = Blueprint('devops', __name__, url_prefix='/devops')
@@ -935,52 +985,38 @@ def gestion_negocios():
     """Gestión completa de negocios"""
     from flask import request, make_response, render_template, flash, redirect, url_for
     
-    # Manejar POST requests (crear negocio)
+    # Manejar POST requests (crear negocio) vía API
     if request.method == 'POST':
         try:
             nombre = request.form.get('nombre', '').strip()
             descripcion = request.form.get('descripcion', '').strip()
-            
-            if not all([nombre, descripcion]):
-                flash('Nombre y descripción son requeridos', 'error')
+            direccion = request.form.get('direccion', '').strip()
+            telefono = request.form.get('telefono', '').strip()
+            email = request.form.get('email', '').strip()
+            if not nombre:
+                flash('Nombre es requerido', 'error')
                 return redirect(url_for('devops.gestion_negocios'))
-            
-            # Cargar datos actuales
-            from app_unificado import cargar_datos_completos, guardar_datos_json
-            import uuid
-            datos = cargar_datos_completos()
-            if not datos:
-                datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
-            
-            # Crear nuevo negocio
-            negocio_id = str(uuid.uuid4())
-            nuevo_negocio = {
-                'id': negocio_id,
+
+            if devops_api_client is None:
+                raise RuntimeError('Cliente API no disponible')
+
+            payload = {
                 'nombre': nombre,
-                'descripcion': descripcion,
-                'logo': request.form.get('logo', ''),
-                'telefono': request.form.get('telefono', ''),
-                'direccion': request.form.get('direccion', ''),
-                'email': request.form.get('email', ''),
-                'activo': True,
-                'fecha_creacion': datetime.now().isoformat()
+                'descripcion': descripcion or '',
+                'direccion': direccion or '',
+                'telefono': telefono or '',
+                'email': email or '',
+                'activo': True
             }
-            
-            # Agregar al diccionario
-            if 'negocios' not in datos:
-                datos['negocios'] = {}
-            datos['negocios'][negocio_id] = nuevo_negocio
-            
-            # Guardar
-            if guardar_datos_json(datos):
-                flash(f'Negocio "{nombre}" creado exitosamente', 'success')
-                logger.info(f"Negocio creado desde DevOps: {nombre}")
-            else:
-                flash('Error al guardar el negocio', 'error')
+
+            resp = api_post('businesses', payload)
+            if isinstance(resp, dict) and 'error' in resp:
+                raise RuntimeError(resp['error'])
+            flash('Negocio creado exitosamente', 'success')
                 
         except Exception as e:
-            logger.error(f"Error creando negocio desde DevOps: {e}")
-            flash('Error interno al crear el negocio', 'error')
+            logger.error(f"Error creando negocio via API: {e}")
+            flash(f'Error creando negocio: {e}', 'error')
         
         return redirect(url_for('devops.gestion_negocios'))
     
@@ -991,38 +1027,8 @@ def gestion_negocios():
         request.args.get('api') == 'true' and
         request.args.get('json') == 'true'):
         try:
-            from datetime import datetime
-            
-            # Simular datos de negocios
-            negocios = [
-                {
-                    'id': 1,
-                    'nombre': 'Supermercado Central',
-                    'descripcion': 'Supermercado con productos frescos y ofertas diarias',
-                    'direccion': 'Av. Belgrano 1234',
-                    'telefono': '+54 11 1234-5678',
-                    'email': 'info@supercentral.com',
-                    'activo': True
-                },
-                {
-                    'id': 2,
-                    'nombre': 'Farmacia San Martín',
-                    'descripcion': 'Farmacia con medicamentos y productos de salud',
-                    'direccion': 'Calle San Martín 567',
-                    'telefono': '+54 11 9876-5432',
-                    'email': 'contacto@farmaciasanmartin.com',
-                    'activo': True
-                },
-                {
-                    'id': 3,
-                    'nombre': 'Restaurante El Buen Sabor',
-                    'descripcion': 'Restaurante con comida casera y delivery',
-                    'direccion': 'Av. Corrientes 890',
-                    'telefono': '+54 11 5555-1234',
-                    'email': 'pedidos@elbuensabor.com',
-                    'activo': True
-                }
-            ]
+            api_resp = api_get('businesses')
+            negocios = api_resp.get('data', []) if isinstance(api_resp, dict) else []
             
             return jsonify({
                 'status': 'success',
@@ -1031,7 +1037,7 @@ def gestion_negocios():
                     'total': len(negocios),
                     'timestamp': datetime.now().isoformat()
                 },
-                'source': 'simulated',
+                'source': 'api',
                 'message': f'Negocios obtenidos correctamente ({len(negocios)} encontrados)'
             })
         except Exception as e:
@@ -1042,16 +1048,15 @@ def gestion_negocios():
                 'source': 'error'
             }), 500
     
-    # Si no es AJAX, devolver template HTML
+    # Si no es AJAX, devolver template HTML con datos desde API
     try:
-        # Cargar datos de negocios para el template
-        from app_unificado import cargar_datos_completos
-        datos = cargar_datos_completos()
-        negocios = list(datos.get('negocios', {}).values()) if datos else []
-        
+        negocios = []
+        if devops_api_client is not None:
+            api_resp = api_get('businesses')
+            negocios = api_resp.get('data', []) if isinstance(api_resp, dict) else []
         return render_template('devops/negocios.html', negocios=negocios)
     except Exception as e:
-        logger.error(f"Error cargando datos para negocios: {e}")
+        logger.error(f"Error cargando datos para negocios (HTML): {e}")
         return render_template('devops/negocios.html', negocios=[])
 
 @devops_bp.route('/productos', methods=['GET', 'POST'])
@@ -1512,7 +1517,7 @@ def sincronizacion_manual():
     from flask import request, make_response
     
     # Siempre devolver JSON para este endpoint
-        try:
+    try:
             sync_results = {
                 'timestamp': datetime.now().isoformat(),
                 'ofertas': {'status': 'pending'},
@@ -1566,12 +1571,12 @@ def sincronizacion_manual():
                 'data': sync_results
             })
             
-        except Exception as e:
-            logger.error(f"Error en sincronización manual: {e}")
-            return jsonify({
-                'status': 'error',
-                'message': f'Error en sincronización: {str(e)}'
-            }), 500
+    except Exception as e:
+        logger.error(f"Error en sincronización manual: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error en sincronización: {str(e)}'
+        }), 500
     html = """
     <!DOCTYPE html>
     <html lang="es">
