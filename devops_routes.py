@@ -730,16 +730,20 @@ def devops_health():
             
             # Verificar conexión con API externa
             try:
-                # response = requests.get(
-                #     build_api_url('healthz'),
-                #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
-                #     timeout=5
-                # )
-                # if response.status_code == 200:
-                #     health_status['checks']['api_connection'] = 'healthy'
-                # else:
-                #     health_status['checks']['api_connection'] = 'warning'
-                health_status['checks']['api_connection'] = 'disabled'  # Temporalmente deshabilitado
+                api_url = build_api_url('healthz')
+                if api_url and BELGRANO_AHORRO_API_KEY:
+                    response = requests.get(
+                        api_url,
+                        headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
+                        timeout=5
+                    )
+                    if response.status_code == 200:
+                        health_status['checks']['api_connection'] = 'healthy'
+                    else:
+                        health_status['checks']['api_connection'] = 'warning'
+                        health_status['api_status_code'] = response.status_code
+                else:
+                    health_status['checks']['api_connection'] = 'not_configured'
             except Exception as e:
                 health_status['checks']['api_connection'] = 'error'
                 health_status['api_error'] = str(e)
@@ -1083,6 +1087,12 @@ def gestion_productos():
                 flash('El precio debe ser un número válido', 'error')
                 return redirect(url_for('devops.gestion_productos'))
             
+            # Cargar datos actuales y utilidades de guardado
+            from app_unificado import cargar_datos_completos, guardar_datos_json
+            datos = cargar_datos_completos()
+            if not datos:
+                datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+
             # Simular creación de producto
             import uuid
             producto_id = str(uuid.uuid4())
@@ -1436,6 +1446,420 @@ def eliminar_negocio(negocio_id):
     
     return redirect(url_for('devops.gestion_negocios'))
 
+@devops_bp.route('/ofertas', methods=['GET', 'POST'])
+@devops_login_required
+def gestion_ofertas():
+    """Gestión completa de ofertas"""
+    from flask import request, make_response, render_template, flash, redirect, url_for
+    
+    # Manejar POST requests (crear oferta)
+    if request.method == 'POST':
+        try:
+            titulo = request.form.get('titulo', '').strip()
+            descripcion = request.form.get('descripcion', '').strip()
+            productos = request.form.get('productos', '').strip()
+            hasta_agotar_stock = request.form.get('hasta_agotar_stock') == 'on'
+            activa = request.form.get('activa') == 'on'
+            
+            if not all([titulo, descripcion, productos]):
+                flash('Título, descripción y productos son requeridos', 'error')
+                return redirect(url_for('devops.gestion_ofertas'))
+            
+            # Cargar datos actuales
+            from app_unificado import cargar_datos_completos, guardar_datos_json
+            import uuid
+            datos = cargar_datos_completos()
+            if not datos:
+                datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+            
+            # Crear nueva oferta
+            oferta_id = str(uuid.uuid4())
+            nueva_oferta = {
+                'id': oferta_id,
+                'titulo': titulo,
+                'descripcion': descripcion,
+                'productos': productos,
+                'hasta_agotar_stock': hasta_agotar_stock,
+                'activa': activa,
+                'fecha_creacion': datetime.now().isoformat()
+            }
+            
+            # Agregar a la lista
+            if 'ofertas' not in datos:
+                datos['ofertas'] = []
+            datos['ofertas'].append(nueva_oferta)
+            
+            # Guardar
+            if guardar_datos_json(datos):
+                flash(f'Oferta "{titulo}" creada exitosamente', 'success')
+                logger.info(f"Oferta creada desde DevOps: {titulo}")
+            else:
+                flash('Error al guardar la oferta', 'error')
+                
+        except Exception as e:
+            logger.error(f"Error creando oferta desde DevOps: {e}")
+            flash('Error interno al crear la oferta', 'error')
+        
+        return redirect(url_for('devops.gestion_ofertas'))
+    
+    # Solo devolver JSON si se solicita explícitamente con todos los parámetros
+    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
+        request.args.get('ajax') == 'true' and 
+        request.args.get('format') == 'json' and 
+        request.args.get('api') == 'true' and
+        request.args.get('json') == 'true'):
+        try:
+            # Simular datos de ofertas
+            ofertas = [
+                {
+                    'id': 1,
+                    'titulo': 'Oferta Especial 50%',
+                    'descripcion': 'Descuento del 50% en productos seleccionados',
+                    'descuento': 50,
+                    'producto_id': 1,
+                    'producto_nombre': 'Producto Ejemplo',
+                    'fecha_inicio': '2025-01-19',
+                    'fecha_fin': '2025-01-31',
+                    'activa': True
+                },
+                {
+                    'id': 2,
+                    'titulo': 'Oferta 2x1',
+                    'descripcion': 'Lleva 2 productos y paga solo 1',
+                    'descuento': 100,
+                    'producto_id': 2,
+                    'producto_nombre': 'Producto Ejemplo 2',
+                    'fecha_inicio': '2025-01-20',
+                    'fecha_fin': '2025-02-15',
+                    'activa': True
+                }
+            ]
+            
+            return jsonify({
+                'status': 'success',
+                'message': f'Ofertas obtenidas correctamente ({len(ofertas)} encontradas)',
+                'data': {
+                    'ofertas': ofertas,
+                    'total': len(ofertas),
+                    'timestamp': datetime.now().isoformat()
+                },
+                'source': 'simulated'
+            })
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo ofertas: {e}")
+            return jsonify({
+                'status': 'error',
+                'message': f'Error obteniendo ofertas: {str(e)}',
+                'data': []
+            }), 500
+    
+    # Si no es AJAX, devolver template HTML con datos reales
+    try:
+        from app_unificado import cargar_datos_completos
+        datos = cargar_datos_completos()
+        if not datos:
+            datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+        
+        ofertas = datos.get('ofertas', [])
+        
+        # Devolver template con datos reales
+        return render_template('devops/ofertas.html', ofertas=ofertas)
+        
+    except Exception as e:
+        logger.error(f"Error cargando datos para ofertas: {e}")
+        # Fallback con datos vacíos
+        return render_template('devops/ofertas.html', ofertas=[])
+
+@devops_bp.route('/negocios', methods=['GET', 'POST'])
+@devops_login_required
+def gestion_negocios():
+    """Gestión completa de negocios"""
+    from flask import request, make_response, render_template, flash, redirect, url_for
+    
+    # Manejar POST requests (crear negocio) vía API
+    if request.method == 'POST':
+        try:
+            nombre = request.form.get('nombre', '').strip()
+            descripcion = request.form.get('descripcion', '').strip()
+            direccion = request.form.get('direccion', '').strip()
+            telefono = request.form.get('telefono', '').strip()
+            email = request.form.get('email', '').strip()
+            if not nombre:
+                flash('Nombre es requerido', 'error')
+                return redirect(url_for('devops.gestion_negocios'))
+
+            if devops_api_client is None:
+                raise RuntimeError('Cliente API no disponible')
+
+            payload = {
+                'nombre': nombre,
+                'descripcion': descripcion or '',
+                'direccion': direccion or '',
+                'telefono': telefono or '',
+                'email': email or '',
+                'activo': True
+            }
+
+            resp = api_post('businesses', payload)
+            if isinstance(resp, dict) and 'error' in resp:
+                raise RuntimeError(resp['error'])
+            flash('Negocio creado exitosamente', 'success')
+                
+        except Exception as e:
+            logger.error(f"Error creando negocio via API: {e}")
+            flash(f'Error creando negocio: {e}', 'error')
+        
+        return redirect(url_for('devops.gestion_negocios'))
+    
+    # Solo devolver JSON si se solicita explícitamente con todos los parámetros
+    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
+        request.args.get('ajax') == 'true' and 
+        request.args.get('format') == 'json' and 
+        request.args.get('api') == 'true' and
+        request.args.get('json') == 'true'):
+        try:
+            api_resp = api_get('businesses')
+            negocios = api_resp.get('data', []) if isinstance(api_resp, dict) else []
+            
+            return jsonify({
+                'status': 'success',
+                'data': {
+                    'negocios': negocios,
+                    'total': len(negocios),
+                    'timestamp': datetime.now().isoformat()
+                },
+                'source': 'api',
+                'message': f'Negocios obtenidos correctamente ({len(negocios)} encontrados)'
+            })
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Error obteniendo negocios: {str(e)}',
+                'data': [],
+                'source': 'error'
+            }), 500
+    
+    # Si no es AJAX, devolver template HTML con datos desde API
+    try:
+        negocios = []
+        if devops_api_client is not None:
+            api_resp = api_get('businesses')
+            negocios = api_resp.get('data', []) if isinstance(api_resp, dict) else []
+        return render_template('devops/negocios.html', negocios=negocios)
+    except Exception as e:
+        logger.error(f"Error cargando datos para negocios (HTML): {e}")
+        return render_template('devops/negocios.html', negocios=[])
+
+@devops_bp.route('/productos', methods=['GET', 'POST'])
+@devops_login_required
+def gestion_productos():
+    """Gestión completa de productos"""
+    from flask import request, make_response, render_template, flash, redirect, url_for
+    
+    # Manejar POST requests (crear producto)
+    if request.method == 'POST':
+        try:
+            nombre = request.form.get('nombre', '').strip()
+            precio = request.form.get('precio', '').strip()
+            categoria = request.form.get('categoria', '').strip()
+            negocio = request.form.get('negocio', '').strip()
+            
+            if not all([nombre, precio, categoria, negocio]):
+                flash('Todos los campos son requeridos', 'error')
+                return redirect(url_for('devops.gestion_productos'))
+            
+            try:
+                precio_float = float(precio)
+            except ValueError:
+                flash('El precio debe ser un número válido', 'error')
+                return redirect(url_for('devops.gestion_productos'))
+            
+            # Cargar datos actuales y utilidades de guardado
+            from app_unificado import cargar_datos_completos, guardar_datos_json
+            datos = cargar_datos_completos()
+            if not datos:
+                datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+
+            # Simular creación de producto
+            import uuid
+            producto_id = str(uuid.uuid4())
+            nuevo_producto = {
+                'id': producto_id,
+                'nombre': nombre,
+                'precio': precio_float,
+                'categoria': categoria,
+                'negocio': negocio,
+                'descripcion': request.form.get('descripcion', ''),
+                'imagen': request.form.get('imagen', ''),
+                'activo': True,
+                'fecha_creacion': datetime.now().isoformat()
+            }
+            
+            # Agregar a la lista
+            if 'productos' not in datos:
+                datos['productos'] = []
+            datos['productos'].append(nuevo_producto)
+            
+            # Guardar
+            if guardar_datos_json(datos):
+                flash(f'Producto "{nombre}" creado exitosamente', 'success')
+                logger.info(f"Producto creado desde DevOps: {nombre}")
+            else:
+                flash('Error al guardar el producto', 'error')
+                
+        except Exception as e:
+            logger.error(f"Error creando producto desde DevOps: {e}")
+            flash('Error interno al crear el producto', 'error')
+        
+        return redirect(url_for('devops.gestion_productos'))
+    
+    # Solo devolver JSON si se solicita explícitamente con todos los parámetros
+    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
+        request.args.get('ajax') == 'true' and 
+        request.args.get('format') == 'json' and 
+        request.args.get('api') == 'true' and
+        request.args.get('json') == 'true'):
+        try:
+            from datetime import datetime
+            
+            # Simular datos de productos
+            productos = [
+                {
+                    'id': 1,
+                    'nombre': 'Leche Entera 1L',
+                    'descripcion': 'Leche fresca pasteurizada',
+                    'precio': 850.00,
+                    'categoria_id': 1,
+                    'negocio_id': 1,
+                    'activo': True
+                },
+                {
+                    'id': 2,
+                    'nombre': 'Pan Integral',
+                    'descripcion': 'Pan de trigo integral fresco',
+                    'precio': 450.00,
+                    'categoria_id': 2,
+                    'negocio_id': 1,
+                    'activo': True
+                },
+                {
+                    'id': 3,
+                    'nombre': 'Aspirina 500mg',
+                    'descripcion': 'Analgésico y antipirético',
+                    'precio': 1200.00,
+                    'categoria_id': 3,
+                    'negocio_id': 2,
+                    'activo': True
+                }
+            ]
+            
+            return jsonify({
+                'status': 'success',
+                'data': {
+                    'productos': productos,
+                    'total': len(productos),
+                    'timestamp': datetime.now().isoformat()
+                },
+                'source': 'simulated',
+                'message': f'Productos obtenidos correctamente ({len(productos)} encontrados)'
+            })
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Error obteniendo productos: {str(e)}',
+                'data': [],
+                'source': 'error'
+            }), 500
+    
+    # Si no es AJAX, devolver template HTML con datos
+    try:
+        # Cargar datos de productos para el template
+        from app_unificado import cargar_datos_completos
+        datos = cargar_datos_completos()
+        productos = datos.get('productos', []) if datos else []
+        negocios = list(datos.get('negocios', {}).values()) if datos else []
+        categorias = list(datos.get('categorias', {}).values()) if datos else []
+        
+        return render_template('devops/productos.html', productos=productos, negocios=negocios, categorias=categorias)
+    except Exception as e:
+        logger.error(f"Error cargando datos para productos: {e}")
+        return render_template('devops/productos.html', productos=[], negocios=[], categorias=[])
+
+@devops_bp.route('/sync', methods=['GET', 'POST'])
+@devops_login_required
+def sincronizacion_manual():
+    """Forzar sincronización manual"""
+    from flask import request, make_response
+    
+    # Siempre devolver JSON para este endpoint
+    try:
+            sync_results = {
+                'timestamp': datetime.now().isoformat(),
+                'ofertas': {'status': 'pending'},
+                'negocios': {'status': 'pending'},
+                'overall_status': 'running'
+            }
+            
+            # Sincronizar ofertas
+            try:
+                ofertas_url = build_api_url('v1/ofertas')
+                if ofertas_url and BELGRANO_AHORRO_API_KEY:
+                    response = requests.get(
+                        ofertas_url,
+                        headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
+                        timeout=API_TIMEOUT_SECS
+                    )
+                    sync_results['ofertas'] = {
+                        'status': 'success' if response.status_code == 200 else 'error',
+                        'status_code': response.status_code,
+                        'count': len(response.json()) if response.status_code == 200 else 0
+                    }
+                else:
+                    sync_results['ofertas'] = {'status': 'not_configured'}
+            except Exception as e:
+                sync_results['ofertas'] = {'status': 'error', 'error': str(e)}
+            
+            # Sincronizar negocios
+            try:
+                negocios_url = build_api_url('v1/negocios')
+                if negocios_url and BELGRANO_AHORRO_API_KEY:
+                    response = requests.get(
+                        negocios_url,
+                        headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
+                        timeout=API_TIMEOUT_SECS
+                    )
+                    sync_results['negocios'] = {
+                        'status': 'success' if response.status_code == 200 else 'error',
+                        'status_code': response.status_code,
+                        'count': len(response.json()) if response.status_code == 200 else 0
+                    }
+                else:
+                    sync_results['negocios'] = {'status': 'not_configured'}
+            except Exception as e:
+                sync_results['negocios'] = {'status': 'error', 'error': str(e)}
+            
+            # Determinar estado general
+            if all(item['status'] == 'success' for item in [sync_results['ofertas'], sync_results['negocios']]):
+                sync_results['overall_status'] = 'success'
+            elif any(item['status'] == 'success' for item in [sync_results['ofertas'], sync_results['negocios']]):
+                sync_results['overall_status'] = 'partial'
+            else:
+                sync_results['overall_status'] = 'error'
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Sincronización completada',
+                'data': sync_results
+            })
+            
+    except Exception as e:
+        logger.error(f"Error en sincronización manual: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error en sincronización: {str(e)}'
+        }), 500
+
 @devops_bp.route('/precios')
 @devops_login_required
 def gestion_precios():
@@ -1527,33 +1951,39 @@ def sincronizacion_manual():
             
             # Sincronizar ofertas
             try:
-                # response = requests.get(
-                #     build_api_url('v1/ofertas'),
-                #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
-                #     timeout=API_TIMEOUT_SECS
-                # )
-                # sync_results['ofertas'] = {
-                #     'status': 'success' if response.status_code == 200 else 'error',
-                #     'status_code': response.status_code,
-                #     'count': len(response.json()) if response.status_code == 200 else 0
-                # }
-                sync_results['ofertas'] = {'status': 'disabled', 'message': 'API temporalmente deshabilitada'}
+                ofertas_url = build_api_url('v1/ofertas')
+                if ofertas_url and BELGRANO_AHORRO_API_KEY:
+                    response = requests.get(
+                        ofertas_url,
+                        headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
+                        timeout=API_TIMEOUT_SECS
+                    )
+                    sync_results['ofertas'] = {
+                        'status': 'success' if response.status_code == 200 else 'error',
+                        'status_code': response.status_code,
+                        'count': len(response.json()) if response.status_code == 200 else 0
+                    }
+                else:
+                    sync_results['ofertas'] = {'status': 'not_configured'}
             except Exception as e:
                 sync_results['ofertas'] = {'status': 'error', 'error': str(e)}
             
             # Sincronizar negocios
             try:
-                # response = requests.get(
-                #     build_api_url('v1/negocios'),
-                #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
-                #     timeout=API_TIMEOUT_SECS
-                # )
-                # sync_results['negocios'] = {
-                #     'status': 'success' if response.status_code == 200 else 'error',
-                #     'status_code': response.status_code,
-                #     'count': len(response.json()) if response.status_code == 200 else 0
-                # }
-                sync_results['negocios'] = {'status': 'disabled', 'message': 'API temporalmente deshabilitada'}
+                negocios_url = build_api_url('v1/negocios')
+                if negocios_url and BELGRANO_AHORRO_API_KEY:
+                    response = requests.get(
+                        negocios_url,
+                        headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
+                        timeout=API_TIMEOUT_SECS
+                    )
+                    sync_results['negocios'] = {
+                        'status': 'success' if response.status_code == 200 else 'error',
+                        'status_code': response.status_code,
+                        'count': len(response.json()) if response.status_code == 200 else 0
+                    }
+                else:
+                    sync_results['negocios'] = {'status': 'not_configured'}
             except Exception as e:
                 sync_results['negocios'] = {'status': 'error', 'error': str(e)}
             
@@ -1932,7 +2362,7 @@ def ver_logs():
     from flask import request, make_response, render_template
     
     # Siempre devolver JSON para este endpoint
-        try:
+    try:
             # Simular logs del sistema
             logs = [
                 {
@@ -1976,7 +2406,7 @@ def ver_logs():
                 }
             })
             
-        except Exception as e:
+    except Exception as e:
             logger.error(f"Error obteniendo logs: {e}")
             return jsonify({
                 'status': 'error',
@@ -1990,7 +2420,7 @@ def ver_configuracion():
     from flask import request, make_response, render_template
     
     # Siempre devolver JSON para este endpoint
-        try:
+    try:
             config = {
                 'timestamp': datetime.now().isoformat(),
                 'environment': {
@@ -2015,7 +2445,7 @@ def ver_configuracion():
                 'data': config
             })
             
-        except Exception as e:
+    except Exception as e:
             logger.error(f"Error obteniendo configuración: {e}")
             return jsonify({
                 'status': 'error',
@@ -2052,19 +2482,21 @@ def conectar_belgrano():
             # Intentar conectar con Belgrano Ahorro
             if BELGRANO_AHORRO_URL and BELGRANO_AHORRO_API_KEY:
                 try:
-                    # response = requests.get(
-                    #     build_api_url('healthz'),
-                    #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
-                    #     timeout=5
-                    # )
-                    # if response.status_code == 200:
-                    #     connection_status['belgrano_ahorro']['status'] = 'connected'
-                    #     connection_status['belgrano_ahorro']['response_time'] = response.elapsed.total_seconds()
-                    # else:
-                    #     connection_status['belgrano_ahorro']['status'] = 'error'
-                    #     connection_status['belgrano_ahorro']['error'] = f'HTTP {response.status_code}'
-                    connection_status['belgrano_ahorro']['status'] = 'disabled'
-                    connection_status['belgrano_ahorro']['message'] = 'API temporalmente deshabilitada'
+                    api_url = build_api_url('healthz')
+                    if api_url:
+                        response = requests.get(
+                            api_url,
+                            headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
+                            timeout=5
+                        )
+                        if response.status_code == 200:
+                            connection_status['belgrano_ahorro']['status'] = 'connected'
+                            connection_status['belgrano_ahorro']['response_time'] = response.elapsed.total_seconds()
+                        else:
+                            connection_status['belgrano_ahorro']['status'] = 'error'
+                            connection_status['belgrano_ahorro']['error'] = f'HTTP {response.status_code}'
+                    else:
+                        connection_status['belgrano_ahorro']['status'] = 'not_configured'
                 except Exception as e:
                     connection_status['belgrano_ahorro']['status'] = 'error'
                     connection_status['belgrano_ahorro']['error'] = str(e)

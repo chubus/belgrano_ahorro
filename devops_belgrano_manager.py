@@ -430,12 +430,12 @@ class DevOpsBelgranoManager:
             
             cursor = conn.cursor()
             if negocio_id:
-            cursor.execute("""
+                cursor.execute("""
                     SELECT p.id, p.nombre, p.precio, c.nombre as negocio_nombre
-                FROM productos p
+                    FROM productos p
                     JOIN comerciantes c ON p.negocio_id = c.id
                     WHERE p.negocio_id = ?
-                ORDER BY p.nombre
+                    ORDER BY p.nombre
                 """, (negocio_id,))
             else:
                 cursor.execute("""
@@ -470,11 +470,11 @@ class DevOpsBelgranoManager:
                 return False
             
             cursor = conn.cursor()
-                cursor.execute("""
-                    UPDATE productos 
-                    SET precio = ?
-                    WHERE id = ?
-                """, (nuevo_precio, producto_id))
+            cursor.execute("""
+                UPDATE productos 
+                SET precio = ?
+                WHERE id = ?
+            """, (nuevo_precio, producto_id))
             
             conn.commit()
             conn.close()
