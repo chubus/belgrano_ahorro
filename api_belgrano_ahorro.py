@@ -20,6 +20,11 @@ logger = logging.getLogger(__name__)
 # Crear blueprint para la API
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
+def register_api_blueprint(app):
+    """Registrar el blueprint de API en la aplicación Flask"""
+    app.register_blueprint(api_bp)
+    logger.info("API blueprint registrado correctamente")
+
 def require_api_key(f):
     """Decorator para requerir API key válida"""
     @wraps(f)
