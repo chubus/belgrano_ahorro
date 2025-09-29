@@ -1012,3 +1012,22 @@ def devops_internal_error(error):
         'message': 'Error interno del servidor DevOps',
         'timestamp': datetime.now().isoformat()
     }), 500
+
+# Crear aplicación Flask para ejecución directa
+if __name__ == "__main__":
+    from flask import Flask
+    app = Flask(__name__)
+    app.secret_key = 'devops_secret_key_2025'
+    app.register_blueprint(devops_bp)
+    
+    print("🔧 Iniciando DevOps en puerto 5002...")
+    print("📱 URL: http://localhost:5002/devops/")
+    print("🔐 Credenciales: devops / DevOps2025!Secure")
+    print("📝 Presiona Ctrl+C para detener")
+    
+    try:
+        app.run(host='0.0.0.0', port=5002, debug=False)
+    except KeyboardInterrupt:
+        print("\n⏹️ DevOps detenido")
+    except Exception as e:
+        print(f"❌ Error iniciando DevOps: {e}")
