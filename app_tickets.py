@@ -1190,8 +1190,8 @@ def api_obtener_tickets():
             }), 200
         else:
             # Comportamiento normal: obtener tickets
-            tickets = obtener_todos_los_tickets()
-            return jsonify({'tickets': tickets}), 200
+        tickets = obtener_todos_los_tickets()
+        return jsonify({'tickets': tickets}), 200
     except Exception as e:
         return jsonify({'error': 'Error obteniendo tickets'}), 500
 
