@@ -175,8 +175,8 @@ class DevOpsPersistence:
                         'email': row[5],
                         'activo': bool(row[6]),
                         'fecha_creacion': row[7],
-                        'fecha_actualizacion': row[8]
-                }
+                        'fecha_actualizacion': row[7] if len(row) > 7 else row[7]  # Usar fecha_creacion si no hay fecha_actualizacion
+                    }
                 
         except Exception as e:
             logger.error(f"Error creando negocio: {e}")
@@ -201,7 +201,7 @@ class DevOpsPersistence:
                         'email': row[5],
                         'activo': bool(row[6]),
                         'fecha_creacion': row[7],
-                        'fecha_actualizacion': row[8]
+                        'fecha_actualizacion': row[7] if len(row) > 7 else row[7]  # Usar fecha_creacion si no hay fecha_actualizacion
                     })
                 
                 return negocios

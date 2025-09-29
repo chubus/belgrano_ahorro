@@ -1012,3 +1012,4 @@ def devops_internal_error(error):
         'message': 'Error interno del servidor DevOps',
         'timestamp': datetime.now().isoformat()
     }), 500
+

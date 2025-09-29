@@ -1,0 +1,338 @@
+[
+  {
+    "endpoint": "http://localhost:5001/health",
+    "method": "GET",
+    "status_code": 200,
+    "response": "{\"database\":\"connected\",\"service\":\"Belgrano Tickets\",\"status\":\"healthy\",\"timestamp\":\"2025-09-26T12:48:40.241266\",\"total_tickets\":4,\"total_usuarios\":8,\"version\":\"1.0.0\"}\n",
+    "error": null,
+    "timestamp": "2025-09-26T12:48:40.243790"
+  },
+  {
+    "endpoint": "http://localhost:5000/health",
+    "method": "GET",
+    "status_code": 200,
+    "response": "{\"database\":\"connected\",\"service\":\"Belgrano Tickets\",\"status\":\"healthy\",\"timestamp\":\"2025-09-26T12:48:42.289403\",\"total_tickets\":4,\"version\":\"1.0.0\"}\n",
+    "error": null,
+    "timestamp": "2025-09-26T12:48:42.291539"
+  },
+  {
+    "endpoint": "http://localhost:5001/status",
+    "method": "GET",
+    "status_code": 404,
+    "response": "<!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try agai...",
+    "error": null,
+    "timestamp": "2025-09-26T12:48:44.331390"
+  },
+  {
+    "endpoint": "http://localhost:5000/status",
+    "method": "GET",
+    "status_code": 404,
+    "response": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla...",
+    "error": null,
+    "timestamp": "2025-09-26T12:48:46.361156"
+  },
+  {
+    "endpoint": "http://localhost:5001/ping",
+    "method": "GET",
+    "status_code": 404,
+    "response": "<!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try agai...",
+    "error": null,
+    "timestamp": "2025-09-26T12:48:48.417392"
+  },
+  {
+    "endpoint": "http://localhost:5000/ping",
+    "method": "GET",
+    "status_code": 404,
+    "response": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla...",
+    "error": null,
+    "timestamp": "2025-09-26T12:48:50.489363"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/health",
+    "method": "GET",
+    "status_code": 404,
+    "response": "<!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try agai...",
+    "error": null,
+    "timestamp": "2025-09-26T12:48:52.573146"
+  },
+  {
+    "endpoint": "http://localhost:5000/api/health",
+    "method": "GET",
+    "status_code": 200,
+    "response": "{\"message\":\"Belgrano Ahorro API is running\",\"status\":\"success\",\"timestamp\":\"2025-09-26T12:48:54.646392\"}\n",
+    "error": null,
+    "timestamp": "2025-09-26T12:48:54.648204"
+  },
+  {
+    "endpoint": "http://localhost:5000/",
+    "method": "GET",
+    "status_code": 200,
+    "response": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla...",
+    "error": null,
+    "timestamp": "2025-09-26T12:48:56.776141"
+  },
+  {
+    "endpoint": "http://localhost:5000/login",
+    "method": "GET",
+    "status_code": 200,
+    "response": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla...",
+    "error": null,
+    "timestamp": "2025-09-26T12:48:58.825165"
+  },
+  {
+    "endpoint": "http://localhost:5000/register",
+    "method": "GET",
+    "status_code": 200,
+    "response": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla...",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:00.878785"
+  },
+  {
+    "endpoint": "http://localhost:5000/productos",
+    "method": "GET",
+    "status_code": 404,
+    "response": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla...",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:02.944949"
+  },
+  {
+    "endpoint": "http://localhost:5000/carrito",
+    "method": "GET",
+    "status_code": 200,
+    "response": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla...",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:05.006412"
+  },
+  {
+    "endpoint": "http://localhost:5000/checkout",
+    "method": "GET",
+    "status_code": 200,
+    "response": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla...",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:09.129886"
+  },
+  {
+    "endpoint": "http://localhost:5000/mis_pedidos",
+    "method": "GET",
+    "status_code": 200,
+    "response": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla...",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:13.274231"
+  },
+  {
+    "endpoint": "http://localhost:5000/perfil",
+    "method": "GET",
+    "status_code": 200,
+    "response": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla...",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:17.407704"
+  },
+  {
+    "endpoint": "http://localhost:5000/admin",
+    "method": "GET",
+    "status_code": 200,
+    "response": "<!-- templates/base.html -->\n<!-- ========================================== -->\n<!-- PLANTILLA BASE - HEADER Y FOOTER COMÚN -->\n<!-- ========================================== -->\n<!-- Esta plantilla...",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:21.543238"
+  },
+  {
+    "endpoint": "http://localhost:5000/ticketera",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPSConnectionPool(host='ticketerabelgrano.onrender.com', port=443): Read timed out. (read timeout=10)",
+    "timestamp": "2025-09-26T12:49:34.986676"
+  },
+  {
+    "endpoint": "http://localhost:5001/",
+    "method": "GET",
+    "status_code": 200,
+    "response": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Belgrano Tickets - Login</title>\n    <link href...",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:39.108866"
+  },
+  {
+    "endpoint": "http://localhost:5001/login",
+    "method": "GET",
+    "status_code": 200,
+    "response": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Belgrano Tickets - Login</title>\n    <link href...",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:41.176375"
+  },
+  {
+    "endpoint": "http://localhost:5001/health",
+    "method": "GET",
+    "status_code": 200,
+    "response": "{\"database\":\"connected\",\"service\":\"Belgrano Tickets\",\"status\":\"healthy\",\"timestamp\":\"2025-09-26T12:49:43.241129\",\"total_tickets\":4,\"total_usuarios\":8,\"version\":\"1.0.0\"}\n",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:43.247218"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "GET",
+    "status_code": 200,
+    "response": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Belgrano Tickets - Login</title>\n    <link href...",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:47.368062"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 201,
+    "response": "{\"msg\":\"ticket registrado\",\"ticket_id\":5}\n",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:49.450931"
+  },
+  {
+    "endpoint": "http://localhost:5001/panel",
+    "method": "GET",
+    "status_code": 200,
+    "response": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Belgrano Tickets - Login</title>\n    <link href...",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:53.549228"
+  },
+  {
+    "endpoint": "http://localhost:5001/tickets",
+    "method": "GET",
+    "status_code": 200,
+    "response": "<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Belgrano Tickets - Login</title>\n    <link href...",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:57.707205"
+  },
+  {
+    "endpoint": "http://localhost:5001/gestion_flota",
+    "method": "GET",
+    "status_code": 404,
+    "response": "<!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try agai...",
+    "error": null,
+    "timestamp": "2025-09-26T12:49:59.754802"
+  },
+  {
+    "endpoint": "http://localhost:5001/gestion_usuarios",
+    "method": "GET",
+    "status_code": 404,
+    "response": "<!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try agai...",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:01.968438"
+  },
+  {
+    "endpoint": "http://localhost:5001/reportes",
+    "method": "GET",
+    "status_code": 404,
+    "response": "<!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try agai...",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:04.038368"
+  },
+  {
+    "endpoint": "http://localhost:5001/perfil",
+    "method": "GET",
+    "status_code": 404,
+    "response": "<!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try agai...",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:06.100215"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 201,
+    "response": "{\"msg\":\"ticket registrado\",\"ticket_id\":6}\n",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:08.302953"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 201,
+    "response": "{\"msg\":\"ticket registrado\",\"ticket_id\":7}\n",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:10.481996"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 400,
+    "response": "{\"error\":\"Campo requerido: cliente\"}\n",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:12.532707"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 400,
+    "response": "{\"error\":\"Campo requerido: productos\"}\n",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:14.620404"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 400,
+    "response": "{\"error\":\"Campo requerido: total\"}\n",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:16.694749"
+  },
+  {
+    "endpoint": "http://localhost:5001/endpoint-que-no-existe",
+    "method": "GET",
+    "status_code": 404,
+    "response": "<!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try agai...",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:18.765139"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/endpoint-inexistente",
+    "method": "GET",
+    "status_code": 404,
+    "response": "<!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try agai...",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:20.818646"
+  },
+  {
+    "endpoint": "http://localhost:5001/admin/panel-inexistente",
+    "method": "GET",
+    "status_code": 404,
+    "response": "<!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try agai...",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:22.878269"
+  },
+  {
+    "endpoint": "http://localhost:5001/tickets/999999",
+    "method": "GET",
+    "status_code": 404,
+    "response": "<!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try agai...",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:24.931982"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 500,
+    "response": "{\"error\":\"Error interno del servidor\"}\n",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:27.000926"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 400,
+    "response": "{\"error\":\"Campo requerido: cliente\"}\n",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:29.049025"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 400,
+    "response": "{\"error\":\"Campo requerido: productos\"}\n",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:31.098940"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 201,
+    "response": "{\"msg\":\"ticket registrado\",\"ticket_id\":8}\n",
+    "error": null,
+    "timestamp": "2025-09-26T12:50:33.183066"
+  }
+]

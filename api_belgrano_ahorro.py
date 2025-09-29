@@ -443,3 +443,49 @@ def api_health():
         'message': 'Belgrano Ahorro API is running',
         'timestamp': datetime.now().isoformat()
     })
+
+@api_bp.route('/status', methods=['GET'])
+def api_status():
+    """Status detallado de la API"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Contar registros en tablas principales
+        cursor.execute("SELECT COUNT(*) FROM productos")
+        productos_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM negocios")
+        negocios_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM ofertas")
+        ofertas_count = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        return jsonify({
+            'status': 'operational',
+            'timestamp': datetime.now().isoformat(),
+            'service': 'belgrano_ahorro_api',
+            'version': '1.0.0',
+            'database': {
+                'productos': productos_count,
+                'negocios': negocios_count,
+                'ofertas': ofertas_count
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error en status check: {e}")
+        return jsonify({
+            'status': 'error',
+            'timestamp': datetime.now().isoformat(),
+            'error': str(e)
+        }), 500
+
+@api_bp.route('/ping', methods=['GET'])
+def api_ping():
+    """Ping simple para verificar conectividad"""
+    return jsonify({
+        'pong': True,
+        'timestamp': datetime.now().isoformat()
+    })

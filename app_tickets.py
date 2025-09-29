@@ -1134,6 +1134,74 @@ def api_crear_ticket():
         print(f"Error en API crear ticket: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
 
+@app.route('/api/productos', methods=['GET'])
+def api_get_productos():
+    """API endpoint para obtener productos sincronizados"""
+    try:
+        # Por ahora devolver lista vacía hasta implementar sincronización
+        return jsonify([]), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo productos: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/repartidores', methods=['GET'])
+@login_required
+@role_required('admin')
+def api_get_repartidores():
+    """API endpoint para obtener repartidores"""
+    try:
+        # Obtener repartidores de la base de datos
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, nombre, email, telefono, activo, fecha_registro
+            FROM usuarios 
+            WHERE rol = 'flota' AND activo = 1
+            ORDER BY nombre
+        ''')
+        repartidores = []
+        for row in cursor.fetchall():
+            repartidores.append({
+                'id': row[0],
+                'nombre': row[1],
+                'email': row[2],
+                'telefono': row[3],
+                'activo': bool(row[4]),
+                'fecha_registro': row[5]
+            })
+        conn.close()
+        
+        return jsonify({
+            'status': 'success',
+            'data': repartidores,
+            'total': len(repartidores)
+        }), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo repartidores: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/estados', methods=['GET'])
+def api_get_estados():
+    """API endpoint para obtener estados de tickets"""
+    try:
+        estados = [
+            {'id': 'pendiente', 'nombre': 'Pendiente', 'descripcion': 'Ticket recibido, esperando procesamiento'},
+            {'id': 'en_proceso', 'nombre': 'En Proceso', 'descripcion': 'Ticket siendo procesado'},
+            {'id': 'asignado', 'nombre': 'Asignado', 'descripcion': 'Ticket asignado a repartidor'},
+            {'id': 'en_camino', 'nombre': 'En Camino', 'descripcion': 'Repartidor en camino'},
+            {'id': 'entregado', 'nombre': 'Entregado', 'descripcion': 'Ticket entregado exitosamente'},
+            {'id': 'cancelado', 'nombre': 'Cancelado', 'descripcion': 'Ticket cancelado'}
+        ]
+        
+        return jsonify({
+            'status': 'success',
+            'data': estados,
+            'total': len(estados)
+        }), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo estados: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
 @app.route('/api/tickets', methods=['GET'])
 @login_required
 @role_required('admin')
