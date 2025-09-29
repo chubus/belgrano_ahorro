@@ -23,6 +23,7 @@ login_manager.login_view = 'login'
 login_manager.login_message = 'Por favor, inicie sesión para acceder a esta página.'
 login_manager.login_message_category = 'info'
 
+
 # Registrar blueprint de DevOps (importación robusta)
 devops_registrado = False
 try:
@@ -1134,6 +1135,120 @@ def api_crear_ticket():
         print(f"Error en API crear ticket: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
 
+
+@app.route('/api/tickets', methods=['GET'])
+@login_required
+@role_required('admin')
+def api_obtener_tickets():
+    """Obtener todos los tickets (solo admin)"""
+    try:
+        # Verificar si se solicita una API específica
+        api_type = request.args.get('type')
+        
+        if api_type == 'productos':
+            return jsonify([]), 200
+        elif api_type == 'repartidores':
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, nombre, email, telefono, activo, fecha_registro
+                FROM usuarios 
+                WHERE rol = 'flota' AND activo = 1
+                ORDER BY nombre
+            ''')
+            repartidores = []
+            for row in cursor.fetchall():
+                repartidores.append({
+                    'id': row[0],
+                    'nombre': row[1],
+                    'email': row[2],
+                    'telefono': row[3],
+                    'activo': bool(row[4]),
+                    'fecha_registro': row[5]
+                })
+            conn.close()
+            
+            return jsonify({
+                'status': 'success',
+                'data': repartidores,
+                'total': len(repartidores)
+            }), 200
+        elif api_type == 'estados':
+            estados = [
+                {'id': 'pendiente', 'nombre': 'Pendiente', 'descripcion': 'Ticket recibido, esperando procesamiento'},
+                {'id': 'en_proceso', 'nombre': 'En Proceso', 'descripcion': 'Ticket siendo procesado'},
+                {'id': 'asignado', 'nombre': 'Asignado', 'descripcion': 'Ticket asignado a repartidor'},
+                {'id': 'en_camino', 'nombre': 'En Camino', 'descripcion': 'Repartidor en camino'},
+                {'id': 'entregado', 'nombre': 'Entregado', 'descripcion': 'Ticket entregado exitosamente'},
+                {'id': 'cancelado', 'nombre': 'Cancelado', 'descripcion': 'Ticket cancelado'}
+            ]
+            
+            return jsonify({
+                'status': 'success',
+                'data': estados,
+                'total': len(estados)
+            }), 200
+        else:
+            # Comportamiento normal: obtener tickets
+            tickets = obtener_todos_los_tickets()
+            return jsonify({'tickets': tickets}), 200
+    except Exception as e:
+        return jsonify({'error': 'Error obteniendo tickets'}), 500
+
+# Endpoint adicional para manejar APIs específicas
+@app.route('/api/tickets/<api_type>', methods=['GET'])
+def api_tickets_specific(api_type):
+    """Endpoint para manejar APIs específicas a través de tickets"""
+    try:
+        if api_type == 'productos':
+            return jsonify([]), 200
+        elif api_type == 'repartidores':
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, nombre, email, telefono, activo, fecha_registro
+                FROM usuarios 
+                WHERE rol = 'flota' AND activo = 1
+                ORDER BY nombre
+            ''')
+            repartidores = []
+            for row in cursor.fetchall():
+                repartidores.append({
+                    'id': row[0],
+                    'nombre': row[1],
+                    'email': row[2],
+                    'telefono': row[3],
+                    'activo': bool(row[4]),
+                    'fecha_registro': row[5]
+                })
+            conn.close()
+            
+            return jsonify({
+                'status': 'success',
+                'data': repartidores,
+                'total': len(repartidores)
+            }), 200
+        elif api_type == 'estados':
+            estados = [
+                {'id': 'pendiente', 'nombre': 'Pendiente', 'descripcion': 'Ticket recibido, esperando procesamiento'},
+                {'id': 'en_proceso', 'nombre': 'En Proceso', 'descripcion': 'Ticket siendo procesado'},
+                {'id': 'asignado', 'nombre': 'Asignado', 'descripcion': 'Ticket asignado a repartidor'},
+                {'id': 'en_camino', 'nombre': 'En Camino', 'descripcion': 'Repartidor en camino'},
+                {'id': 'entregado', 'nombre': 'Entregado', 'descripcion': 'Ticket entregado exitosamente'},
+                {'id': 'cancelado', 'nombre': 'Cancelado', 'descripcion': 'Ticket cancelado'}
+            ]
+            
+            return jsonify({
+                'status': 'success',
+                'data': estados,
+                'total': len(estados)
+            }), 200
+        else:
+            return jsonify({'error': 'API no encontrada'}), 404
+    except Exception as e:
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+# Endpoints específicos para APIs faltantes
 @app.route('/api/productos', methods=['GET'])
 def api_get_productos():
     """API endpoint para obtener productos sincronizados"""
@@ -1141,17 +1256,13 @@ def api_get_productos():
         # Por ahora devolver lista vacía hasta implementar sincronización
         return jsonify([]), 200
     except Exception as e:
-        logger.error(f"Error obteniendo productos: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 @app.route('/api/repartidores', methods=['GET'])
-@login_required
-@role_required('admin')
 def api_get_repartidores():
     """API endpoint para obtener repartidores"""
     try:
-        # Obtener repartidores de la base de datos
-        conn = get_db_connection()
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('''
             SELECT id, nombre, email, telefono, activo, fecha_registro
@@ -1177,7 +1288,6 @@ def api_get_repartidores():
             'total': len(repartidores)
         }), 200
     except Exception as e:
-        logger.error(f"Error obteniendo repartidores: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 @app.route('/api/estados', methods=['GET'])
@@ -1199,19 +1309,8 @@ def api_get_estados():
             'total': len(estados)
         }), 200
     except Exception as e:
-        logger.error(f"Error obteniendo estados: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
 
-@app.route('/api/tickets', methods=['GET'])
-@login_required
-@role_required('admin')
-def api_obtener_tickets():
-    """Obtener todos los tickets (solo admin)"""
-    try:
-        tickets = obtener_todos_los_tickets()
-        return jsonify({'tickets': tickets}), 200
-    except Exception as e:
-        return jsonify({'error': 'Error obteniendo tickets'}), 500
 
 # =================================================================
 # RUTAS WEB
@@ -1455,6 +1554,7 @@ init_deploy()
 
 # Verificar credenciales después de la inicialización
 verificar_credenciales()
+
 
 if __name__ == "__main__":
     if inicializar_aplicacion():

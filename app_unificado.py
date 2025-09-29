@@ -2657,6 +2657,28 @@ def api_get_usuarios():
         logger.error(f"Error obteniendo usuarios: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
 
+@app.route('/api/v1/test-ticketera', methods=['GET'])
+def api_test_ticketera():
+    """Endpoint de prueba para verificar conectividad con Ticketera"""
+    try:
+        import requests
+        response = requests.get('http://localhost:5001/api/test', timeout=5)
+        return jsonify({
+            'status': 'success',
+            'ticketera_status': response.status_code,
+            'message': 'Conectividad verificada'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error conectando con Ticketera: {str(e)}'
+        }), 500
+
+@app.route('/api/v1/immediate-test', methods=['GET'])
+def api_immediate_test():
+    """Endpoint de prueba inmediato"""
+    return "OK", 200
+
 @app.route('/api/v1/ofertas', methods=['POST'])
 def api_create_oferta():
     """API endpoint para crear una nueva oferta"""
