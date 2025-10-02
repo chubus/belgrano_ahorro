@@ -981,6 +981,384 @@ def gestion_ofertas():
         return render_template('devops/ofertas.html', ofertas=[])
 
 # =================================================================
+# GESTIÓN DE NEGOCIOS (DevOps consumiendo API)
+# =================================================================
+
+@devops_bp.route('/negocios', methods=['GET', 'POST'])
+@devops_login_required
+def gestion_negocios():
+    """Listado y creación rápida de negocios"""
+    from flask import request, flash
+    try:
+        if request.method == 'POST':
+            nombre = request.form.get('nombre', '').strip()
+            descripcion = request.form.get('descripcion', '').strip()
+            direccion = request.form.get('direccion', '').strip()
+            telefono = request.form.get('telefono', '').strip()
+            email = request.form.get('email', '').strip()
+            if not nombre:
+                flash('El nombre es requerido', 'error')
+            else:
+                api_post('businesses', {
+                    'nombre': nombre,
+                    'descripcion': descripcion,
+                    'direccion': direccion,
+                    'telefono': telefono,
+                    'email': email,
+                    'activo': True
+                })
+                flash('Negocio creado', 'success')
+            return redirect(url_for('devops.gestion_negocios'))
+
+        # GET: listar
+        resp = api_get('businesses')
+        negocios = resp.get('data') if isinstance(resp, dict) else resp
+        try:
+            return render_template('devops/negocios.html', negocios=negocios or [])
+        except Exception:
+            # Fallback HTML mínimo
+            items = ''.join([f"<li>#{n.get('id')} - {n.get('nombre')}</li>" for n in (negocios or [])])
+            html = f"""
+            <h2>Negocios</h2>
+            <ul>{items}</ul>
+            <h3>Crear negocio</h3>
+            <form method='post'>
+                <input name='nombre' placeholder='Nombre' required />
+                <input name='descripcion' placeholder='Descripción' />
+                <input name='direccion' placeholder='Dirección' />
+                <input name='telefono' placeholder='Teléfono' />
+                <input name='email' placeholder='Email' />
+                <button type='submit'>Crear</button>
+            </form>
+            """
+            return make_response(html, 200)
+    except Exception as e:
+        logger.error(f"Error en gestión de negocios: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@devops_bp.route('/negocios/<int:business_id>/editar', methods=['POST'])
+@devops_login_required
+def editar_negocio(business_id: int):
+    from flask import request, flash
+    try:
+        data = {
+            key: value for key, value in {
+                'nombre': request.form.get('nombre'),
+                'descripcion': request.form.get('descripcion'),
+                'direccion': request.form.get('direccion'),
+                'telefono': request.form.get('telefono'),
+                'email': request.form.get('email'),
+                'activo': request.form.get('activo') == 'on'
+            }.items() if value is not None and value != ''
+        }
+        api_put('businesses', business_id, data)
+        flash('Negocio actualizado', 'success')
+    except Exception as e:
+        logger.error(f"Error actualizando negocio: {e}")
+        flash('Error actualizando negocio', 'error')
+    return redirect(url_for('devops.gestion_negocios'))
+
+@devops_bp.route('/negocios/<int:business_id>/eliminar', methods=['POST'])
+@devops_login_required
+def eliminar_negocio(business_id: int):
+    from flask import flash
+    try:
+        if hasattr(devops_api_client, 'delete_business'):
+            devops_api_client.delete_business(business_id)
+        else:
+            api_put('businesses', business_id, {'activo': False})
+        flash('Negocio eliminado', 'success')
+    except Exception as e:
+        logger.error(f"Error eliminando negocio: {e}")
+        flash('Error eliminando negocio', 'error')
+    return redirect(url_for('devops.gestion_negocios'))
+
+# =================================================================
+# GESTIÓN DE PRODUCTOS (DevOps consumiendo API)
+# =================================================================
+
+@devops_bp.route('/productos', methods=['GET', 'POST'])
+@devops_login_required
+def gestion_productos():
+    """Listado y creación rápida de productos"""
+    from flask import request, flash
+    try:
+        if request.method == 'POST':
+            nombre = request.form.get('nombre', '').strip()
+            precio = request.form.get('precio', '').strip()
+            categoria = request.form.get('categoria', 'General').strip()
+            negocio_id = request.form.get('negocio_id')
+            if not nombre or not precio:
+                flash('Nombre y precio son requeridos', 'error')
+            else:
+                api_post('products', {
+                    'nombre': nombre,
+                    'precio': float(precio),
+                    'categoria': categoria,
+                    'negocio_id': int(negocio_id) if negocio_id else None,
+                    'activo': True
+                })
+                flash('Producto creado', 'success')
+            return redirect(url_for('devops.gestion_productos'))
+
+        # GET: listar productos y negocios para selector
+        productos_resp = api_get('products')
+        negocios_resp = api_get('businesses')
+        productos = productos_resp.get('data') if isinstance(productos_resp, dict) else productos_resp
+        negocios = negocios_resp.get('data') if isinstance(negocios_resp, dict) else negocios_resp
+        try:
+            return render_template('devops/productos.html', productos=productos or [], negocios=negocios or [])
+        except Exception:
+            # Fallback HTML mínimo
+            items = ''.join([f"<li>#{p.get('id')} - {p.get('nombre')} ($ {p.get('precio')})</li>" for p in (productos or [])])
+            options = ''.join([f"<option value='{n.get('id')}'>{n.get('nombre')}</option>" for n in (negocios or [])])
+            html = f"""
+            <h2>Productos</h2>
+            <ul>{items}</ul>
+            <h3>Crear producto</h3>
+            <form method='post'>
+                <input name='nombre' placeholder='Nombre' required />
+                <input name='precio' type='number' step='0.01' placeholder='Precio' required />
+                <input name='categoria' placeholder='Categoría' />
+                <select name='negocio_id'><option value=''>Sin negocio</option>{options}</select>
+                <button type='submit'>Crear</button>
+            </form>
+            """
+            return make_response(html, 200)
+    except Exception as e:
+        logger.error(f"Error en gestión de productos: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@devops_bp.route('/productos/<int:product_id>/editar', methods=['POST'])
+@devops_login_required
+def editar_producto(product_id: int):
+    from flask import request, flash
+    try:
+        payload = {}
+        if request.form.get('nombre'): payload['nombre'] = request.form.get('nombre')
+        if request.form.get('precio'): payload['precio'] = float(request.form.get('precio'))
+        if request.form.get('categoria'): payload['categoria'] = request.form.get('categoria')
+        if request.form.get('negocio_id'): payload['negocio_id'] = int(request.form.get('negocio_id'))
+        if request.form.get('activo') is not None:
+            payload['activo'] = request.form.get('activo') == 'on'
+        if hasattr(devops_api_client, 'update_product'):
+            devops_api_client.update_product(product_id, payload)
+        else:
+            api_put('products', product_id, payload)
+        flash('Producto actualizado', 'success')
+    except Exception as e:
+        logger.error(f"Error actualizando producto: {e}")
+        flash('Error actualizando producto', 'error')
+    return redirect(url_for('devops.gestion_productos'))
+
+@devops_bp.route('/productos/<int:product_id>/eliminar', methods=['POST'])
+@devops_login_required
+def eliminar_producto(product_id: int):
+    from flask import flash
+    try:
+        if hasattr(devops_api_client, 'delete_product'):
+            devops_api_client.delete_product(product_id)
+        else:
+            api_put('products', product_id, {'activo': False})
+        flash('Producto eliminado', 'success')
+    except Exception as e:
+        logger.error(f"Error eliminando producto: {e}")
+        flash('Error eliminando producto', 'error')
+    return redirect(url_for('devops.gestion_productos'))
+
+# =================================================================
+# GESTIÓN DE SUCURSALES (DevOps consumiendo API)
+# =================================================================
+
+@devops_bp.route('/sucursales', methods=['GET', 'POST'])
+@devops_login_required
+def gestion_sucursales():
+    from flask import request, flash
+    try:
+        if request.method == 'POST':
+            nombre = request.form.get('nombre', '').strip()
+            negocio_id = request.form.get('negocio_id')
+            direccion = request.form.get('direccion', '').strip()
+            telefono = request.form.get('telefono', '').strip()
+            email = request.form.get('email', '').strip()
+            if not nombre or not negocio_id:
+                flash('Nombre y negocio son requeridos', 'error')
+            else:
+                api_post('branches', {
+                    'nombre': nombre,
+                    'negocio_id': int(negocio_id),
+                    'direccion': direccion,
+                    'telefono': telefono,
+                    'email': email,
+                    'activo': True
+                })
+                flash('Sucursal creada', 'success')
+            return redirect(url_for('devops.gestion_sucursales'))
+
+        sucursales_resp = api_get('branches')
+        negocios_resp = api_get('businesses')
+        sucursales = sucursales_resp.get('data') if isinstance(sucursales_resp, dict) else sucursales_resp
+        negocios = negocios_resp.get('data') if isinstance(negocios_resp, dict) else negocios_resp
+        try:
+            return render_template('devops/sucursales.html', sucursales=sucursales or [], negocios=negocios or [])
+        except Exception:
+            # Fallback mínimo
+            items = ''.join([f"<li>#{s.get('id')} - {s.get('nombre')}</li>" for s in (sucursales or [])])
+            options = ''.join([f"<option value='{n.get('id')}'>{n.get('nombre')}</option>" for n in (negocios or [])])
+            html = f"""
+            <h2>Sucursales</h2>
+            <ul>{items}</ul>
+            <h3>Crear sucursal</h3>
+            <form method='post'>
+                <input name='nombre' placeholder='Nombre' required />
+                <select name='negocio_id' required><option value=''>Seleccione negocio</option>{options}</select>
+                <input name='direccion' placeholder='Dirección' />
+                <input name='telefono' placeholder='Teléfono' />
+                <input name='email' placeholder='Email' />
+                <button type='submit'>Crear</button>
+            </form>
+            """
+            return make_response(html, 200)
+    except Exception as e:
+        logger.error(f"Error en gestión de sucursales: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@devops_bp.route('/sucursales/<int:branch_id>/editar', methods=['POST'])
+@devops_login_required
+def editar_sucursal(branch_id: int):
+    from flask import request, flash
+    try:
+        payload = {}
+        if request.form.get('nombre'): payload['nombre'] = request.form.get('nombre')
+        if request.form.get('direccion'): payload['direccion'] = request.form.get('direccion')
+        if request.form.get('telefono'): payload['telefono'] = request.form.get('telefono')
+        if request.form.get('email'): payload['email'] = request.form.get('email')
+        if request.form.get('negocio_id'): payload['negocio_id'] = int(request.form.get('negocio_id'))
+        if request.form.get('activo') is not None:
+            payload['activo'] = request.form.get('activo') == 'on'
+        if hasattr(devops_api_client, 'update_branch'):
+            devops_api_client.update_branch(branch_id, payload)
+        else:
+            api_put('branches', branch_id, payload)
+        flash('Sucursal actualizada', 'success')
+    except Exception as e:
+        logger.error(f"Error actualizando sucursal: {e}")
+        flash('Error actualizando sucursal', 'error')
+    return redirect(url_for('devops.gestion_sucursales'))
+
+@devops_bp.route('/sucursales/<int:branch_id>/eliminar', methods=['POST'])
+@devops_login_required
+def eliminar_sucursal(branch_id: int):
+    from flask import flash
+    try:
+        if hasattr(devops_api_client, 'delete_branch'):
+            devops_api_client.delete_branch(branch_id)
+        else:
+            api_put('branches', branch_id, {'activo': False})
+        flash('Sucursal eliminada', 'success')
+    except Exception as e:
+        logger.error(f"Error eliminando sucursal: {e}")
+        flash('Error eliminando sucursal', 'error')
+    return redirect(url_for('devops.gestion_sucursales'))
+
+# =============================
+# Aliases de rutas solicitadas
+# =============================
+
+@devops_bp.route('/sucursales/agregar', methods=['POST'])
+@devops_login_required
+def alias_agregar_sucursal():
+    # Redirige preservando el método a la ruta existente de creación
+    return redirect(url_for('devops.gestion_sucursales'), code=307)
+
+@devops_bp.route('/sucursales/editar/<int:branch_id>', methods=['POST'])
+@devops_login_required
+def alias_editar_sucursal(branch_id: int):
+    # Redirige preservando el método a la ruta existente de edición
+    return redirect(url_for('devops.editar_sucursal', branch_id=branch_id), code=307)
+
+@devops_bp.route('/sucursales/eliminar/<int:branch_id>', methods=['POST'])
+@devops_login_required
+def alias_eliminar_sucursal(branch_id: int):
+    # Redirige preservando el método a la ruta existente de eliminación
+    return redirect(url_for('devops.eliminar_sucursal', branch_id=branch_id), code=307)
+
+# =================================================================
+# GESTIÓN DE OFERTAS (DevOps consumiendo API)
+# =================================================================
+
+@devops_bp.route('/ofertas', methods=['GET', 'POST'])
+@devops_login_required
+def gestion_ofertas_crud():
+    from flask import request, flash
+    try:
+        if request.method == 'POST':
+            titulo = request.form.get('titulo', '').strip()
+            descripcion = request.form.get('descripcion', '').strip()
+            productos = request.form.get('productos', '').strip()
+            activa = request.form.get('activa') == 'on'
+            hasta_agotar = request.form.get('hasta_agotar_stock') == 'on'
+            if not titulo:
+                flash('El título es requerido', 'error')
+            else:
+                payload = {
+                    'titulo': titulo,
+                    'descripcion': descripcion,
+                    'productos': productos,
+                    'activa': activa,
+                    'hasta_agotar_stock': hasta_agotar
+                }
+                if hasattr(devops_api_client, 'create_offer'):
+                    devops_api_client.create_offer(payload)
+                else:
+                    api_post('offers', payload)
+                flash('Oferta creada', 'success')
+            return redirect(url_for('devops.gestion_ofertas_crud'))
+
+        ofertas_resp = api_get('offers')
+        ofertas = ofertas_resp.get('data') if isinstance(ofertas_resp, dict) else ofertas_resp
+        return render_template('devops/ofertas.html', ofertas=ofertas or [])
+    except Exception as e:
+        logger.error(f"Error en gestión de ofertas: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@devops_bp.route('/ofertas/<int:offer_id>/editar', methods=['POST'])
+@devops_login_required
+def editar_oferta(offer_id: int):
+    from flask import request, flash
+    try:
+        data = {}
+        if request.form.get('titulo'): data['titulo'] = request.form.get('titulo')
+        if request.form.get('descripcion'): data['descripcion'] = request.form.get('descripcion')
+        if request.form.get('productos') is not None: data['productos'] = request.form.get('productos')
+        if request.form.get('activa') is not None: data['activa'] = request.form.get('activa') == 'on'
+        if request.form.get('hasta_agotar_stock') is not None: data['hasta_agotar_stock'] = request.form.get('hasta_agotar_stock') == 'on'
+        if hasattr(devops_api_client, 'update_offer'):
+            devops_api_client.update_offer(offer_id, data)
+        else:
+            api_put('offers', offer_id, data)
+        flash('Oferta actualizada', 'success')
+    except Exception as e:
+        logger.error(f"Error actualizando oferta: {e}")
+        flash('Error actualizando oferta', 'error')
+    return redirect(url_for('devops.gestion_ofertas_crud'))
+
+@devops_bp.route('/ofertas/<int:offer_id>/eliminar', methods=['POST'])
+@devops_login_required
+def eliminar_oferta(offer_id: int):
+    from flask import flash
+    try:
+        if hasattr(devops_api_client, 'delete_offer'):
+            devops_api_client.delete_offer(offer_id)
+        else:
+            api_put('offers', offer_id, {'activa': False})
+        flash('Oferta eliminada', 'success')
+    except Exception as e:
+        logger.error(f"Error eliminando oferta: {e}")
+        flash('Error eliminando oferta', 'error')
+    return redirect(url_for('devops.gestion_ofertas_crud'))
+
+# =================================================================
 # MANEJO DE ERRORES
 # =================================================================
 

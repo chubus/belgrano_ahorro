@@ -1,3 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <title>DevOps - Negocios</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: #fff; border: 1px solid #eee; border-left: 4px solid #667eea; border-radius: 8px; padding: 16px; }
+        label { display: block; margin-top: 8px; font-weight: bold; }
+        input { width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ddd; border-radius: 4px; }
+        button { margin-top: 12px; padding: 10px 16px; background: #667eea; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #f7f7fb; }
+    </style>
+    </head>
+<body>
+    <h1>Negocios</h1>
+    <div class="grid">
+        <div class="card">
+            <h3>Listado</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th><th>Nombre</th><th>Descripción</th><th>Activo</th><th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for n in negocios %}
+                    <tr>
+                        <td>{{ n.id }}</td>
+                        <td>{{ n.nombre }}</td>
+                        <td>{{ n.descripcion or '' }}</td>
+                        <td>{{ 'Sí' if n.activo else 'No' }}</td>
+                        <td>
+                            <form method="post" action="/devops/negocios/{{ n.id }}/eliminar" style="display:inline" onsubmit="return confirm('¿Eliminar negocio?');">
+                                <button type="submit" style="background:#dc3545">Eliminar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="5">
+                            <details>
+                                <summary>Editar</summary>
+                                <form method="post" action="/devops/negocios/{{ n.id }}/editar" style="margin-top:10px;">
+                                    <label>Nombre<input name="nombre" value="{{ n.nombre }}"></label>
+                                    <label>Descripción<input name="descripcion" value="{{ n.descripcion or '' }}"></label>
+                                    <label>Dirección<input name="direccion" value="{{ n.direccion or '' }}"></label>
+                                    <label>Teléfono<input name="telefono" value="{{ n.telefono or '' }}"></label>
+                                    <label>Email<input name="email" value="{{ n.email or '' }}"></label>
+                                    <label><input type="checkbox" name="activo" {% if n.activo %}checked{% endif %}> Activo</label>
+                                    <button type="submit">Guardar cambios</button>
+                                </form>
+                            </details>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card">
+            <h3>Crear negocio</h3>
+            <form method="post">
+                <label>Nombre<input name="nombre" required></label>
+                <label>Descripción<input name="descripcion"></label>
+                <label>Dirección<input name="direccion"></label>
+                <label>Teléfono<input name="telefono"></label>
+                <label>Email<input name="email"></label>
+                <button type="submit">Crear</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
