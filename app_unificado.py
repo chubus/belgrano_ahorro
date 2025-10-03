@@ -103,6 +103,10 @@ app.config['ENV'] = os.environ.get('FLASK_ENV', 'development')
 # Registrar manejadores de errores
 register_error_handlers(app)
 
+# Configurar variables de entorno para DevOps
+os.environ.setdefault("BELGRANO_AHORRO_URL", "https://belgranoahorro-hp30.onrender.com")
+os.environ.setdefault("BELGRANO_AHORRO_API_KEY", "belgrano_ahorro_api_key_2025")
+
 # Importar y registrar blueprint de DevOps
 try:
     try:

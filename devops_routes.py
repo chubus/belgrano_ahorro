@@ -858,127 +858,127 @@ def devops_info():
 # GESTIÓN DE OFERTAS
 # =================================================================
 
-@devops_bp.route('/ofertas', methods=['GET', 'POST'])
-@devops_login_required
-def gestion_ofertas():
-    """Gestión completa de ofertas"""
-    from flask import request, make_response, render_template, flash, redirect, url_for
-    
-    # Manejar POST requests (crear oferta)
-    if request.method == 'POST':
-        try:
-            titulo = request.form.get('titulo', '').strip()
-            descripcion = request.form.get('descripcion', '').strip()
-            productos = request.form.get('productos', '').strip()
-            hasta_agotar_stock = request.form.get('hasta_agotar_stock') == 'on'
-            activa = request.form.get('activa') == 'on'
-            
-            if not all([titulo, descripcion, productos]):
-                flash('Título, descripción y productos son requeridos', 'error')
-                return redirect(url_for('devops.gestion_ofertas'))
-            
-            # Cargar datos actuales
-            from devops_persistence import get_devops_db, guardar_datos_json
-            import uuid
-            db = get_devops_db()
-            if not datos:
-                datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
-            
-            # Crear nueva oferta
-            oferta_id = str(uuid.uuid4())
-            nueva_oferta = {
-                'id': oferta_id,
-                'titulo': titulo,
-                'descripcion': descripcion,
-                'productos': productos,
-                'hasta_agotar_stock': hasta_agotar_stock,
-                'activa': activa,
-                'fecha_creacion': datetime.now().isoformat()
-            }
-            
-            # Agregar a la lista
-            if 'ofertas' not in datos:
-                datos['ofertas'] = []
-            datos['ofertas'].append(nueva_oferta)
-            
-            # Guardar
-            if guardar_datos_json(datos):
-                flash(f'Oferta "{titulo}" creada exitosamente', 'success')
-                logger.info(f"Oferta creada desde DevOps: {titulo}")
-            else:
-                flash('Error al guardar la oferta', 'error')
-                
-        except Exception as e:
-            logger.error(f"Error creando oferta desde DevOps: {e}")
-            flash('Error interno al crear la oferta', 'error')
-        
-        return redirect(url_for('devops.gestion_ofertas'))
-    
-    # Solo devolver JSON si se solicita explícitamente con todos los parámetros
-    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
-        request.args.get('ajax') == 'true' and 
-        request.args.get('format') == 'json' and 
-        request.args.get('api') == 'true' and
-        request.args.get('json') == 'true'):
-        try:
-            # Simular datos de ofertas
-            ofertas = [
-                {
-                    'id': 1,
-                    'titulo': 'Oferta Especial 50%',
-                    'descripcion': 'Descuento del 50% en productos seleccionados',
-                    'descuento': 50,
-                    'producto_id': 1,
-                    'producto_nombre': 'Producto Ejemplo',
-                    'fecha_inicio': '2025-01-19',
-                    'fecha_fin': '2025-01-31',
-                    'activa': True
-                },
-                {
-                    'id': 2,
-                    'titulo': 'Oferta 2x1',
-                    'descripcion': 'Lleva 2 productos y paga solo 1',
-                    'descuento': 100,
-                    'producto_id': 2,
-                    'producto_nombre': 'Producto Ejemplo 2',
-                    'fecha_inicio': '2025-01-20',
-                    'fecha_fin': '2025-02-15',
-                    'activa': True
-                }
-            ]
-            
-            return jsonify({
-                'status': 'success',
-                'message': f'Ofertas obtenidas correctamente ({len(ofertas)} encontradas)',
-                'data': {
-                    'ofertas': ofertas,
-                    'total': len(ofertas),
-                    'timestamp': datetime.now().isoformat()
-                },
-                'source': 'simulated'
-            })
-            
-        except Exception as e:
-            logger.error(f"Error obteniendo ofertas: {e}")
-            return jsonify({
-                'status': 'error',
-                'message': f'Error obteniendo ofertas: {str(e)}',
-                'data': []
-            }), 500
-    
-    # Si no es AJAX, devolver template HTML con datos reales
-    try:
-        from devops_persistence import get_devops_db
-        db = get_devops_db()
-        ofertas = db.obtener_ofertas()
-            
-        # Devolver template con datos reales
-        return render_template('devops/ofertas.html', ofertas=ofertas)
-        
-    except Exception as e:
-        logger.error(f"Error cargando datos para ofertas: {e}")
-        # Fallback con datos vacíos
-        return render_template('devops/ofertas.html', ofertas=[])
+# @devops_bp.route('/ofertas', methods=['GET', 'POST'])
+# @devops_login_required
+# def gestion_ofertas():
+#     """Gestión completa de ofertas"""
+#     from flask import request, make_response, render_template, flash, redirect, url_for
+#     
+#     # Manejar POST requests (crear oferta)
+#     if request.method == 'POST':
+#         try:
+#             titulo = request.form.get('titulo', '').strip()
+#             descripcion = request.form.get('descripcion', '').strip()
+#             productos = request.form.get('productos', '').strip()
+#             hasta_agotar_stock = request.form.get('hasta_agotar_stock') == 'on'
+#             activa = request.form.get('activa') == 'on'
+#             
+#             if not all([titulo, descripcion, productos]):
+#                 flash('Título, descripción y productos son requeridos', 'error')
+#                 return redirect(url_for('devops.gestion_ofertas'))
+#             
+#             # Cargar datos actuales
+#             from devops_persistence import get_devops_db, guardar_datos_json
+#             import uuid
+#             db = get_devops_db()
+#             if not datos:
+#                 datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+#             
+#             # Crear nueva oferta
+#             oferta_id = str(uuid.uuid4())
+#             nueva_oferta = {
+#                 'id': oferta_id,
+#                 'titulo': titulo,
+#                 'descripcion': descripcion,
+#                 'productos': productos,
+#                 'hasta_agotar_stock': hasta_agotar_stock,
+#                 'activa': activa,
+#                 'fecha_creacion': datetime.now().isoformat()
+#             }
+#             
+#             # Agregar a la lista
+#             if 'ofertas' not in datos:
+#                 datos['ofertas'] = []
+#             datos['ofertas'].append(nueva_oferta)
+#             
+#             # Guardar
+#             if guardar_datos_json(datos):
+#                 flash(f'Oferta "{titulo}" creada exitosamente', 'success')
+#                 logger.info(f"Oferta creada desde DevOps: {titulo}")
+#             else:
+#                 flash('Error al guardar la oferta', 'error')
+#                 
+#         except Exception as e:
+#             logger.error(f"Error creando oferta desde DevOps: {e}")
+#             flash('Error interno al crear la oferta', 'error')
+#         
+#         return redirect(url_for('devops.gestion_ofertas'))
+#     
+#     # Solo devolver JSON si se solicita explícitamente con todos los parámetros
+#     if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
+#         request.args.get('ajax') == 'true' and 
+#         request.args.get('format') == 'json' and 
+#         request.args.get('api') == 'true' and
+#         request.args.get('json') == 'true'):
+#         try:
+#             # Simular datos de ofertas
+#             ofertas = [
+#                 {
+#                     'id': 1,
+#                     'titulo': 'Oferta Especial 50%',
+#                     'descripcion': 'Descuento del 50% en productos seleccionados',
+#                     'descuento': 50,
+#                     'producto_id': 1,
+#                     'producto_nombre': 'Producto Ejemplo',
+#                     'fecha_inicio': '2025-01-19',
+#                     'fecha_fin': '2025-01-31',
+#                     'activa': True
+#                 },
+#                 {
+#                     'id': 2,
+#                     'titulo': 'Oferta 2x1',
+#                     'descripcion': 'Lleva 2 productos y paga solo 1',
+#                     'descuento': 100,
+#                     'producto_id': 2,
+#                     'producto_nombre': 'Producto Ejemplo 2',
+#                     'fecha_inicio': '2025-01-20',
+#                     'fecha_fin': '2025-02-15',
+#                     'activa': True
+#                 }
+#             ]
+#             
+#             return jsonify({
+#                 'status': 'success',
+#                 'message': f'Ofertas obtenidas correctamente ({len(ofertas)} encontradas)',
+#                 'data': {
+#                     'ofertas': ofertas,
+#                     'total': len(ofertas),
+#                     'timestamp': datetime.now().isoformat()
+#                 },
+#                 'source': 'simulated'
+#             })
+#             
+#         except Exception as e:
+#             logger.error(f"Error obteniendo ofertas: {e}")
+#             return jsonify({
+#                 'status': 'error',
+#                 'message': f'Error obteniendo ofertas: {str(e)}',
+#                 'data': []
+#             }), 500
+#     
+#     # Si no es AJAX, devolver template HTML con datos reales
+#     try:
+#         from devops_persistence import get_devops_db
+#         db = get_devops_db()
+#         ofertas = db.obtener_ofertas()
+#             
+#         # Devolver template con datos reales
+#         return render_template('devops/ofertas.html', ofertas=ofertas)
+#         
+#     except Exception as e:
+#         logger.error(f"Error cargando datos para ofertas: {e}")
+#         # Fallback con datos vacíos
+#         return render_template('devops/ofertas.html', ofertas=[])
 
 # =================================================================
 # GESTIÓN DE NEGOCIOS (DevOps consumiendo API)
@@ -1289,7 +1289,7 @@ def alias_eliminar_sucursal(branch_id: int):
 
 @devops_bp.route('/ofertas', methods=['GET', 'POST'])
 @devops_login_required
-def gestion_ofertas_crud():
+def gestion_ofertas_alt():
     from flask import request, flash
     try:
         if request.method == 'POST':
@@ -1313,7 +1313,7 @@ def gestion_ofertas_crud():
                 else:
                     api_post('offers', payload)
                 flash('Oferta creada', 'success')
-            return redirect(url_for('devops.gestion_ofertas_crud'))
+            return redirect(url_for('devops.gestion_ofertas_alt'))
 
         ofertas_resp = api_get('offers')
         ofertas = ofertas_resp.get('data') if isinstance(ofertas_resp, dict) else ofertas_resp
@@ -1341,7 +1341,7 @@ def editar_oferta(offer_id: int):
     except Exception as e:
         logger.error(f"Error actualizando oferta: {e}")
         flash('Error actualizando oferta', 'error')
-    return redirect(url_for('devops.gestion_ofertas_crud'))
+    return redirect(url_for('devops.gestion_ofertas_alt'))
 
 @devops_bp.route('/ofertas/<int:offer_id>/eliminar', methods=['POST'])
 @devops_login_required
@@ -1356,7 +1356,7 @@ def eliminar_oferta(offer_id: int):
     except Exception as e:
         logger.error(f"Error eliminando oferta: {e}")
         flash('Error eliminando oferta', 'error')
-    return redirect(url_for('devops.gestion_ofertas_crud'))
+    return redirect(url_for('devops.gestion_ofertas_alt'))
 
 # =================================================================
 # MANEJO DE ERRORES
