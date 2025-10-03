@@ -45,74 +45,61 @@ if not BELGRANO_AHORRO_URL:
     if env_status != 'production':
         logger.info("ℹ️ BELGRANO_AHORRO_URL no configurada (normal en desarrollo)")
     else:
-        logger.warning("⚠️ Variable de entorno BELGRANO_AHORRO_URL no está definida")
+        logger.warning("Variable de entorno BELGRANO_AHORRO_URL no está definida")
 
 if not BELGRANO_AHORRO_API_KEY:
     if env_status != 'production':
         logger.info("ℹ️ BELGRANO_AHORRO_API_KEY no configurada (normal en desarrollo)")
     else:
-        logger.warning("⚠️ Variable de entorno BELGRANO_AHORRO_API_KEY no está definida")
+        logger.warning("Variable de entorno BELGRANO_AHORRO_API_KEY no está definida")
 
-# Importar cliente API (dos estrategias)
-devops_api_client = None
-try:
-    from belgrano_tickets.api_client import create_api_client
-    if BELGRANO_AHORRO_URL and BELGRANO_AHORRO_API_KEY:
-        devops_api_client = create_api_client(BELGRANO_AHORRO_URL, BELGRANO_AHORRO_API_KEY)
-        logger.info("Cliente API de Belgrano Ahorro inicializado (api_client)")
-except Exception as e:
-    logger.info(f"api_client no disponible: {e}")
-
-if devops_api_client is None:
-    try:
-        from belgrano_client import BelgranoAhorroClient
-        devops_api_client = BelgranoAhorroClient()
-        logger.info("Cliente API de Belgrano Ahorro inicializado (belgrano_client)")
-    except Exception as e:
-        logger.warning(f"belgrano_client no disponible: {e}")
-        devops_api_client = None
+# Importar cargador perezoso del cliente API
+from api_client_loader import get_api_client
 
 def api_get(path: str):
-    if devops_api_client is None:
+    client = get_api_client()
+    if client is None:
         raise RuntimeError("Cliente API no disponible")
     # Compatibilidad: ambos clientes devuelven dict JSON
-    if hasattr(devops_api_client, 'get'):
-        return devops_api_client.get(path)
+    if hasattr(client, 'get'):
+        return client.get(path)
     # BelgranoAhorroClient
     mapping = {
-        'businesses': devops_api_client.get_businesses,
-        'products': devops_api_client.get_products,
-        'branches': devops_api_client.get_branches,
-        'offers': devops_api_client.get_offers,
-        'health': devops_api_client.health_check,
+        'businesses': client.get_businesses,
+        'products': client.get_products,
+        'branches': client.get_branches,
+        'offers': client.get_offers,
+        'health': client.health_check,
     }
     if path in mapping:
         return mapping[path]()
     raise ValueError(f"GET no soportado: {path}")
 
 def api_post(path: str, data: dict):
-    if devops_api_client is None:
+    client = get_api_client()
+    if client is None:
         raise RuntimeError("Cliente API no disponible")
-    if hasattr(devops_api_client, 'post'):
-        return devops_api_client.post(path, json=data)
+    if hasattr(client, 'post'):
+        return client.post(path, json=data)
     mapping = {
-        'businesses': devops_api_client.create_business,
-        'products': devops_api_client.create_product,
-        'branches': devops_api_client.create_branch,
-        'offers': devops_api_client.create_offer,
+        'businesses': client.create_business,
+        'products': client.create_product,
+        'branches': client.create_branch,
+        'offers': client.create_offer,
     }
     if path in mapping:
         return mapping[path](data)
     raise ValueError(f"POST no soportado: {path}")
 
 def api_put(path: str, item_id: int, data: dict):
-    if devops_api_client is None:
+    client = get_api_client()
+    if client is None:
         raise RuntimeError("Cliente API no disponible")
     mapping = {
-        'businesses': getattr(devops_api_client, 'update_business', None),
-        'products': getattr(devops_api_client, 'update_product', None),
-        'branches': getattr(devops_api_client, 'update_branch', None),
-        'offers': getattr(devops_api_client, 'update_offer', None),
+        'businesses': getattr(client, 'update_business', None),
+        'products': getattr(client, 'update_product', None),
+        'branches': getattr(client, 'update_branch', None),
+        'offers': getattr(client, 'update_offer', None),
     }
     fn = mapping.get(path)
     if fn is None:
@@ -184,9 +171,9 @@ def devops_login():
             </head>
             <body>
                 <div class="container">
-                    <h2>🔧 DevOps Login</h2>
+                    <h2>DevOps Login</h2>
                     <div class="error">
-                        <strong>❌ Credenciales incorrectas</strong><br>
+                        <strong>Credenciales incorrectas</strong><br>
                         Verifique su usuario y contraseña
                     </div>
                     <div class="info">
@@ -235,7 +222,7 @@ def devops_login():
     </head>
     <body>
         <div class="container">
-            <h2>🔧 DevOps Login</h2>
+            <h2>DevOps Login</h2>
             <div class="info">
                 <strong>Sistema DevOps</strong><br>
                 Acceso independiente para administración del sistema
@@ -365,13 +352,13 @@ def devops_test():
     <body>
         <div class="container">
             <div class="header">
-                <h1>🔧 Test DevOps</h1>
+                <h1>Test DevOps</h1>
                 <p>Sistema DevOps funcionando correctamente</p>
             </div>
             
             <div class="content">
                 <div class="status-card">
-                    <h3>✅ Sistema Operativo</h3>
+                    <h3>Sistema Operativo</h3>
                     <p>DevOps está funcionando correctamente</p>
                     <p><strong>Timestamp:</strong> """ + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + """</p>
                 </div>
@@ -423,12 +410,13 @@ def sincronizar_cambio_inmediato(tipo_cambio, datos):
     try:
         logger.info(f"Sincronizando cambio: {tipo_cambio}")
         
-        if not devops_api_client:
+        client = get_api_client()
+        if not client:
             logger.warning("Cliente API no disponible para sincronización")
             return False
             
         # Usar el cliente API para sincronizar
-        resultado = devops_api_client.sync_data(tipo_cambio, datos)
+        resultado = client.sync_data(tipo_cambio, datos)
         if resultado:
             logger.info(f"Sincronización exitosa: {tipo_cambio}")
             return True
@@ -606,7 +594,7 @@ def devops_home():
     <body>
         <div class="container">
             <div class="header">
-                <h1>🔧 Panel DevOps</h1>
+                <h1>Panel DevOps</h1>
                 <p>Sistema de gestión y administración de Belgrano Tickets</p>
             </div>
             
@@ -641,7 +629,7 @@ def devops_home():
                     </div>
                     
                     <div class="card">
-                        <h3>🔧 Herramientas de Desarrollo</h3>
+                        <h3>Herramientas de Desarrollo</h3>
                         <p>Herramientas para monitoreo, logs y configuración del sistema.</p>
                         <a href="/devops/logs" class="btn btn-info">Ver Logs</a>
                         <a href="/devops/config" class="btn btn-info">Configuración</a>
@@ -1063,8 +1051,9 @@ def editar_negocio(business_id: int):
 def eliminar_negocio(business_id: int):
     from flask import flash
     try:
-        if hasattr(devops_api_client, 'delete_business'):
-            devops_api_client.delete_business(business_id)
+        client = get_api_client()
+        if hasattr(client, 'delete_business'):
+            client.delete_business(business_id)
         else:
             api_put('businesses', business_id, {'activo': False})
         flash('Negocio eliminado', 'success')
@@ -1141,8 +1130,9 @@ def editar_producto(product_id: int):
         if request.form.get('negocio_id'): payload['negocio_id'] = int(request.form.get('negocio_id'))
         if request.form.get('activo') is not None:
             payload['activo'] = request.form.get('activo') == 'on'
-        if hasattr(devops_api_client, 'update_product'):
-            devops_api_client.update_product(product_id, payload)
+        client = get_api_client()
+        if hasattr(client, 'update_product'):
+            client.update_product(product_id, payload)
         else:
             api_put('products', product_id, payload)
         flash('Producto actualizado', 'success')
@@ -1156,8 +1146,9 @@ def editar_producto(product_id: int):
 def eliminar_producto(product_id: int):
     from flask import flash
     try:
-        if hasattr(devops_api_client, 'delete_product'):
-            devops_api_client.delete_product(product_id)
+        client = get_api_client()
+        if hasattr(client, 'delete_product'):
+            client.delete_product(product_id)
         else:
             api_put('products', product_id, {'activo': False})
         flash('Producto eliminado', 'success')
@@ -1236,8 +1227,9 @@ def editar_sucursal(branch_id: int):
         if request.form.get('negocio_id'): payload['negocio_id'] = int(request.form.get('negocio_id'))
         if request.form.get('activo') is not None:
             payload['activo'] = request.form.get('activo') == 'on'
-        if hasattr(devops_api_client, 'update_branch'):
-            devops_api_client.update_branch(branch_id, payload)
+        client = get_api_client()
+        if hasattr(client, 'update_branch'):
+            client.update_branch(branch_id, payload)
         else:
             api_put('branches', branch_id, payload)
         flash('Sucursal actualizada', 'success')
@@ -1251,8 +1243,9 @@ def editar_sucursal(branch_id: int):
 def eliminar_sucursal(branch_id: int):
     from flask import flash
     try:
-        if hasattr(devops_api_client, 'delete_branch'):
-            devops_api_client.delete_branch(branch_id)
+        client = get_api_client()
+        if hasattr(client, 'delete_branch'):
+            client.delete_branch(branch_id)
         else:
             api_put('branches', branch_id, {'activo': False})
         flash('Sucursal eliminada', 'success')
@@ -1308,8 +1301,9 @@ def gestion_ofertas_alt():
                     'activa': activa,
                     'hasta_agotar_stock': hasta_agotar
                 }
-                if hasattr(devops_api_client, 'create_offer'):
-                    devops_api_client.create_offer(payload)
+                client = get_api_client()
+                if hasattr(client, 'create_offer'):
+                    client.create_offer(payload)
                 else:
                     api_post('offers', payload)
                 flash('Oferta creada', 'success')
@@ -1333,8 +1327,9 @@ def editar_oferta(offer_id: int):
         if request.form.get('productos') is not None: data['productos'] = request.form.get('productos')
         if request.form.get('activa') is not None: data['activa'] = request.form.get('activa') == 'on'
         if request.form.get('hasta_agotar_stock') is not None: data['hasta_agotar_stock'] = request.form.get('hasta_agotar_stock') == 'on'
-        if hasattr(devops_api_client, 'update_offer'):
-            devops_api_client.update_offer(offer_id, data)
+        client = get_api_client()
+        if hasattr(client, 'update_offer'):
+            client.update_offer(offer_id, data)
         else:
             api_put('offers', offer_id, data)
         flash('Oferta actualizada', 'success')
@@ -1348,8 +1343,9 @@ def editar_oferta(offer_id: int):
 def eliminar_oferta(offer_id: int):
     from flask import flash
     try:
-        if hasattr(devops_api_client, 'delete_offer'):
-            devops_api_client.delete_offer(offer_id)
+        client = get_api_client()
+        if hasattr(client, 'delete_offer'):
+            client.delete_offer(offer_id)
         else:
             api_put('offers', offer_id, {'activa': False})
         flash('Oferta eliminada', 'success')
@@ -1398,14 +1394,14 @@ if __name__ == "__main__":
     app.secret_key = 'devops_secret_key_2025'
     app.register_blueprint(devops_bp)
     
-    print("🔧 Iniciando DevOps en puerto 5002...")
-    print("📱 URL: http://localhost:5002/devops/")
-    print("🔐 Credenciales: devops / DevOps2025!Secure")
-    print("📝 Presiona Ctrl+C para detener")
+    print("Iniciando DevOps en puerto 5002...")
+    print("URL: http://localhost:5002/devops/")
+    print("Credenciales: devops / DevOps2025!Secure")
+    print("Presiona Ctrl+C para detener")
     
     try:
         app.run(host='0.0.0.0', port=5002, debug=False)
     except KeyboardInterrupt:
-        print("\n⏹️ DevOps detenido")
+        print("\nDevOps detenido")
     except Exception as e:
-        print(f"❌ Error iniciando DevOps: {e}")
+        print(f"Error iniciando DevOps: {e}")
