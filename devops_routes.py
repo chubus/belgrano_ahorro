@@ -53,8 +53,8 @@ if not BELGRANO_AHORRO_API_KEY:
     else:
         logger.warning("Variable de entorno BELGRANO_AHORRO_API_KEY no está definida")
 
-# Importar cargador perezoso del cliente API
-from api_client_loader import get_api_client
+# Importar cliente API central
+from api_client import get_api_client
 
 def api_get(path: str):
     client = get_api_client()
@@ -975,92 +975,367 @@ def devops_info():
 @devops_bp.route('/negocios', methods=['GET', 'POST'])
 @devops_login_required
 def gestion_negocios():
-    """Listado y creación rápida de negocios"""
-    from flask import request, flash
+    """Gestión completa de negocios con API real"""
+    from flask import request, flash, render_template, make_response
+    
+    # Obtener cliente API
+    client = get_api_client()
+    if not client:
+        flash('Error: No se puede conectar con la API de Belgrano Ahorro', 'error')
+        return render_template('devops/negocios.html', negocios=[], error_api=True)
+    
     try:
         if request.method == 'POST':
+            # Crear nuevo negocio
             nombre = request.form.get('nombre', '').strip()
             descripcion = request.form.get('descripcion', '').strip()
             direccion = request.form.get('direccion', '').strip()
             telefono = request.form.get('telefono', '').strip()
             email = request.form.get('email', '').strip()
+            activo = request.form.get('activo') == 'on'
+            
             if not nombre:
                 flash('El nombre es requerido', 'error')
             else:
-                api_post('businesses', {
+                # Crear negocio usando API real
+                resultado = client.create_negocio({
                     'nombre': nombre,
                     'descripcion': descripcion,
                     'direccion': direccion,
                     'telefono': telefono,
                     'email': email,
-                    'activo': True
+                    'activo': activo
                 })
-                flash('Negocio creado', 'success')
+                
+                if resultado:
+                    flash(f'Negocio "{nombre}" creado exitosamente', 'success')
+                    logger.info(f"Negocio creado desde DevOps: {nombre}")
+                else:
+                    flash('Error al crear el negocio. Verifique la conexión con la API.', 'error')
+            
             return redirect(url_for('devops.gestion_negocios'))
 
-        # GET: listar
-        resp = api_get('businesses')
-        negocios = resp.get('data') if isinstance(resp, dict) else resp
+        # GET: Listar negocios desde API real
         try:
-            return render_template('devops/negocios.html', negocios=negocios or [])
-        except Exception:
-            # Fallback HTML mínimo
-            items = ''.join([f"<li>#{n.get('id')} - {n.get('nombre')}</li>" for n in (negocios or [])])
-            html = f"""
-            <h2>Negocios</h2>
-            <ul>{items}</ul>
-            <h3>Crear negocio</h3>
-            <form method='post'>
-                <input name='nombre' placeholder='Nombre' required />
-                <input name='descripcion' placeholder='Descripción' />
-                <input name='direccion' placeholder='Dirección' />
-                <input name='telefono' placeholder='Teléfono' />
-                <input name='email' placeholder='Email' />
-                <button type='submit'>Crear</button>
-            </form>
-            """
-            return make_response(html, 200)
+            negocios = client.get_negocios()
+            logger.info(f"Obtenidos {len(negocios)} negocios desde API")
+            
+            # Intentar usar template
+            try:
+                return render_template('devops/negocios.html', negocios=negocios, error_api=False)
+            except Exception:
+                # Fallback HTML con datos reales
+                items_html = ""
+                for negocio in negocios:
+                    estado = "Activo" if negocio.get('activo', True) else "Inactivo"
+                    items_html += f"""
+                    <div class="negocio-item" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                        <h4>#{negocio.get('id', 'N/A')} - {negocio.get('nombre', 'Sin nombre')}</h4>
+                        <p><strong>Descripción:</strong> {negocio.get('descripcion', 'Sin descripción')}</p>
+                        <p><strong>Dirección:</strong> {negocio.get('direccion', 'Sin dirección')}</p>
+                        <p><strong>Teléfono:</strong> {negocio.get('telefono', 'Sin teléfono')}</p>
+                        <p><strong>Email:</strong> {negocio.get('email', 'Sin email')}</p>
+                        <p><strong>Estado:</strong> {estado}</p>
+                        <div style="margin-top: 10px;">
+                            <a href="/devops/negocios/{negocio.get('id')}/editar" class="btn btn-warning">Editar</a>
+                            <a href="/devops/negocios/{negocio.get('id')}/eliminar" class="btn btn-danger" onclick="return confirm('¿Eliminar este negocio?')">Eliminar</a>
+                        </div>
+                    </div>
+                    """
+                
+                html = f"""
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Gestión de Negocios - DevOps</title>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+                        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                        .header {{ background: #007bff; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
+                        .btn {{ padding: 8px 16px; margin: 5px; text-decoration: none; border-radius: 4px; display: inline-block; }}
+                        .btn-warning {{ background: #ffc107; color: #212529; }}
+                        .btn-danger {{ background: #dc3545; color: white; }}
+                        .btn-success {{ background: #28a745; color: white; }}
+                        .form-group {{ margin-bottom: 15px; }}
+                        .form-group label {{ display: block; margin-bottom: 5px; font-weight: bold; }}
+                        .form-group input, .form-group textarea {{ width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }}
+                        .alert {{ padding: 15px; margin-bottom: 20px; border-radius: 4px; }}
+                        .alert-success {{ background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }}
+                        .alert-error {{ background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>Gestión de Negocios</h1>
+                            <p>Administra los negocios desde la API de Belgrano Ahorro</p>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <a href="/devops/" class="btn btn-success">← Volver al Panel</a>
+                        </div>
+                        
+                        <h2>Lista de Negocios ({len(negocios)} encontrados)</h2>
+                        {items_html}
+                        
+                        <h2>Crear Nuevo Negocio</h2>
+                        <form method="post" style="background: #f8f9fa; padding: 20px; border-radius: 5px;">
+                            <div class="form-group">
+                                <label for="nombre">Nombre *</label>
+                                <input type="text" id="nombre" name="nombre" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="descripcion">Descripción</label>
+                                <textarea id="descripcion" name="descripcion" rows="3"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="direccion">Dirección</label>
+                                <input type="text" id="direccion" name="direccion" />
+                            </div>
+                            <div class="form-group">
+                                <label for="telefono">Teléfono</label>
+                                <input type="text" id="telefono" name="telefono" />
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input type="email" id="email" name="email" />
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" name="activo" checked /> Negocio activo
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-success">Crear Negocio</button>
+                        </form>
+                    </div>
+                </body>
+                </html>
+                """
+                return make_response(html, 200)
+                
+        except Exception as e:
+            logger.error(f"Error obteniendo negocios desde API: {e}")
+            flash('Error al obtener negocios desde la API', 'error')
+            return render_template('devops/negocios.html', negocios=[], error_api=True)
+            
     except Exception as e:
         logger.error(f"Error en gestión de negocios: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        flash('Error interno en gestión de negocios', 'error')
+        return render_template('devops/negocios.html', negocios=[], error_api=True)
 
-@devops_bp.route('/negocios/<int:business_id>/editar', methods=['POST'])
+@devops_bp.route('/negocios/<int:business_id>/editar', methods=['GET', 'POST'])
 @devops_login_required
 def editar_negocio(business_id: int):
-    from flask import request, flash
+    """Editar negocio existente"""
+    from flask import request, flash, render_template, make_response
+    
+    # Obtener cliente API
+    client = get_api_client()
+    if not client:
+        flash('Error: No se puede conectar con la API de Belgrano Ahorro', 'error')
+        return redirect(url_for('devops.gestion_negocios'))
+    
     try:
-        data = {
-            key: value for key, value in {
-                'nombre': request.form.get('nombre'),
-                'descripcion': request.form.get('descripcion'),
-                'direccion': request.form.get('direccion'),
-                'telefono': request.form.get('telefono'),
-                'email': request.form.get('email'),
-                'activo': request.form.get('activo') == 'on'
-            }.items() if value is not None and value != ''
-        }
-        api_put('businesses', business_id, data)
-        flash('Negocio actualizado', 'success')
+        if request.method == 'POST':
+            # Actualizar negocio
+            data = {
+                key: value for key, value in {
+                    'nombre': request.form.get('nombre'),
+                    'descripcion': request.form.get('descripcion'),
+                    'direccion': request.form.get('direccion'),
+                    'telefono': request.form.get('telefono'),
+                    'email': request.form.get('email'),
+                    'activo': request.form.get('activo') == 'on'
+                }.items() if value is not None and value != ''
+            }
+            
+            resultado = client.update_negocio(business_id, data)
+            if resultado:
+                flash('Negocio actualizado exitosamente', 'success')
+                logger.info(f"Negocio {business_id} actualizado desde DevOps")
+            else:
+                flash('Error al actualizar el negocio. Verifique la conexión con la API.', 'error')
+            
+            return redirect(url_for('devops.gestion_negocios'))
+        
+        else:
+            # GET: Mostrar formulario de edición
+            negocio = client.get_negocio(business_id)
+            if not negocio:
+                flash('Negocio no encontrado', 'error')
+                return redirect(url_for('devops.gestion_negocios'))
+            
+            # HTML para edición
+            html = f"""
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Editar Negocio - DevOps</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+                    .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                    .header {{ background: #ffc107; color: #212529; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
+                    .btn {{ padding: 8px 16px; margin: 5px; text-decoration: none; border-radius: 4px; display: inline-block; }}
+                    .btn-warning {{ background: #ffc107; color: #212529; }}
+                    .btn-danger {{ background: #dc3545; color: white; }}
+                    .btn-success {{ background: #28a745; color: white; }}
+                    .form-group {{ margin-bottom: 15px; }}
+                    .form-group label {{ display: block; margin-bottom: 5px; font-weight: bold; }}
+                    .form-group input, .form-group textarea {{ width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Editar Negocio #{business_id}</h1>
+                        <p>Modifica los datos del negocio</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <a href="/devops/negocios" class="btn btn-success">← Volver a Negocios</a>
+                    </div>
+                    
+                    <form method="post" style="background: #f8f9fa; padding: 20px; border-radius: 5px;">
+                        <div class="form-group">
+                            <label for="nombre">Nombre *</label>
+                            <input type="text" id="nombre" name="nombre" value="{negocio.get('nombre', '')}" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="descripcion">Descripción</label>
+                            <textarea id="descripcion" name="descripcion" rows="3">{negocio.get('descripcion', '')}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="direccion">Dirección</label>
+                            <input type="text" id="direccion" name="direccion" value="{negocio.get('direccion', '')}" />
+                        </div>
+                        <div class="form-group">
+                            <label for="telefono">Teléfono</label>
+                            <input type="text" id="telefono" name="telefono" value="{negocio.get('telefono', '')}" />
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" name="email" value="{negocio.get('email', '')}" />
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" name="activo" {'checked' if negocio.get('activo', True) else ''} /> Negocio activo
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-warning">Actualizar Negocio</button>
+                    </form>
+                </div>
+            </body>
+            </html>
+            """
+            return make_response(html, 200)
+            
     except Exception as e:
-        logger.error(f"Error actualizando negocio: {e}")
-        flash('Error actualizando negocio', 'error')
-    return redirect(url_for('devops.gestion_negocios'))
+        logger.error(f"Error editando negocio {business_id}: {e}")
+        flash('Error interno al editar el negocio', 'error')
+        return redirect(url_for('devops.gestion_negocios'))
 
-@devops_bp.route('/negocios/<int:business_id>/eliminar', methods=['POST'])
+@devops_bp.route('/negocios/<int:business_id>/eliminar', methods=['GET', 'POST'])
 @devops_login_required
 def eliminar_negocio(business_id: int):
-    from flask import flash
+    """Eliminar negocio con confirmación"""
+    from flask import flash, request, make_response
+    
+    # Obtener cliente API
+    client = get_api_client()
+    if not client:
+        flash('Error: No se puede conectar con la API de Belgrano Ahorro', 'error')
+        return redirect(url_for('devops.gestion_negocios'))
+    
     try:
-        client = get_api_client()
-        if hasattr(client, 'delete_business'):
-            client.delete_business(business_id)
+        if request.method == 'POST':
+            # Confirmar eliminación
+            confirmar = request.form.get('confirmar')
+            if confirmar == 'si':
+                # Eliminar usando API real
+                resultado = client.delete_negocio(business_id)
+                if resultado:
+                    flash('Negocio eliminado exitosamente', 'success')
+                    logger.info(f"Negocio {business_id} eliminado desde DevOps")
+                else:
+                    flash('Error al eliminar el negocio. Verifique la conexión con la API.', 'error')
+            else:
+                flash('Eliminación cancelada', 'info')
+            
+            return redirect(url_for('devops.gestion_negocios'))
+        
         else:
-            api_put('businesses', business_id, {'activo': False})
-        flash('Negocio eliminado', 'success')
+            # GET: Mostrar confirmación
+            negocio = client.get_negocio(business_id)
+            if not negocio:
+                flash('Negocio no encontrado', 'error')
+                return redirect(url_for('devops.gestion_negocios'))
+            
+            # HTML de confirmación
+            html = f"""
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Eliminar Negocio - DevOps</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+                    .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                    .header {{ background: #dc3545; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
+                    .btn {{ padding: 8px 16px; margin: 5px; text-decoration: none; border-radius: 4px; display: inline-block; }}
+                    .btn-danger {{ background: #dc3545; color: white; }}
+                    .btn-success {{ background: #28a745; color: white; }}
+                    .warning {{ background: #fff3cd; color: #856404; padding: 15px; border-radius: 4px; margin: 20px 0; border: 1px solid #ffeaa7; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Eliminar Negocio #{business_id}</h1>
+                        <p>Esta acción no se puede deshacer</p>
+                    </div>
+                    
+                    <div class="warning">
+                        <strong>ADVERTENCIA:</strong> Está a punto de eliminar permanentemente el negocio "{negocio.get('nombre', 'Sin nombre')}". Esta acción no se puede deshacer.
+                    </div>
+                    
+                    <h3>Datos del negocio a eliminar:</h3>
+                    <ul>
+                        <li><strong>ID:</strong> {business_id}</li>
+                        <li><strong>Nombre:</strong> {negocio.get('nombre', 'Sin nombre')}</li>
+                        <li><strong>Descripción:</strong> {negocio.get('descripcion', 'Sin descripción')}</li>
+                        <li><strong>Dirección:</strong> {negocio.get('direccion', 'Sin dirección')}</li>
+                        <li><strong>Teléfono:</strong> {negocio.get('telefono', 'Sin teléfono')}</li>
+                        <li><strong>Email:</strong> {negocio.get('email', 'Sin email')}</li>
+                    </ul>
+                    
+                    <form method="post" style="margin-top: 30px;">
+                        <div style="margin-bottom: 20px;">
+                            <label>
+                                <input type="checkbox" name="confirmar" value="si" required /> 
+                                Confirmo que quiero eliminar este negocio permanentemente
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('¿Está seguro de que desea eliminar este negocio?')">
+                            ELIMINAR NEGOCIO
+                        </button>
+                        <a href="/devops/negocios" class="btn btn-success">Cancelar</a>
+                    </form>
+                </div>
+            </body>
+            </html>
+            """
+            return make_response(html, 200)
+            
     except Exception as e:
-        logger.error(f"Error eliminando negocio: {e}")
-        flash('Error eliminando negocio', 'error')
-    return redirect(url_for('devops.gestion_negocios'))
+        logger.error(f"Error eliminando negocio {business_id}: {e}")
+        flash('Error interno al eliminar el negocio', 'error')
+        return redirect(url_for('devops.gestion_negocios'))
 
 # =================================================================
 # GESTIÓN DE PRODUCTOS (DevOps consumiendo API)
@@ -1069,93 +1344,394 @@ def eliminar_negocio(business_id: int):
 @devops_bp.route('/productos', methods=['GET', 'POST'])
 @devops_login_required
 def gestion_productos():
-    """Listado y creación rápida de productos"""
-    from flask import request, flash
+    """Gestión completa de productos con API real"""
+    from flask import request, flash, render_template, make_response
+    
+    # Obtener cliente API
+    client = get_api_client()
+    if not client:
+        flash('Error: No se puede conectar con la API de Belgrano Ahorro', 'error')
+        return render_template('devops/productos.html', productos=[], negocios=[], error_api=True)
+    
     try:
         if request.method == 'POST':
+            # Crear nuevo producto
             nombre = request.form.get('nombre', '').strip()
             precio = request.form.get('precio', '').strip()
             categoria = request.form.get('categoria', 'General').strip()
             negocio_id = request.form.get('negocio_id')
+            descripcion = request.form.get('descripcion', '').strip()
+            activo = request.form.get('activo') == 'on'
+            
             if not nombre or not precio:
                 flash('Nombre y precio son requeridos', 'error')
             else:
-                api_post('products', {
-                    'nombre': nombre,
-                    'precio': float(precio),
-                    'categoria': categoria,
-                    'negocio_id': int(negocio_id) if negocio_id else None,
-                    'activo': True
-                })
-                flash('Producto creado', 'success')
+                try:
+                    precio_float = float(precio)
+                    # Crear producto usando API real
+                    resultado = client.create_producto({
+                        'nombre': nombre,
+                        'precio': precio_float,
+                        'categoria': categoria,
+                        'descripcion': descripcion,
+                        'negocio_id': int(negocio_id) if negocio_id else None,
+                        'activo': activo
+                    })
+                    
+                    if resultado:
+                        flash(f'Producto "{nombre}" creado exitosamente', 'success')
+                        logger.info(f"Producto creado desde DevOps: {nombre}")
+                    else:
+                        flash('Error al crear el producto. Verifique la conexión con la API.', 'error')
+                except ValueError:
+                    flash('El precio debe ser un número válido', 'error')
+            
             return redirect(url_for('devops.gestion_productos'))
 
-        # GET: listar productos y negocios para selector
-        productos_resp = api_get('products')
-        negocios_resp = api_get('businesses')
-        productos = productos_resp.get('data') if isinstance(productos_resp, dict) else productos_resp
-        negocios = negocios_resp.get('data') if isinstance(negocios_resp, dict) else negocios_resp
+        # GET: Listar productos y negocios desde API real
         try:
-            return render_template('devops/productos.html', productos=productos or [], negocios=negocios or [])
-        except Exception:
-            # Fallback HTML mínimo
-            items = ''.join([f"<li>#{p.get('id')} - {p.get('nombre')} ($ {p.get('precio')})</li>" for p in (productos or [])])
-            options = ''.join([f"<option value='{n.get('id')}'>{n.get('nombre')}</option>" for n in (negocios or [])])
-            html = f"""
-            <h2>Productos</h2>
-            <ul>{items}</ul>
-            <h3>Crear producto</h3>
-            <form method='post'>
-                <input name='nombre' placeholder='Nombre' required />
-                <input name='precio' type='number' step='0.01' placeholder='Precio' required />
-                <input name='categoria' placeholder='Categoría' />
-                <select name='negocio_id'><option value=''>Sin negocio</option>{options}</select>
-                <button type='submit'>Crear</button>
-            </form>
-            """
-            return make_response(html, 200)
+            productos = client.get_productos()
+            negocios = client.get_negocios()
+            logger.info(f"Obtenidos {len(productos)} productos y {len(negocios)} negocios desde API")
+            
+            # Intentar usar template
+            try:
+                return render_template('devops/productos.html', productos=productos, negocios=negocios, error_api=False)
+            except Exception:
+                # Fallback HTML con datos reales
+                items_html = ""
+                for producto in productos:
+                    estado = "Activo" if producto.get('activo', True) else "Inactivo"
+                    negocio_nombre = "Sin negocio"
+                    for negocio in negocios:
+                        if negocio.get('id') == producto.get('negocio_id'):
+                            negocio_nombre = negocio.get('nombre', 'Sin nombre')
+                            break
+                    
+                    items_html += f"""
+                    <div class="producto-item" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                        <h4>#{producto.get('id', 'N/A')} - {producto.get('nombre', 'Sin nombre')}</h4>
+                        <p><strong>Precio:</strong> ${producto.get('precio', 0):.2f}</p>
+                        <p><strong>Categoría:</strong> {producto.get('categoria', 'Sin categoría')}</p>
+                        <p><strong>Descripción:</strong> {producto.get('descripcion', 'Sin descripción')}</p>
+                        <p><strong>Negocio:</strong> {negocio_nombre}</p>
+                        <p><strong>Estado:</strong> {estado}</p>
+                        <div style="margin-top: 10px;">
+                            <a href="/devops/productos/{producto.get('id')}/editar" class="btn btn-warning">Editar</a>
+                            <a href="/devops/productos/{producto.get('id')}/eliminar" class="btn btn-danger" onclick="return confirm('¿Eliminar este producto?')">Eliminar</a>
+                        </div>
+                    </div>
+                    """
+                
+                # Opciones de negocios para el selector
+                options_html = '<option value="">Sin negocio</option>'
+                for negocio in negocios:
+                    options_html += f'<option value="{negocio.get("id")}">{negocio.get("nombre", "Sin nombre")}</option>'
+                
+                html = f"""
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Gestión de Productos - DevOps</title>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+                        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                        .header {{ background: #28a745; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
+                        .btn {{ padding: 8px 16px; margin: 5px; text-decoration: none; border-radius: 4px; display: inline-block; }}
+                        .btn-warning {{ background: #ffc107; color: #212529; }}
+                        .btn-danger {{ background: #dc3545; color: white; }}
+                        .btn-success {{ background: #28a745; color: white; }}
+                        .form-group {{ margin-bottom: 15px; }}
+                        .form-group label {{ display: block; margin-bottom: 5px; font-weight: bold; }}
+                        .form-group input, .form-group textarea, .form-group select {{ width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }}
+                        .alert {{ padding: 15px; margin-bottom: 20px; border-radius: 4px; }}
+                        .alert-success {{ background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }}
+                        .alert-error {{ background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>Gestión de Productos</h1>
+                            <p>Administra los productos desde la API de Belgrano Ahorro</p>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <a href="/devops/" class="btn btn-success">← Volver al Panel</a>
+                        </div>
+                        
+                        <h2>Lista de Productos ({len(productos)} encontrados)</h2>
+                        {items_html}
+                        
+                        <h2>Crear Nuevo Producto</h2>
+                        <form method="post" style="background: #f8f9fa; padding: 20px; border-radius: 5px;">
+                            <div class="form-group">
+                                <label for="nombre">Nombre *</label>
+                                <input type="text" id="nombre" name="nombre" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="precio">Precio *</label>
+                                <input type="number" id="precio" name="precio" step="0.01" min="0" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="categoria">Categoría</label>
+                                <input type="text" id="categoria" name="categoria" value="General" />
+                            </div>
+                            <div class="form-group">
+                                <label for="descripcion">Descripción</label>
+                                <textarea id="descripcion" name="descripcion" rows="3"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="negocio_id">Negocio</label>
+                                <select id="negocio_id" name="negocio_id">
+                                    {options_html}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" name="activo" checked /> Producto activo
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-success">Crear Producto</button>
+                        </form>
+                    </div>
+                </body>
+                </html>
+                """
+                return make_response(html, 200)
+                
+        except Exception as e:
+            logger.error(f"Error obteniendo productos desde API: {e}")
+            flash('Error al obtener productos desde la API', 'error')
+            return render_template('devops/productos.html', productos=[], negocios=[], error_api=True)
+            
     except Exception as e:
         logger.error(f"Error en gestión de productos: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        flash('Error interno en gestión de productos', 'error')
+        return render_template('devops/productos.html', productos=[], negocios=[], error_api=True)
 
-@devops_bp.route('/productos/<int:product_id>/editar', methods=['POST'])
+@devops_bp.route('/productos/<int:product_id>/editar', methods=['GET', 'POST'])
 @devops_login_required
 def editar_producto(product_id: int):
-    from flask import request, flash
+    """Editar producto existente"""
+    from flask import request, flash, render_template, make_response
+    
+    # Obtener cliente API
+    client = get_api_client()
+    if not client:
+        flash('Error: No se puede conectar con la API de Belgrano Ahorro', 'error')
+        return redirect(url_for('devops.gestion_productos'))
+    
     try:
-        payload = {}
-        if request.form.get('nombre'): payload['nombre'] = request.form.get('nombre')
-        if request.form.get('precio'): payload['precio'] = float(request.form.get('precio'))
-        if request.form.get('categoria'): payload['categoria'] = request.form.get('categoria')
-        if request.form.get('negocio_id'): payload['negocio_id'] = int(request.form.get('negocio_id'))
-        if request.form.get('activo') is not None:
-            payload['activo'] = request.form.get('activo') == 'on'
-        client = get_api_client()
-        if hasattr(client, 'update_product'):
-            client.update_product(product_id, payload)
+        if request.method == 'POST':
+            # Actualizar producto
+            data = {
+                key: value for key, value in {
+                    'nombre': request.form.get('nombre'),
+                    'precio': float(request.form.get('precio')) if request.form.get('precio') else None,
+                    'categoria': request.form.get('categoria'),
+                    'descripcion': request.form.get('descripcion'),
+                    'negocio_id': int(request.form.get('negocio_id')) if request.form.get('negocio_id') else None,
+                    'activo': request.form.get('activo') == 'on'
+                }.items() if value is not None and value != ''
+            }
+            
+            resultado = client.update_producto(product_id, data)
+            if resultado:
+                flash('Producto actualizado exitosamente', 'success')
+                logger.info(f"Producto {product_id} actualizado desde DevOps")
+            else:
+                flash('Error al actualizar el producto. Verifique la conexión con la API.', 'error')
+            
+            return redirect(url_for('devops.gestion_productos'))
+        
         else:
-            api_put('products', product_id, payload)
-        flash('Producto actualizado', 'success')
+            # GET: Mostrar formulario de edición
+            producto = client.get_producto(product_id)
+            negocios = client.get_negocios()
+            
+            if not producto:
+                flash('Producto no encontrado', 'error')
+                return redirect(url_for('devops.gestion_productos'))
+            
+            # Opciones de negocios para el selector
+            options_html = '<option value="">Sin negocio</option>'
+            for negocio in negocios:
+                selected = 'selected' if negocio.get('id') == producto.get('negocio_id') else ''
+                options_html += f'<option value="{negocio.get("id")}" {selected}>{negocio.get("nombre", "Sin nombre")}</option>'
+            
+            # HTML para edición
+            html = f"""
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Editar Producto - DevOps</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+                    .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                    .header {{ background: #ffc107; color: #212529; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
+                    .btn {{ padding: 8px 16px; margin: 5px; text-decoration: none; border-radius: 4px; display: inline-block; }}
+                    .btn-warning {{ background: #ffc107; color: #212529; }}
+                    .btn-danger {{ background: #dc3545; color: white; }}
+                    .btn-success {{ background: #28a745; color: white; }}
+                    .form-group {{ margin-bottom: 15px; }}
+                    .form-group label {{ display: block; margin-bottom: 5px; font-weight: bold; }}
+                    .form-group input, .form-group textarea, .form-group select {{ width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Editar Producto #{product_id}</h1>
+                        <p>Modifica los datos del producto</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <a href="/devops/productos" class="btn btn-success">← Volver a Productos</a>
+                    </div>
+                    
+                    <form method="post" style="background: #f8f9fa; padding: 20px; border-radius: 5px;">
+                        <div class="form-group">
+                            <label for="nombre">Nombre *</label>
+                            <input type="text" id="nombre" name="nombre" value="{producto.get('nombre', '')}" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="precio">Precio *</label>
+                            <input type="number" id="precio" name="precio" step="0.01" min="0" value="{producto.get('precio', 0)}" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="categoria">Categoría</label>
+                            <input type="text" id="categoria" name="categoria" value="{producto.get('categoria', '')}" />
+                        </div>
+                        <div class="form-group">
+                            <label for="descripcion">Descripción</label>
+                            <textarea id="descripcion" name="descripcion" rows="3">{producto.get('descripcion', '')}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="negocio_id">Negocio</label>
+                            <select id="negocio_id" name="negocio_id">
+                                {options_html}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" name="activo" {'checked' if producto.get('activo', True) else ''} /> Producto activo
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-warning">Actualizar Producto</button>
+                    </form>
+                </div>
+            </body>
+            </html>
+            """
+            return make_response(html, 200)
+            
     except Exception as e:
-        logger.error(f"Error actualizando producto: {e}")
-        flash('Error actualizando producto', 'error')
-    return redirect(url_for('devops.gestion_productos'))
+        logger.error(f"Error editando producto {product_id}: {e}")
+        flash('Error interno al editar el producto', 'error')
+        return redirect(url_for('devops.gestion_productos'))
 
-@devops_bp.route('/productos/<int:product_id>/eliminar', methods=['POST'])
+@devops_bp.route('/productos/<int:product_id>/eliminar', methods=['GET', 'POST'])
 @devops_login_required
 def eliminar_producto(product_id: int):
-    from flask import flash
+    """Eliminar producto con confirmación"""
+    from flask import flash, request, make_response
+    
+    # Obtener cliente API
+    client = get_api_client()
+    if not client:
+        flash('Error: No se puede conectar con la API de Belgrano Ahorro', 'error')
+        return redirect(url_for('devops.gestion_productos'))
+    
     try:
-        client = get_api_client()
-        if hasattr(client, 'delete_product'):
-            client.delete_product(product_id)
+        if request.method == 'POST':
+            # Confirmar eliminación
+            confirmar = request.form.get('confirmar')
+            if confirmar == 'si':
+                # Eliminar usando API real
+                resultado = client.delete_producto(product_id)
+                if resultado:
+                    flash('Producto eliminado exitosamente', 'success')
+                    logger.info(f"Producto {product_id} eliminado desde DevOps")
+                else:
+                    flash('Error al eliminar el producto. Verifique la conexión con la API.', 'error')
+            else:
+                flash('Eliminación cancelada', 'info')
+            
+            return redirect(url_for('devops.gestion_productos'))
+        
         else:
-            api_put('products', product_id, {'activo': False})
-        flash('Producto eliminado', 'success')
+            # GET: Mostrar confirmación
+            producto = client.get_producto(product_id)
+            if not producto:
+                flash('Producto no encontrado', 'error')
+                return redirect(url_for('devops.gestion_productos'))
+            
+            # HTML de confirmación
+            html = f"""
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Eliminar Producto - DevOps</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+                    .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                    .header {{ background: #dc3545; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
+                    .btn {{ padding: 8px 16px; margin: 5px; text-decoration: none; border-radius: 4px; display: inline-block; }}
+                    .btn-danger {{ background: #dc3545; color: white; }}
+                    .btn-success {{ background: #28a745; color: white; }}
+                    .warning {{ background: #fff3cd; color: #856404; padding: 15px; border-radius: 4px; margin: 20px 0; border: 1px solid #ffeaa7; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Eliminar Producto #{product_id}</h1>
+                        <p>Esta acción no se puede deshacer</p>
+                    </div>
+                    
+                    <div class="warning">
+                        <strong>ADVERTENCIA:</strong> Está a punto de eliminar permanentemente el producto "{producto.get('nombre', 'Sin nombre')}". Esta acción no se puede deshacer.
+                    </div>
+                    
+                    <h3>Datos del producto a eliminar:</h3>
+                    <ul>
+                        <li><strong>ID:</strong> {product_id}</li>
+                        <li><strong>Nombre:</strong> {producto.get('nombre', 'Sin nombre')}</li>
+                        <li><strong>Precio:</strong> ${producto.get('precio', 0):.2f}</li>
+                        <li><strong>Categoría:</strong> {producto.get('categoria', 'Sin categoría')}</li>
+                        <li><strong>Descripción:</strong> {producto.get('descripcion', 'Sin descripción')}</li>
+                    </ul>
+                    
+                    <form method="post" style="margin-top: 30px;">
+                        <div style="margin-bottom: 20px;">
+                            <label>
+                                <input type="checkbox" name="confirmar" value="si" required /> 
+                                Confirmo que quiero eliminar este producto permanentemente
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('¿Está seguro de que desea eliminar este producto?')">
+                            ELIMINAR PRODUCTO
+                        </button>
+                        <a href="/devops/productos" class="btn btn-success">Cancelar</a>
+                    </form>
+                </div>
+            </body>
+            </html>
+            """
+            return make_response(html, 200)
+            
     except Exception as e:
-        logger.error(f"Error eliminando producto: {e}")
-        flash('Error eliminando producto', 'error')
-    return redirect(url_for('devops.gestion_productos'))
+        logger.error(f"Error eliminando producto {product_id}: {e}")
+        flash('Error interno al eliminar el producto', 'error')
+        return redirect(url_for('devops.gestion_productos'))
 
 # =================================================================
 # GESTIÓN DE SUCURSALES (DevOps consumiendo API)
@@ -1283,76 +1859,823 @@ def alias_eliminar_sucursal(branch_id: int):
 @devops_bp.route('/ofertas', methods=['GET', 'POST'])
 @devops_login_required
 def gestion_ofertas_alt():
-    from flask import request, flash
+    """Gestión completa de ofertas con API real"""
+    from flask import request, flash, render_template, make_response
+    
+    # Obtener cliente API
+    client = get_api_client()
+    if not client:
+        flash('Error: No se puede conectar con la API de Belgrano Ahorro', 'error')
+        return render_template('devops/ofertas.html', ofertas=[], error_api=True)
+    
     try:
         if request.method == 'POST':
+            # Crear nueva oferta
             titulo = request.form.get('titulo', '').strip()
             descripcion = request.form.get('descripcion', '').strip()
-            productos = request.form.get('productos', '').strip()
+            descuento_porcentaje = request.form.get('descuento_porcentaje', '').strip()
+            descuento_fijo = request.form.get('descuento_fijo', '').strip()
             activa = request.form.get('activa') == 'on'
-            hasta_agotar = request.form.get('hasta_agotar_stock') == 'on'
+            
             if not titulo:
                 flash('El título es requerido', 'error')
             else:
-                payload = {
+                # Crear oferta usando API real
+                data = {
                     'titulo': titulo,
                     'descripcion': descripcion,
-                    'productos': productos,
-                    'activa': activa,
-                    'hasta_agotar_stock': hasta_agotar
+                    'activa': activa
                 }
-                client = get_api_client()
-                if hasattr(client, 'create_offer'):
-                    client.create_offer(payload)
+                
+                # Agregar descuentos si se proporcionan
+                if descuento_porcentaje:
+                    try:
+                        data['descuento_porcentaje'] = float(descuento_porcentaje)
+                    except ValueError:
+                        flash('El descuento porcentaje debe ser un número válido', 'error')
+                        return redirect(url_for('devops.gestion_ofertas_alt'))
+                
+                if descuento_fijo:
+                    try:
+                        data['descuento_fijo'] = float(descuento_fijo)
+                    except ValueError:
+                        flash('El descuento fijo debe ser un número válido', 'error')
+                        return redirect(url_for('devops.gestion_ofertas_alt'))
+                
+                resultado = client.create_oferta(data)
+                if resultado:
+                    flash(f'Oferta "{titulo}" creada exitosamente', 'success')
+                    logger.info(f"Oferta creada desde DevOps: {titulo}")
                 else:
-                    api_post('offers', payload)
-                flash('Oferta creada', 'success')
+                    flash('Error al crear la oferta. Verifique la conexión con la API.', 'error')
+            
             return redirect(url_for('devops.gestion_ofertas_alt'))
 
-        ofertas_resp = api_get('offers')
-        ofertas = ofertas_resp.get('data') if isinstance(ofertas_resp, dict) else ofertas_resp
-        return render_template('devops/ofertas.html', ofertas=ofertas or [])
+        # GET: Listar ofertas desde API real
+        try:
+            ofertas = client.get_ofertas()
+            logger.info(f"Obtenidas {len(ofertas)} ofertas desde API")
+            
+            # Intentar usar template
+            try:
+                return render_template('devops/ofertas.html', ofertas=ofertas, error_api=False)
+            except Exception:
+                # Fallback HTML con datos reales
+                items_html = ""
+                for oferta in ofertas:
+                    estado = "Activa" if oferta.get('activa', True) else "Inactiva"
+                    descuento_info = ""
+                    if oferta.get('descuento_porcentaje'):
+                        descuento_info += f"{oferta.get('descuento_porcentaje')}% descuento"
+                    if oferta.get('descuento_fijo'):
+                        if descuento_info:
+                            descuento_info += " o "
+                        descuento_info += f"${oferta.get('descuento_fijo'):.2f} descuento fijo"
+                    if not descuento_info:
+                        descuento_info = "Sin descuento"
+                    
+                    items_html += f"""
+                    <div class="oferta-item" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                        <h4>#{oferta.get('id', 'N/A')} - {oferta.get('titulo', 'Sin título')}</h4>
+                        <p><strong>Descripción:</strong> {oferta.get('descripcion', 'Sin descripción')}</p>
+                        <p><strong>Descuento:</strong> {descuento_info}</p>
+                        <p><strong>Estado:</strong> {estado}</p>
+                        <p><strong>Fecha creación:</strong> {oferta.get('fecha_creacion', 'No disponible')}</p>
+                        <div style="margin-top: 10px;">
+                            <a href="/devops/ofertas/{oferta.get('id')}/editar" class="btn btn-warning">Editar</a>
+                            <a href="/devops/ofertas/{oferta.get('id')}/eliminar" class="btn btn-danger" onclick="return confirm('¿Eliminar esta oferta?')">Eliminar</a>
+                        </div>
+                    </div>
+                    """
+                
+                html = f"""
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Gestión de Ofertas - DevOps</title>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+                        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                        .header {{ background: #17a2b8; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
+                        .btn {{ padding: 8px 16px; margin: 5px; text-decoration: none; border-radius: 4px; display: inline-block; }}
+                        .btn-warning {{ background: #ffc107; color: #212529; }}
+                        .btn-danger {{ background: #dc3545; color: white; }}
+                        .btn-success {{ background: #28a745; color: white; }}
+                        .form-group {{ margin-bottom: 15px; }}
+                        .form-group label {{ display: block; margin-bottom: 5px; font-weight: bold; }}
+                        .form-group input, .form-group textarea {{ width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }}
+                        .form-row {{ display: flex; gap: 15px; }}
+                        .form-row .form-group {{ flex: 1; }}
+                        .alert {{ padding: 15px; margin-bottom: 20px; border-radius: 4px; }}
+                        .alert-success {{ background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }}
+                        .alert-error {{ background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>Gestión de Ofertas</h1>
+                            <p>Administra las ofertas desde la API de Belgrano Ahorro</p>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <a href="/devops/" class="btn btn-success">← Volver al Panel</a>
+                        </div>
+                        
+                        <h2>Lista de Ofertas ({len(ofertas)} encontradas)</h2>
+                        {items_html}
+                        
+                        <h2>Crear Nueva Oferta</h2>
+                        <form method="post" style="background: #f8f9fa; padding: 20px; border-radius: 5px;">
+                            <div class="form-group">
+                                <label for="titulo">Título *</label>
+                                <input type="text" id="titulo" name="titulo" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="descripcion">Descripción</label>
+                                <textarea id="descripcion" name="descripcion" rows="3"></textarea>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="descuento_porcentaje">Descuento Porcentaje (%)</label>
+                                    <input type="number" id="descuento_porcentaje" name="descuento_porcentaje" step="0.01" min="0" max="100" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="descuento_fijo">Descuento Fijo ($)</label>
+                                    <input type="number" id="descuento_fijo" name="descuento_fijo" step="0.01" min="0" />
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" name="activa" checked /> Oferta activa
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-success">Crear Oferta</button>
+                        </form>
+                    </div>
+                </body>
+                </html>
+                """
+                return make_response(html, 200)
+                
+        except Exception as e:
+            logger.error(f"Error obteniendo ofertas desde API: {e}")
+            flash('Error al obtener ofertas desde la API', 'error')
+            return render_template('devops/ofertas.html', ofertas=[], error_api=True)
+            
     except Exception as e:
         logger.error(f"Error en gestión de ofertas: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        flash('Error interno en gestión de ofertas', 'error')
+        return render_template('devops/ofertas.html', ofertas=[], error_api=True)
 
-@devops_bp.route('/ofertas/<int:offer_id>/editar', methods=['POST'])
+@devops_bp.route('/ofertas/<int:offer_id>/editar', methods=['GET', 'POST'])
 @devops_login_required
 def editar_oferta(offer_id: int):
-    from flask import request, flash
+    """Editar oferta existente"""
+    from flask import request, flash, render_template, make_response
+    
+    # Obtener cliente API
+    client = get_api_client()
+    if not client:
+        flash('Error: No se puede conectar con la API de Belgrano Ahorro', 'error')
+        return redirect(url_for('devops.gestion_ofertas_alt'))
+    
     try:
-        data = {}
-        if request.form.get('titulo'): data['titulo'] = request.form.get('titulo')
-        if request.form.get('descripcion'): data['descripcion'] = request.form.get('descripcion')
-        if request.form.get('productos') is not None: data['productos'] = request.form.get('productos')
-        if request.form.get('activa') is not None: data['activa'] = request.form.get('activa') == 'on'
-        if request.form.get('hasta_agotar_stock') is not None: data['hasta_agotar_stock'] = request.form.get('hasta_agotar_stock') == 'on'
-        client = get_api_client()
-        if hasattr(client, 'update_offer'):
-            client.update_offer(offer_id, data)
+        if request.method == 'POST':
+            # Actualizar oferta
+            data = {
+                key: value for key, value in {
+                    'titulo': request.form.get('titulo'),
+                    'descripcion': request.form.get('descripcion'),
+                    'descuento_porcentaje': float(request.form.get('descuento_porcentaje')) if request.form.get('descuento_porcentaje') else None,
+                    'descuento_fijo': float(request.form.get('descuento_fijo')) if request.form.get('descuento_fijo') else None,
+                    'activa': request.form.get('activa') == 'on'
+                }.items() if value is not None and value != ''
+            }
+            
+            resultado = client.update_oferta(offer_id, data)
+            if resultado:
+                flash('Oferta actualizada exitosamente', 'success')
+                logger.info(f"Oferta {offer_id} actualizada desde DevOps")
+            else:
+                flash('Error al actualizar la oferta. Verifique la conexión con la API.', 'error')
+            
+            return redirect(url_for('devops.gestion_ofertas_alt'))
+        
         else:
-            api_put('offers', offer_id, data)
-        flash('Oferta actualizada', 'success')
+            # GET: Mostrar formulario de edición
+            oferta = client.get_oferta(offer_id)
+            if not oferta:
+                flash('Oferta no encontrada', 'error')
+                return redirect(url_for('devops.gestion_ofertas_alt'))
+            
+            # HTML para edición
+            html = f"""
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Editar Oferta - DevOps</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+                    .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                    .header {{ background: #ffc107; color: #212529; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
+                    .btn {{ padding: 8px 16px; margin: 5px; text-decoration: none; border-radius: 4px; display: inline-block; }}
+                    .btn-warning {{ background: #ffc107; color: #212529; }}
+                    .btn-danger {{ background: #dc3545; color: white; }}
+                    .btn-success {{ background: #28a745; color: white; }}
+                    .form-group {{ margin-bottom: 15px; }}
+                    .form-group label {{ display: block; margin-bottom: 5px; font-weight: bold; }}
+                    .form-group input, .form-group textarea {{ width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }}
+                    .form-row {{ display: flex; gap: 15px; }}
+                    .form-row .form-group {{ flex: 1; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Editar Oferta #{offer_id}</h1>
+                        <p>Modifica los datos de la oferta</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <a href="/devops/ofertas" class="btn btn-success">← Volver a Ofertas</a>
+                    </div>
+                    
+                    <form method="post" style="background: #f8f9fa; padding: 20px; border-radius: 5px;">
+                        <div class="form-group">
+                            <label for="titulo">Título *</label>
+                            <input type="text" id="titulo" name="titulo" value="{oferta.get('titulo', '')}" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="descripcion">Descripción</label>
+                            <textarea id="descripcion" name="descripcion" rows="3">{oferta.get('descripcion', '')}</textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="descuento_porcentaje">Descuento Porcentaje (%)</label>
+                                <input type="number" id="descuento_porcentaje" name="descuento_porcentaje" step="0.01" min="0" max="100" value="{oferta.get('descuento_porcentaje', '')}" />
+                            </div>
+                            <div class="form-group">
+                                <label for="descuento_fijo">Descuento Fijo ($)</label>
+                                <input type="number" id="descuento_fijo" name="descuento_fijo" step="0.01" min="0" value="{oferta.get('descuento_fijo', '')}" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" name="activa" {'checked' if oferta.get('activa', True) else ''} /> Oferta activa
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-warning">Actualizar Oferta</button>
+                    </form>
+                </div>
+            </body>
+            </html>
+            """
+            return make_response(html, 200)
+            
     except Exception as e:
-        logger.error(f"Error actualizando oferta: {e}")
-        flash('Error actualizando oferta', 'error')
-    return redirect(url_for('devops.gestion_ofertas_alt'))
+        logger.error(f"Error editando oferta {offer_id}: {e}")
+        flash('Error interno al editar la oferta', 'error')
+        return redirect(url_for('devops.gestion_ofertas_alt'))
 
-@devops_bp.route('/ofertas/<int:offer_id>/eliminar', methods=['POST'])
+@devops_bp.route('/ofertas/<int:offer_id>/eliminar', methods=['GET', 'POST'])
 @devops_login_required
 def eliminar_oferta(offer_id: int):
-    from flask import flash
+    """Eliminar oferta con confirmación"""
+    from flask import flash, request, make_response
+    
+    # Obtener cliente API
+    client = get_api_client()
+    if not client:
+        flash('Error: No se puede conectar con la API de Belgrano Ahorro', 'error')
+        return redirect(url_for('devops.gestion_ofertas_alt'))
+    
     try:
-        client = get_api_client()
-        if hasattr(client, 'delete_offer'):
-            client.delete_offer(offer_id)
+        if request.method == 'POST':
+            # Confirmar eliminación
+            confirmar = request.form.get('confirmar')
+            if confirmar == 'si':
+                # Eliminar usando API real
+                resultado = client.delete_oferta(offer_id)
+                if resultado:
+                    flash('Oferta eliminada exitosamente', 'success')
+                    logger.info(f"Oferta {offer_id} eliminada desde DevOps")
+                else:
+                    flash('Error al eliminar la oferta. Verifique la conexión con la API.', 'error')
+            else:
+                flash('Eliminación cancelada', 'info')
+            
+            return redirect(url_for('devops.gestion_ofertas_alt'))
+        
         else:
-            api_put('offers', offer_id, {'activa': False})
-        flash('Oferta eliminada', 'success')
+            # GET: Mostrar confirmación
+            oferta = client.get_oferta(offer_id)
+            if not oferta:
+                flash('Oferta no encontrada', 'error')
+                return redirect(url_for('devops.gestion_ofertas_alt'))
+            
+            # HTML de confirmación
+            html = f"""
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Eliminar Oferta - DevOps</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+                    .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                    .header {{ background: #dc3545; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
+                    .btn {{ padding: 8px 16px; margin: 5px; text-decoration: none; border-radius: 4px; display: inline-block; }}
+                    .btn-danger {{ background: #dc3545; color: white; }}
+                    .btn-success {{ background: #28a745; color: white; }}
+                    .warning {{ background: #fff3cd; color: #856404; padding: 15px; border-radius: 4px; margin: 20px 0; border: 1px solid #ffeaa7; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Eliminar Oferta #{offer_id}</h1>
+                        <p>Esta acción no se puede deshacer</p>
+                    </div>
+                    
+                    <div class="warning">
+                        <strong>ADVERTENCIA:</strong> Está a punto de eliminar permanentemente la oferta "{oferta.get('titulo', 'Sin título')}". Esta acción no se puede deshacer.
+                    </div>
+                    
+                    <h3>Datos de la oferta a eliminar:</h3>
+                    <ul>
+                        <li><strong>ID:</strong> {offer_id}</li>
+                        <li><strong>Título:</strong> {oferta.get('titulo', 'Sin título')}</li>
+                        <li><strong>Descripción:</strong> {oferta.get('descripcion', 'Sin descripción')}</li>
+                        <li><strong>Descuento Porcentaje:</strong> {oferta.get('descuento_porcentaje', 'N/A')}%</li>
+                        <li><strong>Descuento Fijo:</strong> ${oferta.get('descuento_fijo', 0):.2f}</li>
+                        <li><strong>Estado:</strong> {'Activa' if oferta.get('activa', True) else 'Inactiva'}</li>
+                    </ul>
+                    
+                    <form method="post" style="margin-top: 30px;">
+                        <div style="margin-bottom: 20px;">
+                            <label>
+                                <input type="checkbox" name="confirmar" value="si" required /> 
+                                Confirmo que quiero eliminar esta oferta permanentemente
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('¿Está seguro de que desea eliminar esta oferta?')">
+                            ELIMINAR OFERTA
+                        </button>
+                        <a href="/devops/ofertas" class="btn btn-success">Cancelar</a>
+                    </form>
+                </div>
+            </body>
+            </html>
+            """
+            return make_response(html, 200)
+            
     except Exception as e:
-        logger.error(f"Error eliminando oferta: {e}")
-        flash('Error eliminando oferta', 'error')
-    return redirect(url_for('devops.gestion_ofertas_alt'))
+        logger.error(f"Error eliminando oferta {offer_id}: {e}")
+        flash('Error interno al eliminar la oferta', 'error')
+        return redirect(url_for('devops.gestion_ofertas_alt'))
+
+# =================================================================
+# GESTIÓN DE PRECIOS (DevOps consumiendo API)
+# =================================================================
+
+@devops_bp.route('/precios', methods=['GET', 'POST'])
+@devops_login_required
+def gestion_precios():
+    """Gestión completa de precios con API real"""
+    from flask import request, flash, render_template, make_response
+    
+    # Obtener cliente API
+    client = get_api_client()
+    if not client:
+        flash('Error: No se puede conectar con la API de Belgrano Ahorro', 'error')
+        return render_template('devops/precios.html', precios=[], productos=[], error_api=True)
+    
+    try:
+        if request.method == 'POST':
+            # Crear nuevo precio
+            producto_id = request.form.get('producto_id', '').strip()
+            precio_base = request.form.get('precio_base', '').strip()
+            precio_oferta = request.form.get('precio_oferta', '').strip()
+            fecha_inicio = request.form.get('fecha_inicio', '').strip()
+            fecha_fin = request.form.get('fecha_fin', '').strip()
+            activo = request.form.get('activo') == 'on'
+            
+            if not producto_id or not precio_base:
+                flash('Producto y precio base son requeridos', 'error')
+            else:
+                try:
+                    precio_base_float = float(precio_base)
+                    precio_oferta_float = float(precio_oferta) if precio_oferta else None
+                    
+                    # Crear precio usando API real
+                    data = {
+                        'producto_id': int(producto_id),
+                        'precio_base': precio_base_float,
+                        'activo': activo
+                    }
+                    
+                    # Agregar campos opcionales si se proporcionan
+                    if precio_oferta_float:
+                        data['precio_oferta'] = precio_oferta_float
+                    if fecha_inicio:
+                        data['fecha_inicio'] = fecha_inicio
+                    if fecha_fin:
+                        data['fecha_fin'] = fecha_fin
+                    
+                    resultado = client.create_precio(data)
+                    if resultado:
+                        flash('Precio creado exitosamente', 'success')
+                        logger.info(f"Precio creado desde DevOps para producto {producto_id}")
+                    else:
+                        flash('Error al crear el precio. Verifique la conexión con la API.', 'error')
+                except ValueError:
+                    flash('Los precios deben ser números válidos', 'error')
+            
+            return redirect(url_for('devops.gestion_precios'))
+
+        # GET: Listar precios y productos desde API real
+        try:
+            precios = client.get_precios()
+            productos = client.get_productos()
+            logger.info(f"Obtenidos {len(precios)} precios y {len(productos)} productos desde API")
+            
+            # Intentar usar template
+            try:
+                return render_template('devops/precios.html', precios=precios, productos=productos, error_api=False)
+            except Exception:
+                # Fallback HTML con datos reales
+                items_html = ""
+                for precio in precios:
+                    estado = "Activo" if precio.get('activo', True) else "Inactivo"
+                    producto_nombre = "Sin producto"
+                    for producto in productos:
+                        if producto.get('id') == precio.get('producto_id'):
+                            producto_nombre = producto.get('nombre', 'Sin nombre')
+                            break
+                    
+                    precio_oferta_info = ""
+                    if precio.get('precio_oferta'):
+                        precio_oferta_info = f"<br><strong>Precio oferta:</strong> ${precio.get('precio_oferta'):.2f}"
+                    
+                    fechas_info = ""
+                    if precio.get('fecha_inicio'):
+                        fechas_info += f"<br><strong>Inicio:</strong> {precio.get('fecha_inicio')}"
+                    if precio.get('fecha_fin'):
+                        fechas_info += f"<br><strong>Fin:</strong> {precio.get('fecha_fin')}"
+                    
+                    items_html += f"""
+                    <div class="precio-item" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px;">
+                        <h4>#{precio.get('id', 'N/A')} - {producto_nombre}</h4>
+                        <p><strong>Precio base:</strong> ${precio.get('precio_base', 0):.2f}</p>
+                        {precio_oferta_info}
+                        <p><strong>Estado:</strong> {estado}</p>
+                        {fechas_info}
+                        <div style="margin-top: 10px;">
+                            <a href="/devops/precios/{precio.get('id')}/editar" class="btn btn-warning">Editar</a>
+                            <a href="/devops/precios/{precio.get('id')}/eliminar" class="btn btn-danger" onclick="return confirm('¿Eliminar este precio?')">Eliminar</a>
+                        </div>
+                    </div>
+                    """
+                
+                # Opciones de productos para el selector
+                options_html = '<option value="">Seleccione producto</option>'
+                for producto in productos:
+                    options_html += f'<option value="{producto.get("id")}">{producto.get("nombre", "Sin nombre")} - ${producto.get("precio", 0):.2f}</option>'
+                
+                html = f"""
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Gestión de Precios - DevOps</title>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+                        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                        .header {{ background: #6f42c1; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
+                        .btn {{ padding: 8px 16px; margin: 5px; text-decoration: none; border-radius: 4px; display: inline-block; }}
+                        .btn-warning {{ background: #ffc107; color: #212529; }}
+                        .btn-danger {{ background: #dc3545; color: white; }}
+                        .btn-success {{ background: #28a745; color: white; }}
+                        .form-group {{ margin-bottom: 15px; }}
+                        .form-group label {{ display: block; margin-bottom: 5px; font-weight: bold; }}
+                        .form-group input, .form-group textarea, .form-group select {{ width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }}
+                        .form-row {{ display: flex; gap: 15px; }}
+                        .form-row .form-group {{ flex: 1; }}
+                        .alert {{ padding: 15px; margin-bottom: 20px; border-radius: 4px; }}
+                        .alert-success {{ background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }}
+                        .alert-error {{ background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>Gestión de Precios</h1>
+                            <p>Administra los precios desde la API de Belgrano Ahorro</p>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <a href="/devops/" class="btn btn-success">← Volver al Panel</a>
+                        </div>
+                        
+                        <h2>Lista de Precios ({len(precios)} encontrados)</h2>
+                        {items_html}
+                        
+                        <h2>Crear Nuevo Precio</h2>
+                        <form method="post" style="background: #f8f9fa; padding: 20px; border-radius: 5px;">
+                            <div class="form-group">
+                                <label for="producto_id">Producto *</label>
+                                <select id="producto_id" name="producto_id" required>
+                                    {options_html}
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="precio_base">Precio Base *</label>
+                                    <input type="number" id="precio_base" name="precio_base" step="0.01" min="0" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="precio_oferta">Precio Oferta</label>
+                                    <input type="number" id="precio_oferta" name="precio_oferta" step="0.01" min="0" />
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="fecha_inicio">Fecha Inicio</label>
+                                    <input type="date" id="fecha_inicio" name="fecha_inicio" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="fecha_fin">Fecha Fin</label>
+                                    <input type="date" id="fecha_fin" name="fecha_fin" />
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" name="activo" checked /> Precio activo
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-success">Crear Precio</button>
+                        </form>
+                    </div>
+                </body>
+                </html>
+                """
+                return make_response(html, 200)
+                
+        except Exception as e:
+            logger.error(f"Error obteniendo precios desde API: {e}")
+            flash('Error al obtener precios desde la API', 'error')
+            return render_template('devops/precios.html', precios=[], productos=[], error_api=True)
+            
+    except Exception as e:
+        logger.error(f"Error en gestión de precios: {e}")
+        flash('Error interno en gestión de precios', 'error')
+        return render_template('devops/precios.html', precios=[], productos=[], error_api=True)
+
+@devops_bp.route('/precios/<int:precio_id>/editar', methods=['GET', 'POST'])
+@devops_login_required
+def editar_precio(precio_id: int):
+    """Editar precio existente"""
+    from flask import request, flash, render_template, make_response
+    
+    # Obtener cliente API
+    client = get_api_client()
+    if not client:
+        flash('Error: No se puede conectar con la API de Belgrano Ahorro', 'error')
+        return redirect(url_for('devops.gestion_precios'))
+    
+    try:
+        if request.method == 'POST':
+            # Actualizar precio
+            data = {
+                key: value for key, value in {
+                    'producto_id': int(request.form.get('producto_id')) if request.form.get('producto_id') else None,
+                    'precio_base': float(request.form.get('precio_base')) if request.form.get('precio_base') else None,
+                    'precio_oferta': float(request.form.get('precio_oferta')) if request.form.get('precio_oferta') else None,
+                    'fecha_inicio': request.form.get('fecha_inicio'),
+                    'fecha_fin': request.form.get('fecha_fin'),
+                    'activo': request.form.get('activo') == 'on'
+                }.items() if value is not None and value != ''
+            }
+            
+            resultado = client.update_precio(precio_id, data)
+            if resultado:
+                flash('Precio actualizado exitosamente', 'success')
+                logger.info(f"Precio {precio_id} actualizado desde DevOps")
+            else:
+                flash('Error al actualizar el precio. Verifique la conexión con la API.', 'error')
+            
+            return redirect(url_for('devops.gestion_precios'))
+        
+        else:
+            # GET: Mostrar formulario de edición
+            precio = client.get_precio(precio_id)
+            productos = client.get_productos()
+            
+            if not precio:
+                flash('Precio no encontrado', 'error')
+                return redirect(url_for('devops.gestion_precios'))
+            
+            # Opciones de productos para el selector
+            options_html = '<option value="">Seleccione producto</option>'
+            for producto in productos:
+                selected = 'selected' if producto.get('id') == precio.get('producto_id') else ''
+                options_html += f'<option value="{producto.get("id")}" {selected}>{producto.get("nombre", "Sin nombre")} - ${producto.get("precio", 0):.2f}</option>'
+            
+            # HTML para edición
+            html = f"""
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Editar Precio - DevOps</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+                    .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                    .header {{ background: #ffc107; color: #212529; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
+                    .btn {{ padding: 8px 16px; margin: 5px; text-decoration: none; border-radius: 4px; display: inline-block; }}
+                    .btn-warning {{ background: #ffc107; color: #212529; }}
+                    .btn-danger {{ background: #dc3545; color: white; }}
+                    .btn-success {{ background: #28a745; color: white; }}
+                    .form-group {{ margin-bottom: 15px; }}
+                    .form-group label {{ display: block; margin-bottom: 5px; font-weight: bold; }}
+                    .form-group input, .form-group textarea, .form-group select {{ width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }}
+                    .form-row {{ display: flex; gap: 15px; }}
+                    .form-row .form-group {{ flex: 1; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Editar Precio #{precio_id}</h1>
+                        <p>Modifica los datos del precio</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <a href="/devops/precios" class="btn btn-success">← Volver a Precios</a>
+                    </div>
+                    
+                    <form method="post" style="background: #f8f9fa; padding: 20px; border-radius: 5px;">
+                        <div class="form-group">
+                            <label for="producto_id">Producto *</label>
+                            <select id="producto_id" name="producto_id" required>
+                                {options_html}
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="precio_base">Precio Base *</label>
+                                <input type="number" id="precio_base" name="precio_base" step="0.01" min="0" value="{precio.get('precio_base', 0)}" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="precio_oferta">Precio Oferta</label>
+                                <input type="number" id="precio_oferta" name="precio_oferta" step="0.01" min="0" value="{precio.get('precio_oferta', '')}" />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="fecha_inicio">Fecha Inicio</label>
+                                <input type="date" id="fecha_inicio" name="fecha_inicio" value="{precio.get('fecha_inicio', '')}" />
+                            </div>
+                            <div class="form-group">
+                                <label for="fecha_fin">Fecha Fin</label>
+                                <input type="date" id="fecha_fin" name="fecha_fin" value="{precio.get('fecha_fin', '')}" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" name="activo" {'checked' if precio.get('activo', True) else ''} /> Precio activo
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-warning">Actualizar Precio</button>
+                    </form>
+                </div>
+            </body>
+            </html>
+            """
+            return make_response(html, 200)
+            
+    except Exception as e:
+        logger.error(f"Error editando precio {precio_id}: {e}")
+        flash('Error interno al editar el precio', 'error')
+        return redirect(url_for('devops.gestion_precios'))
+
+@devops_bp.route('/precios/<int:precio_id>/eliminar', methods=['GET', 'POST'])
+@devops_login_required
+def eliminar_precio(precio_id: int):
+    """Eliminar precio con confirmación"""
+    from flask import flash, request, make_response
+    
+    # Obtener cliente API
+    client = get_api_client()
+    if not client:
+        flash('Error: No se puede conectar con la API de Belgrano Ahorro', 'error')
+        return redirect(url_for('devops.gestion_precios'))
+    
+    try:
+        if request.method == 'POST':
+            # Confirmar eliminación
+            confirmar = request.form.get('confirmar')
+            if confirmar == 'si':
+                # Eliminar usando API real
+                resultado = client.delete_precio(precio_id)
+                if resultado:
+                    flash('Precio eliminado exitosamente', 'success')
+                    logger.info(f"Precio {precio_id} eliminado desde DevOps")
+                else:
+                    flash('Error al eliminar el precio. Verifique la conexión con la API.', 'error')
+            else:
+                flash('Eliminación cancelada', 'info')
+            
+            return redirect(url_for('devops.gestion_precios'))
+        
+        else:
+            # GET: Mostrar confirmación
+            precio = client.get_precio(precio_id)
+            productos = client.get_productos()
+            
+            if not precio:
+                flash('Precio no encontrado', 'error')
+                return redirect(url_for('devops.gestion_precios'))
+            
+            # Encontrar nombre del producto
+            producto_nombre = "Sin producto"
+            for producto in productos:
+                if producto.get('id') == precio.get('producto_id'):
+                    producto_nombre = producto.get('nombre', 'Sin nombre')
+                    break
+            
+            # HTML de confirmación
+            html = f"""
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Eliminar Precio - DevOps</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+                    .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                    .header {{ background: #dc3545; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
+                    .btn {{ padding: 8px 16px; margin: 5px; text-decoration: none; border-radius: 4px; display: inline-block; }}
+                    .btn-danger {{ background: #dc3545; color: white; }}
+                    .btn-success {{ background: #28a745; color: white; }}
+                    .warning {{ background: #fff3cd; color: #856404; padding: 15px; border-radius: 4px; margin: 20px 0; border: 1px solid #ffeaa7; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Eliminar Precio #{precio_id}</h1>
+                        <p>Esta acción no se puede deshacer</p>
+                    </div>
+                    
+                    <div class="warning">
+                        <strong>ADVERTENCIA:</strong> Está a punto de eliminar permanentemente el precio para "{producto_nombre}". Esta acción no se puede deshacer.
+                    </div>
+                    
+                    <h3>Datos del precio a eliminar:</h3>
+                    <ul>
+                        <li><strong>ID:</strong> {precio_id}</li>
+                        <li><strong>Producto:</strong> {producto_nombre}</li>
+                        <li><strong>Precio Base:</strong> ${precio.get('precio_base', 0):.2f}</li>
+                        <li><strong>Precio Oferta:</strong> ${precio.get('precio_oferta', 0):.2f if precio.get('precio_oferta') else 'N/A'}</li>
+                        <li><strong>Estado:</strong> {'Activo' if precio.get('activo', True) else 'Inactivo'}</li>
+                        <li><strong>Fecha Inicio:</strong> {precio.get('fecha_inicio', 'N/A')}</li>
+                        <li><strong>Fecha Fin:</strong> {precio.get('fecha_fin', 'N/A')}</li>
+                    </ul>
+                    
+                    <form method="post" style="margin-top: 30px;">
+                        <div style="margin-bottom: 20px;">
+                            <label>
+                                <input type="checkbox" name="confirmar" value="si" required /> 
+                                Confirmo que quiero eliminar este precio permanentemente
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('¿Está seguro de que desea eliminar este precio?')">
+                            ELIMINAR PRECIO
+                        </button>
+                        <a href="/devops/precios" class="btn btn-success">Cancelar</a>
+                    </form>
+                </div>
+            </body>
+            </html>
+            """
+            return make_response(html, 200)
+            
+    except Exception as e:
+        logger.error(f"Error eliminando precio {precio_id}: {e}")
+        flash('Error interno al eliminar el precio', 'error')
+        return redirect(url_for('devops.gestion_precios'))
 
 # =================================================================
 # MANEJO DE ERRORES
