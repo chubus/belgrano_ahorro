@@ -55,43 +55,68 @@ class BelgranoAhorroAPIClient:
         """
         url = f"{self.base_url}{endpoint}"
         
-        try:
-            logger.info(f"Realizando {method} a {url}")
-            
-            response = requests.request(
-                method=method,
-                url=url,
-                headers=self.headers,
-                json=data,
-                params=params,
-                timeout=self.timeout
-            )
-            
-            # Log de respuesta
-            logger.info(f"Respuesta {response.status_code} de {url}")
-            
-            if response.status_code in [200, 201, 204]:
-                try:
-                    return response.json()
-                except ValueError:
-                    return {'status': 'success', 'message': 'Operación exitosa'}
-            else:
+        # Reintentos con backoff exponencial para tolerar 5xx/cold-starts y errores transitorios
+        max_attempts = 4
+        backoff_base_seconds = 1.5
+        last_error: Optional[Dict] = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                logger.info(f"Realizando {method} a {url} (intento {attempt}/{max_attempts})")
+                response = requests.request(
+                    method=method,
+                    url=url,
+                    headers=self.headers,
+                    json=data,
+                    params=params,
+                    timeout=self.timeout
+                )
+                logger.info(f"Respuesta {response.status_code} de {url}")
+
+                if response.status_code in (200, 201, 204):
+                    try:
+                        return response.json()
+                    except ValueError:
+                        return {'status': 'success', 'message': 'Operación exitosa'}
+
+                # Reintentar ante 502/503/504
+                if response.status_code in (502, 503, 504):
+                    last_error = {
+                        'error': True,
+                        'status_code': response.status_code,
+                        'message': response.text
+                    }
+                    if attempt < max_attempts:
+                        import time
+                        sleep_s = backoff_base_seconds ** attempt
+                        logger.warning(f"Respuesta {response.status_code} en {url}. Reintentando en {sleep_s:.1f}s...")
+                        time.sleep(sleep_s)
+                        continue
+                    return last_error
+
+                # Otros errores no reintentables
                 logger.error(f"Error {response.status_code}: {response.text}")
                 return {
                     'error': True,
                     'status_code': response.status_code,
                     'message': response.text
                 }
-                
-        except requests.exceptions.Timeout:
-            logger.error(f"Timeout en {url}")
-            return {'error': True, 'message': 'Timeout de conexión'}
-        except requests.exceptions.ConnectionError:
-            logger.error(f"Error de conexión a {url}")
-            return {'error': True, 'message': 'Error de conexión'}
-        except Exception as e:
-            logger.error(f"Error inesperado en {url}: {e}")
-            return {'error': True, 'message': str(e)}
+
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                last_error = {'error': True, 'message': str(e)}
+                if attempt < max_attempts:
+                    import time
+                    sleep_s = backoff_base_seconds ** attempt
+                    logger.warning(f"{type(e).__name__} en {url}. Reintento en {sleep_s:.1f}s...")
+                    time.sleep(sleep_s)
+                    continue
+                logger.error(f"Error persistente accediendo a {url}: {e}")
+                return last_error
+            except Exception as e:
+                logger.error(f"Error inesperado en {url}: {e}")
+                return {'error': True, 'message': str(e)}
+
+        # Fallback si nunca retornó (no debería alcanzarse)
+        return last_error or {'error': True, 'message': 'Error desconocido'}
     
     # =================================================================
     # NEGOCIOS
@@ -99,35 +124,35 @@ class BelgranoAhorroAPIClient:
     
     def get_negocios(self) -> List[Dict]:
         """Obtener lista de negocios"""
-        response = self._make_request('GET', '/api/negocios')
+        response = self._make_request('GET', '/api/v1/negocios')
         if response and not response.get('error'):
             return response.get('data', []) if isinstance(response, dict) else response
         return []
     
     def get_negocio(self, negocio_id: int) -> Optional[Dict]:
         """Obtener un negocio específico"""
-        response = self._make_request('GET', f'/api/negocios/{negocio_id}')
+        response = self._make_request('GET', f'/api/v1/negocios/{negocio_id}')
         if response and not response.get('error'):
             return response.get('data') if isinstance(response, dict) else response
         return None
     
     def create_negocio(self, data: Dict) -> Optional[Dict]:
         """Crear nuevo negocio"""
-        response = self._make_request('POST', '/api/negocios', data)
+        response = self._make_request('POST', '/api/v1/negocios', data)
         if response and not response.get('error'):
             return response.get('data') if isinstance(response, dict) else response
         return None
     
     def update_negocio(self, negocio_id: int, data: Dict) -> Optional[Dict]:
         """Actualizar negocio existente"""
-        response = self._make_request('PUT', f'/api/negocios/{negocio_id}', data)
+        response = self._make_request('PUT', f'/api/v1/negocios/{negocio_id}', data)
         if response and not response.get('error'):
             return response.get('data') if isinstance(response, dict) else response
         return None
     
     def delete_negocio(self, negocio_id: int) -> bool:
         """Eliminar negocio"""
-        response = self._make_request('DELETE', f'/api/negocios/{negocio_id}')
+        response = self._make_request('DELETE', f'/api/v1/negocios/{negocio_id}')
         return response and not response.get('error')
     
     # =================================================================
@@ -136,35 +161,35 @@ class BelgranoAhorroAPIClient:
     
     def get_productos(self) -> List[Dict]:
         """Obtener lista de productos"""
-        response = self._make_request('GET', '/api/productos')
+        response = self._make_request('GET', '/api/v1/productos')
         if response and not response.get('error'):
             return response.get('data', []) if isinstance(response, dict) else response
         return []
     
     def get_producto(self, producto_id: int) -> Optional[Dict]:
         """Obtener un producto específico"""
-        response = self._make_request('GET', f'/api/productos/{producto_id}')
+        response = self._make_request('GET', f'/api/v1/productos/{producto_id}')
         if response and not response.get('error'):
             return response.get('data') if isinstance(response, dict) else response
         return None
     
     def create_producto(self, data: Dict) -> Optional[Dict]:
         """Crear nuevo producto"""
-        response = self._make_request('POST', '/api/productos', data)
+        response = self._make_request('POST', '/api/v1/productos', data)
         if response and not response.get('error'):
             return response.get('data') if isinstance(response, dict) else response
         return None
     
     def update_producto(self, producto_id: int, data: Dict) -> Optional[Dict]:
         """Actualizar producto existente"""
-        response = self._make_request('PUT', f'/api/productos/{producto_id}', data)
+        response = self._make_request('PUT', f'/api/v1/productos/{producto_id}', data)
         if response and not response.get('error'):
             return response.get('data') if isinstance(response, dict) else response
         return None
     
     def delete_producto(self, producto_id: int) -> bool:
         """Eliminar producto"""
-        response = self._make_request('DELETE', f'/api/productos/{producto_id}')
+        response = self._make_request('DELETE', f'/api/v1/productos/{producto_id}')
         return response and not response.get('error')
     
     # =================================================================
@@ -173,35 +198,35 @@ class BelgranoAhorroAPIClient:
     
     def get_ofertas(self) -> List[Dict]:
         """Obtener lista de ofertas"""
-        response = self._make_request('GET', '/api/ofertas')
+        response = self._make_request('GET', '/api/v1/ofertas')
         if response and not response.get('error'):
             return response.get('data', []) if isinstance(response, dict) else response
         return []
     
     def get_oferta(self, oferta_id: int) -> Optional[Dict]:
         """Obtener una oferta específica"""
-        response = self._make_request('GET', f'/api/ofertas/{oferta_id}')
+        response = self._make_request('GET', f'/api/v1/ofertas/{oferta_id}')
         if response and not response.get('error'):
             return response.get('data') if isinstance(response, dict) else response
         return None
     
     def create_oferta(self, data: Dict) -> Optional[Dict]:
         """Crear nueva oferta"""
-        response = self._make_request('POST', '/api/ofertas', data)
+        response = self._make_request('POST', '/api/v1/ofertas', data)
         if response and not response.get('error'):
             return response.get('data') if isinstance(response, dict) else response
         return None
     
     def update_oferta(self, oferta_id: int, data: Dict) -> Optional[Dict]:
         """Actualizar oferta existente"""
-        response = self._make_request('PUT', f'/api/ofertas/{oferta_id}', data)
+        response = self._make_request('PUT', f'/api/v1/ofertas/{oferta_id}', data)
         if response and not response.get('error'):
             return response.get('data') if isinstance(response, dict) else response
         return None
     
     def delete_oferta(self, oferta_id: int) -> bool:
         """Eliminar oferta"""
-        response = self._make_request('DELETE', f'/api/ofertas/{oferta_id}')
+        response = self._make_request('DELETE', f'/api/v1/ofertas/{oferta_id}')
         return response and not response.get('error')
     
     # =================================================================
@@ -210,35 +235,35 @@ class BelgranoAhorroAPIClient:
     
     def get_precios(self) -> List[Dict]:
         """Obtener lista de precios"""
-        response = self._make_request('GET', '/api/precios')
+        response = self._make_request('GET', '/api/v1/precios')
         if response and not response.get('error'):
             return response.get('data', []) if isinstance(response, dict) else response
         return []
     
     def get_precio(self, precio_id: int) -> Optional[Dict]:
         """Obtener un precio específico"""
-        response = self._make_request('GET', f'/api/precios/{precio_id}')
+        response = self._make_request('GET', f'/api/v1/precios/{precio_id}')
         if response and not response.get('error'):
             return response.get('data') if isinstance(response, dict) else response
         return None
     
     def create_precio(self, data: Dict) -> Optional[Dict]:
         """Crear nuevo precio"""
-        response = self._make_request('POST', '/api/precios', data)
+        response = self._make_request('POST', '/api/v1/precios', data)
         if response and not response.get('error'):
             return response.get('data') if isinstance(response, dict) else response
         return None
     
     def update_precio(self, precio_id: int, data: Dict) -> Optional[Dict]:
         """Actualizar precio existente"""
-        response = self._make_request('PUT', f'/api/precios/{precio_id}', data)
+        response = self._make_request('PUT', f'/api/v1/precios/{precio_id}', data)
         if response and not response.get('error'):
             return response.get('data') if isinstance(response, dict) else response
         return None
     
     def delete_precio(self, precio_id: int) -> bool:
         """Eliminar precio"""
-        response = self._make_request('DELETE', f'/api/precios/{precio_id}')
+        response = self._make_request('DELETE', f'/api/v1/precios/{precio_id}')
         return response and not response.get('error')
     
     # =================================================================
