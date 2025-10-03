@@ -527,7 +527,7 @@ def api_offers():
             with get_db_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
-                    SELECT id, titulo, descripcion, productos, hasta_agotar_stock, activa, fecha_creacion
+                    SELECT id, titulo, descripcion, descuento_porcentaje, descuento_fijo, activa, fecha_creacion
                     FROM ofertas
                     ORDER BY fecha_creacion DESC
                 ''')
@@ -539,8 +539,8 @@ def api_offers():
                         'id': row[0],
                         'titulo': row[1],
                         'descripcion': row[2],
-                        'productos': row[3],
-                        'hasta_agotar_stock': bool(row[4]),
+                        'descuento_porcentaje': float(row[3]) if row[3] is not None else 0.0,
+                        'descuento_fijo': float(row[4]) if row[4] is not None else 0.0,
                         'activa': bool(row[5]),
                         'fecha_creacion': row[6]
                     })
@@ -561,13 +561,13 @@ def api_offers():
             with get_db_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
-                    INSERT INTO ofertas (titulo, descripcion, productos, hasta_agotar_stock, activa)
+                    INSERT INTO ofertas (titulo, descripcion, descuento_porcentaje, descuento_fijo, activa)
                     VALUES (?, ?, ?, ?, ?)
                 ''', (
                     data['titulo'],
                     data.get('descripcion', ''),
-                    data.get('productos', ''),
-                    data.get('hasta_agotar_stock', False),
+                    data.get('descuento_porcentaje', 0.0),
+                    data.get('descuento_fijo', 0.0),
                     data.get('activa', True)
                 ))
                 
@@ -588,21 +588,23 @@ def api_offer_detail(offer_id):
             cursor = conn.cursor()
             if request.method == 'GET':
                 cursor.execute('''
-                    SELECT id, titulo, descripcion, productos, hasta_agotar_stock, activa, fecha_creacion
+                    SELECT id, titulo, descripcion, descuento_porcentaje, descuento_fijo, activa, fecha_creacion
                     FROM ofertas WHERE id = ?
                 ''', (offer_id,))
                 row = cursor.fetchone()
                 if not row:
                     return jsonify({'error': 'Offer not found'}), 404
                 offer = {
-                    'id': row[0], 'titulo': row[1], 'descripcion': row[2], 'productos': row[3],
-                    'hasta_agotar_stock': bool(row[4]), 'activa': bool(row[5]), 'fecha_creacion': row[6]
+                    'id': row[0], 'titulo': row[1], 'descripcion': row[2], 
+                    'descuento_porcentaje': float(row[3]) if row[3] is not None else 0.0,
+                    'descuento_fijo': float(row[4]) if row[4] is not None else 0.0,
+                    'activa': bool(row[5]), 'fecha_creacion': row[6]
                 }
                 return jsonify({'status': 'success', 'data': offer})
             elif request.method == 'PUT':
                 data = request.get_json()
                 fields, values = [], []
-                for field in ['titulo', 'descripcion', 'productos', 'hasta_agotar_stock', 'activa']:
+                for field in ['titulo', 'descripcion', 'descuento_porcentaje', 'descuento_fijo', 'activa']:
                     if field in data:
                         fields.append(f"{field} = ?")
                         values.append(data[field])
