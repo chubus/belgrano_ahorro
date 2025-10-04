@@ -19,7 +19,7 @@
 </div>
 
 <!-- Tabla de Ofertas -->
-<div class="card">
+        <div class="card">
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -78,7 +78,7 @@
                                     <button type="submit" class="btn btn-sm btn-danger btn-delete">
                                         <i class="fas fa-trash"></i>
                                     </button>
-                                </form>
+                            </form>
                             </div>
                         </td>
                     </tr>
@@ -93,8 +93,8 @@
             </table>
         </div>
     </div>
-</div>
-
+        </div>
+        
 <!-- Modal Crear Oferta -->
 <div class="modal fade" id="crearOfertaModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -104,7 +104,7 @@
                     <i class="fas fa-plus me-2"></i>Crear Nueva Oferta
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
+                        </div>
             <form method="POST" action="{{ url_for('devops.gestion_ofertas') }}">
                 <div class="modal-body">
                     <div class="mb-3">
@@ -138,33 +138,33 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save me-2"></i>Crear Oferta
-                    </button>
+                </button>
                 </div>
             </form>
         </div>
-    </div>
-</div>
-
+        </div>
+            </div>
+            
 <!-- Modal Editar Oferta -->
 <div class="modal fade" id="editarOfertaModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="fas fa-edit me-2"></i>Editar Oferta
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             <form id="editarOfertaForm" method="POST">
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Título *</label>
                         <input type="text" class="form-control" name="titulo" id="edit_titulo" required>
-                    </div>
+                            </div>
                     <div class="mb-3">
                         <label class="form-label">Descripción</label>
                         <textarea class="form-control" name="descripcion" id="edit_descripcion" rows="3"></textarea>
-                    </div>
+                            </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Descuento Porcentual (%)</label>
@@ -182,7 +182,7 @@
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="activo" id="edit_activo">
                         <label class="form-check-label">Oferta activa</label>
-                    </div>
+                        </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -195,9 +195,9 @@
     </div>
 </div>
 {% endblock %}
-
+    
 {% block scripts %}
-<script>
+    <script>
 function editarOferta(id, titulo, descripcion, descuento_porcentaje, descuento_fijo, activo) {
     // Llenar el formulario de edición
     document.getElementById('edit_titulo').value = titulo;
@@ -211,7 +211,7 @@ function editarOferta(id, titulo, descripcion, descuento_porcentaje, descuento_f
     
     // Mostrar el modal
     const modal = new bootstrap.Modal(document.getElementById('editarOfertaModal'));
-    modal.show();
-}
-</script>
+                modal.show();
+        }
+    </script>
 {% endblock %}

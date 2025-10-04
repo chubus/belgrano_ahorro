@@ -4,19 +4,19 @@
 {% block page_title %}Gestión de Precios{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
+                <div class="row mb-4">
     <div class="col-md-6">
         <h4 class="mb-0">
             <i class="fas fa-dollar-sign me-2"></i>Historial de Precios
         </h4>
         <p class="text-muted">Gestiona los precios de los productos</p>
-    </div>
+                        </div>
     <div class="col-md-6 text-end">
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#actualizarPrecioModal">
             <i class="fas fa-edit me-2"></i>Actualizar Precio
         </button>
-    </div>
-</div>
+                        </div>
+                    </div>
 
 <!-- Tabla de Precios -->
 <div class="card">
@@ -73,9 +73,9 @@
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
-    </div>
-</div>
+                        </div>
+                    </div>
+                </div>
 
 <!-- Modal Actualizar Precio -->
 <div class="modal fade" id="actualizarPrecioModal" tabindex="-1">
@@ -86,7 +86,7 @@
                     <i class="fas fa-edit me-2"></i>Actualizar Precio
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
+                        </div>
             <form method="POST" action="{{ url_for('devops.gestion_precios') }}">
                 <div class="modal-body">
                     <div class="mb-3">
@@ -111,42 +111,42 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-warning">
                         <i class="fas fa-save me-2"></i>Actualizar Precio
-                    </button>
+                </button>
                 </div>
             </form>
         </div>
-    </div>
-</div>
-
+        </div>
+            </div>
+            
 <!-- Modal Editar Precio Específico -->
 <div class="modal fade" id="editarPrecioModal" tabindex="-1">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-content">
+                <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="fas fa-edit me-2"></i>Actualizar Precio
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
             <form id="editarPrecioForm" method="POST">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Producto</label>
+                                <label class="form-label">Producto</label>
                         <input type="text" class="form-control" id="edit_producto_nombre" readonly>
                         <input type="hidden" name="producto_id" id="edit_producto_id">
-                    </div>
+                            </div>
                     <div class="mb-3">
                         <label class="form-label">Precio Actual</label>
                         <input type="text" class="form-control" id="edit_precio_actual" readonly>
-                    </div>
+                            </div>
                     <div class="mb-3">
                         <label class="form-label">Nuevo Precio *</label>
                         <input type="number" class="form-control" name="nuevo_precio" id="edit_nuevo_precio" step="0.01" min="0" required>
-                    </div>
+                        </div>
                     <div class="mb-3">
                         <label class="form-label">Motivo del Cambio</label>
                         <textarea class="form-control" name="motivo" id="edit_motivo" rows="3" placeholder="Ej: Ajuste por inflación, oferta especial, etc."></textarea>
-                    </div>
+                        </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -179,7 +179,7 @@ function actualizarPrecio(producto_id, nombre, precio_actual) {
 }
 
 // Calcular diferencia de precio
-document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function() {
     const nuevoPrecioInput = document.getElementById('edit_nuevo_precio');
     const precioActualInput = document.getElementById('edit_precio_actual');
     
@@ -215,5 +215,5 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-</script>
+    </script>
 {% endblock %}

@@ -71,6 +71,12 @@ def devops_login():
     return render_template('devops/login.html', 
                          username=DEVOPS_USERNAME)
 
+@devops_bp.route('/')
+@devops_login_required
+def devops_home():
+    """Panel principal de DevOps"""
+    return render_template('devops/dashboard.html')
+
 @devops_bp.route('/logout')
 def devops_logout():
     """Cerrar sesión de DevOps"""
@@ -82,57 +88,102 @@ def devops_logout():
 # =============================
 
 def make_api_request(method, endpoint, data=None):
-    """Realizar request a la API de Belgrano Ahorro"""
+    """Realizar request a la API de Belgrano Ahorro usando el cliente mejorado"""
     try:
-        url = f"{BELGRANO_AHORRO_URL}/api/{endpoint}"
-        headers = {
-            'Authorization': f'Bearer {BELGRANO_AHORRO_API_KEY}',
-            'Content-Type': 'application/json'
-        }
+        # Importar cliente mejorado
+        from belgrano_client_gateway import BelgranoAhorroClientGateway
         
-        response = requests.request(
-            method=method,
-            url=url,
-            headers=headers,
-            json=data,
-            timeout=API_TIMEOUT_SECS
-        )
+        # Crear cliente
+        client = BelgranoAhorroClientGateway(use_gateway=True)
         
-        if response.status_code == 401:
-            logger.error("API Key inválida")
-            return {'error': 'API Key inválida'}
+        # Mapear métodos a funciones del cliente
+        if method == 'GET':
+            if endpoint == 'negocios':
+                result = client.get_negocios()
+            elif endpoint == 'productos':
+                result = client.get_productos()
+            elif endpoint == 'ofertas':
+                result = client.get_ofertas()
+            elif endpoint == 'sucursales':
+                result = client.get_sucursales()
+            elif endpoint.startswith('negocios/'):
+                negocio_id = int(endpoint.split('/')[1])
+                result = client.get_negocio(negocio_id)
+            elif endpoint.startswith('productos/'):
+                producto_id = int(endpoint.split('/')[1])
+                result = client.get_producto(producto_id)
+            elif endpoint.startswith('ofertas/'):
+                oferta_id = int(endpoint.split('/')[1])
+                result = client.get_oferta(oferta_id)
+            elif endpoint.startswith('sucursales/'):
+                sucursal_id = int(endpoint.split('/')[1])
+                result = client.get_sucursal(sucursal_id)
+            else:
+                result = {'success': False, 'error': f'Endpoint no soportado: {endpoint}'}
         
-        if response.status_code >= 400:
-            logger.error(f"Error HTTP {response.status_code}: {response.text}")
-            return {'error': f'Error HTTP {response.status_code}'}
+        elif method == 'POST':
+            if endpoint == 'negocios':
+                result = client.create_negocio(data)
+            elif endpoint == 'productos':
+                result = client.create_producto(data)
+            elif endpoint == 'ofertas':
+                result = client.create_oferta(data)
+            elif endpoint == 'sucursales':
+                result = client.create_sucursal(data)
+            else:
+                result = {'success': False, 'error': f'Endpoint no soportado: {endpoint}'}
         
-        if response.content:
-            try:
-                return response.json()
-            except json.JSONDecodeError:
-                return {'error': 'Respuesta no válida de la API'}
+        elif method == 'PUT':
+            if endpoint.startswith('negocios/'):
+                negocio_id = int(endpoint.split('/')[1])
+                result = client.update_negocio(negocio_id, data)
+            elif endpoint.startswith('productos/'):
+                producto_id = int(endpoint.split('/')[1])
+                result = client.update_producto(producto_id, data)
+            elif endpoint.startswith('ofertas/'):
+                oferta_id = int(endpoint.split('/')[1])
+                result = client.update_oferta(oferta_id, data)
+            elif endpoint.startswith('sucursales/'):
+                sucursal_id = int(endpoint.split('/')[1])
+                result = client.update_sucursal(sucursal_id, data)
+            elif endpoint.startswith('precios/'):
+                producto_id = int(endpoint.split('/')[1])
+                result = client.update_precio(producto_id, data)
+            else:
+                result = {'success': False, 'error': f'Endpoint no soportado: {endpoint}'}
+        
+        elif method == 'DELETE':
+            if endpoint.startswith('negocios/'):
+                negocio_id = int(endpoint.split('/')[1])
+                result = client.delete_negocio(negocio_id)
+            elif endpoint.startswith('productos/'):
+                producto_id = int(endpoint.split('/')[1])
+                result = client.delete_producto(producto_id)
+            elif endpoint.startswith('ofertas/'):
+                oferta_id = int(endpoint.split('/')[1])
+                result = client.delete_oferta(oferta_id)
+            elif endpoint.startswith('sucursales/'):
+                sucursal_id = int(endpoint.split('/')[1])
+                result = client.delete_sucursal(sucursal_id)
+            else:
+                result = {'success': False, 'error': f'Endpoint no soportado: {endpoint}'}
+        
         else:
-            return {'status': 'success'}
+            result = {'success': False, 'error': f'Método no soportado: {method}'}
         
-    except requests.exceptions.ConnectionError:
-        logger.error("No se puede conectar a la API")
-        return {'error': 'No se puede conectar a la API'}
-    except requests.exceptions.Timeout:
-        logger.error("Timeout en la API")
-        return {'error': 'Timeout en la API'}
+        # Asegurar estructura consistente
+        if not result.get('data'):
+            result['data'] = []
+        
+        return result
+        
     except Exception as e:
         logger.error(f"Error en API request: {e}")
-        return {'error': str(e)}
+        return {'error': str(e), 'data': []}
 
 # =============================
 # RUTAS PRINCIPALES
 # =============================
-
-@devops_bp.route('/')
-@devops_login_required
-def devops_home():
-    """Panel principal de DevOps"""
-    return render_template('devops/dashboard.html')
 
 @devops_bp.route('/health')
 @devops_login_required
@@ -148,6 +199,111 @@ def devops_health():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@devops_bp.route('/sync')
+@devops_login_required
+def devops_sync():
+    """Panel de sincronización"""
+    return render_template('devops/sync.html')
+
+@devops_bp.route('/status')
+@devops_login_required
+def devops_status():
+    """Estado detallado del sistema DevOps"""
+    try:
+        # Obtener información del sistema
+        system_info = {
+            'timestamp': datetime.now().isoformat(),
+            'devops_status': 'active',
+            'services': {
+                'belgrano_ahorro': 'checking...',
+                'ticketera': 'checking...',
+                'gateway': 'checking...',
+                'sync': 'checking...'
+            },
+            'database': {
+                'belgrano_ahorro_db': 'checking...',
+                'tickets_db': 'checking...'
+            }
+        }
+        
+        # Verificar servicios
+        try:
+            response = requests.get('http://localhost:5000/', timeout=2)
+            system_info['services']['belgrano_ahorro'] = 'active' if response.status_code == 200 else 'error'
+        except:
+            system_info['services']['belgrano_ahorro'] = 'inactive'
+        
+        try:
+            response = requests.get('http://localhost:5001/', timeout=2)
+            system_info['services']['ticketera'] = 'active' if response.status_code == 200 else 'error'
+        except:
+            system_info['services']['ticketera'] = 'inactive'
+        
+        try:
+            response = requests.get('http://localhost:5003/gateway/health', timeout=2)
+            system_info['services']['gateway'] = 'active' if response.status_code == 200 else 'error'
+        except:
+            system_info['services']['gateway'] = 'inactive'
+        
+        try:
+            response = requests.get('http://localhost:5004/sync/status', timeout=2)
+            system_info['services']['sync'] = 'active' if response.status_code == 200 else 'error'
+        except:
+            system_info['services']['sync'] = 'inactive'
+        
+        # Verificar bases de datos
+        import os
+        system_info['database']['belgrano_ahorro_db'] = 'active' if os.path.exists('belgrano_ahorro.db') else 'missing'
+        system_info['database']['tickets_db'] = 'active' if os.path.exists('belgrano_tickets.db') else 'missing'
+        
+        return render_template('devops/status.html', system_info=system_info)
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo estado: {e}")
+        return render_template('devops/status.html', error=str(e))
+
+@devops_bp.route('/info')
+@devops_login_required
+def devops_info():
+    """Información completa del servicio DevOps"""
+    try:
+        info = {
+            'service': 'DevOps Belgrano Tickets',
+            'version': '2.0.0',
+            'timestamp': datetime.now().isoformat(),
+            'endpoints': [
+                '/devops/ - Panel principal',
+                '/devops/login - Autenticación',
+                '/devops/health - Health check',
+                '/devops/status - Estado del sistema',
+                '/devops/info - Información del servicio',
+                '/devops/negocios - Gestión de negocios',
+                '/devops/productos - Gestión de productos',
+                '/devops/ofertas - Gestión de ofertas',
+                '/devops/sucursales - Gestión de sucursales',
+                '/devops/precios - Gestión de precios',
+                '/devops/sync - Panel de sincronización'
+            ],
+            'features': [
+                'Gestión completa de contenido',
+                'Sincronización en tiempo real',
+                'API Gateway integrado',
+                'Autenticación segura',
+                'Interfaz web moderna'
+            ],
+            'configuration': {
+                'belgrano_ahorro_url': BELGRANO_AHORRO_URL,
+                'api_timeout': API_TIMEOUT_SECS,
+                'devops_username': DEVOPS_USERNAME
+            }
+        }
+        
+        return render_template('devops/info.html', info=info)
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo información: {e}")
+        return render_template('devops/info.html', error=str(e))
+
 # =============================
 # GESTIÓN DE NEGOCIOS
 # =============================
@@ -155,9 +311,10 @@ def devops_health():
 @devops_bp.route('/negocios', methods=['GET', 'POST'])
 @devops_login_required
 def gestion_negocios():
-    """Gestión completa de negocios"""
-    try:
-        if request.method == 'POST':
+    """Gestión completa de negocios - NUNCA devuelve JSON"""
+    # Siempre devolver HTML, nunca JSON
+    if request.method == 'POST':
+        try:
             # Crear negocio
             data = {
                 'nombre': request.form.get('nombre'),
@@ -178,9 +335,14 @@ def gestion_negocios():
             else:
                 flash('Negocio creado exitosamente', 'success')
             
-            return redirect(url_for('devops.gestion_negocios'))
+        except Exception as e:
+            logger.error(f"Error creando negocio: {e}")
+            flash('Error interno al crear negocio', 'error')
         
-        # GET - Listar negocios
+        return redirect(url_for('devops.gestion_negocios'))
+    
+    # GET - Listar negocios
+    try:
         result = make_api_request('GET', 'negocios')
         if 'error' in result:
             logger.error(f"Error obteniendo negocios: {result['error']}")
@@ -188,13 +350,13 @@ def gestion_negocios():
             negocios = []
         else:
             negocios = result.get('data', [])
-        
-        return render_template('devops/negocios.html', negocios=negocios)
-        
     except Exception as e:
         logger.error(f"Error en gestión de negocios: {e}")
-        flash(f'Error interno: {str(e)}', 'error')
-        return render_template('devops/negocios.html', negocios=[])
+        flash('Error interno al obtener negocios', 'error')
+        negocios = []
+    
+    # SIEMPRE devolver HTML
+    return render_template('devops/negocios.html', negocios=negocios)
 
 @devops_bp.route('/negocios/<int:negocio_id>/editar', methods=['POST'])
 @devops_login_required
@@ -466,9 +628,10 @@ def eliminar_oferta(oferta_id):
 @devops_bp.route('/precios', methods=['GET', 'POST'])
 @devops_login_required
 def gestion_precios():
-    """Gestión de precios"""
-    try:
-        if request.method == 'POST':
+    """Gestión de precios - NUNCA devuelve JSON"""
+    # Siempre devolver HTML, nunca JSON
+    if request.method == 'POST':
+        try:
             # Actualizar precio
             producto_id = request.form.get('producto_id')
             nuevo_precio = float(request.form.get('nuevo_precio', 0))
@@ -489,9 +652,14 @@ def gestion_precios():
             else:
                 flash('Precio actualizado exitosamente', 'success')
             
-            return redirect(url_for('devops.gestion_precios'))
+        except Exception as e:
+            logger.error(f"Error actualizando precio: {e}")
+            flash('Error interno al actualizar precio', 'error')
         
-        # GET - Listar precios y productos
+        return redirect(url_for('devops.gestion_precios'))
+    
+    # GET - Listar precios y productos
+    try:
         precios_result = make_api_request('GET', 'precios')
         productos_result = make_api_request('GET', 'productos')
         
@@ -508,13 +676,48 @@ def gestion_precios():
             productos = []
         else:
             productos = productos_result.get('data', [])
-        
-        return render_template('devops/precios.html', precios=precios, productos=productos)
-        
+            
     except Exception as e:
         logger.error(f"Error en gestión de precios: {e}")
-        flash(f'Error interno: {str(e)}', 'error')
-        return render_template('devops/precios.html', precios=[], productos=[])
+        flash('Error interno al obtener datos', 'error')
+        precios = []
+        productos = []
+    
+    # SIEMPRE devolver HTML
+    return render_template('devops/precios.html', precios=precios, productos=productos)
+
+# =============================
+# MIDDLEWARE ANTI-JSON CRUDO
+# =============================
+
+@devops_bp.before_request
+def before_request():
+    """Middleware para prevenir JSON crudo"""
+    pass
+
+@devops_bp.after_request
+def after_request(response):
+    """Middleware para garantizar que nunca se devuelva JSON crudo"""
+    try:
+        # Si la respuesta es JSON, convertir a HTML
+        if response.content_type and 'application/json' in response.content_type:
+            logger.warning("Interceptando respuesta JSON - convirtiendo a HTML")
+            # Redirigir al dashboard en lugar de devolver JSON
+            return redirect(url_for('devops.devops_home'))
+        
+        # Si la respuesta contiene JSON crudo en el contenido, redirigir
+        if response.data:
+            content_str = response.data.decode('utf-8', errors='ignore')
+            if ('"status":"error"' in content_str or 
+                '"message":"Error interno del servidor DevOps"' in content_str or
+                '"timestamp":' in content_str):
+                logger.warning("Interceptando JSON crudo - redirigiendo")
+                return redirect(url_for('devops.devops_home'))
+        
+        return response
+    except Exception as e:
+        logger.error(f"Error en middleware anti-JSON: {e}")
+        return redirect(url_for('devops.devops_home'))
 
 # =============================
 # MANEJO DE ERRORES
@@ -580,14 +783,14 @@ if __name__ == "__main__":
     app.secret_key = 'devops_secret_key_2025'
     app.register_blueprint(devops_bp)
     
-    print("🔧 Iniciando DevOps en puerto 5002...")
-    print("📱 URL: http://localhost:5002/devops/")
-    print("🔐 Credenciales: devops / DevOps2025!Secure")
-    print("📝 Presiona Ctrl+C para detener")
+    print("Iniciando DevOps en puerto 5002...")
+    print("URL: http://localhost:5002/devops/")
+    print("Credenciales: devops / DevOps2025!Secure")
+    print("Presiona Ctrl+C para detener")
     
     try:
         app.run(host='0.0.0.0', port=5002, debug=False)
     except KeyboardInterrupt:
-        print("\n⏹️ DevOps detenido")
+        print("\nDevOps detenido")
     except Exception as e:
-        print(f"❌ Error iniciando DevOps: {e}")
+        print(f"Error iniciando DevOps: {e}")

@@ -135,8 +135,30 @@ def ensure_tables():
                 )
             ''')
             
+            # Insertar datos de ejemplo si las tablas están vacías
+            cursor.execute('SELECT COUNT(*) FROM negocios')
+            if cursor.fetchone()[0] == 0:
+                cursor.execute('''
+                    INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo)
+                    VALUES ('Negocio Ejemplo', 'Descripción del negocio', 'Dirección ejemplo', '123456789', 'ejemplo@email.com', 1)
+                ''')
+            
+            cursor.execute('SELECT COUNT(*) FROM productos')
+            if cursor.fetchone()[0] == 0:
+                cursor.execute('''
+                    INSERT INTO productos (nombre, descripcion, precio, categoria, stock, negocio_id, activo)
+                    VALUES ('Producto Ejemplo', 'Descripción del producto', 100.0, 'Categoría', 10, 1, 1)
+                ''')
+            
+            cursor.execute('SELECT COUNT(*) FROM sucursales')
+            if cursor.fetchone()[0] == 0:
+                cursor.execute('''
+                    INSERT INTO sucursales (nombre, direccion, telefono, email, negocio_id, activo)
+                    VALUES ('Sucursal Ejemplo', 'Dirección sucursal', '987654321', 'sucursal@email.com', 1, 1)
+                ''')
+            
             conn.commit()
-            logger.info("Tablas verificadas/creadas correctamente")
+            logger.info("Tablas verificadas/creadas correctamente con datos de ejemplo")
     except Exception as e:
         logger.error(f"Error asegurando tablas: {e}")
 
@@ -294,9 +316,8 @@ def api_sucursales():
                 cursor = conn.cursor()
                 cursor.execute('''
                     SELECT s.id, s.nombre, s.direccion, s.telefono, s.email, 
-                           s.negocio_id, s.activo, n.nombre as negocio_nombre
+                           s.activo, s.horario_apertura, s.horario_cierre
                     FROM sucursales s
-                    LEFT JOIN negocios n ON s.negocio_id = n.id
                     ORDER BY s.nombre
                 ''')
                 rows = cursor.fetchall()
@@ -309,9 +330,9 @@ def api_sucursales():
                         'direccion': row[2],
                         'telefono': row[3],
                         'email': row[4],
-                        'negocio_id': row[5],
-                        'activo': bool(row[6]),
-                        'negocio_nombre': row[7]
+                        'activo': bool(row[5]),
+                        'horario_apertura': row[6],
+                        'horario_cierre': row[7]
                     })
                 
                 return jsonify({
@@ -430,10 +451,9 @@ def api_productos():
             with get_db_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
-                    SELECT p.id, p.nombre, p.descripcion, p.precio, p.categoria, 
-                           p.stock, p.activo, p.negocio_id, n.nombre as negocio_nombre
+                    SELECT p.id, p.nombre, p.store, p.precio, p.categoria, 
+                           p.stock, p.activo, p.negocio_id, p.imagen
                     FROM productos p
-                    LEFT JOIN negocios n ON p.negocio_id = n.id
                     ORDER BY p.nombre
                 ''')
                 rows = cursor.fetchall()
@@ -443,13 +463,13 @@ def api_productos():
                     productos.append({
                         'id': row[0],
                         'nombre': row[1],
-                        'descripcion': row[2],
+                        'store': row[2],
                         'precio': row[3],
                         'categoria': row[4],
                         'stock': row[5],
                         'activo': bool(row[6]),
                         'negocio_id': row[7],
-                        'negocio_nombre': row[8]
+                        'imagen': row[8]
                     })
                 
                 return jsonify({

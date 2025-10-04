@@ -1,0 +1,19 @@
+{
+  "timestamp": "2025-10-04T11:37:07.990495",
+  "verificaciones": {
+    "archivos": true,
+    "importaciones": true,
+    "rutas": true,
+    "templates": true,
+    "configuracion": false,
+    "base_datos": true,
+    "endpoints_api": false,
+    "cliente_api": true
+  },
+  "estado_general": {
+    "exitosas": 6,
+    "total": 8,
+    "porcentaje": 75.0,
+    "listo_para_deploy": false
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "timestamp": "2025-10-04T13:05:21.389015",
+  "servicios": {
+    "Belgrano Ahorro": true,
+    "Ticketera": true,
+    "DevOps": true,
+    "API Gateway": true,
+    "Sistema Sync": true
+  },
+  "endpoints_devops": 8,
+  "conectividad_belgrano": 4,
+  "api_gateway": 1,
+  "sistema_sync": 1,
+  "metricas": {
+    "servicios_activos": 5,
+    "total_servicios": 5,
+    "porcentaje_servicios": 100.0,
+    "endpoints_devops_ok": 8,
+    "conectividad_belgrano_ok": 4,
+    "api_gateway_ok": 1,
+    "sistema_sync_ok": 1
+  }
+}
