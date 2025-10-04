@@ -102,11 +102,24 @@ def make_api_request(method, endpoint, data=None):
             logger.error("API Key inválida")
             return {'error': 'API Key inválida'}
         
-        return response.json() if response.content else {'status': 'success'}
+        if response.status_code >= 400:
+            logger.error(f"Error HTTP {response.status_code}: {response.text}")
+            return {'error': f'Error HTTP {response.status_code}'}
+        
+        if response.content:
+            try:
+                return response.json()
+            except json.JSONDecodeError:
+                return {'error': 'Respuesta no válida de la API'}
+        else:
+            return {'status': 'success'}
         
     except requests.exceptions.ConnectionError:
         logger.error("No se puede conectar a la API")
         return {'error': 'No se puede conectar a la API'}
+    except requests.exceptions.Timeout:
+        logger.error("Timeout en la API")
+        return {'error': 'Timeout en la API'}
     except Exception as e:
         logger.error(f"Error en API request: {e}")
         return {'error': str(e)}
@@ -143,38 +156,45 @@ def devops_health():
 @devops_login_required
 def gestion_negocios():
     """Gestión completa de negocios"""
-    if request.method == 'POST':
-        # Crear negocio
-        data = {
-            'nombre': request.form.get('nombre'),
-            'descripcion': request.form.get('descripcion', ''),
-            'direccion': request.form.get('direccion', ''),
-            'telefono': request.form.get('telefono', ''),
-            'email': request.form.get('email', ''),
-            'activo': request.form.get('activo') == 'on'
-        }
-        
-        if not data['nombre']:
-            flash('El nombre es requerido', 'error')
+    try:
+        if request.method == 'POST':
+            # Crear negocio
+            data = {
+                'nombre': request.form.get('nombre'),
+                'descripcion': request.form.get('descripcion', ''),
+                'direccion': request.form.get('direccion', ''),
+                'telefono': request.form.get('telefono', ''),
+                'email': request.form.get('email', ''),
+                'activo': request.form.get('activo') == 'on'
+            }
+            
+            if not data['nombre']:
+                flash('El nombre es requerido', 'error')
+                return redirect(url_for('devops.gestion_negocios'))
+            
+            result = make_api_request('POST', 'negocios', data)
+            if 'error' in result:
+                flash(f'Error creando negocio: {result["error"]}', 'error')
+            else:
+                flash('Negocio creado exitosamente', 'success')
+            
             return redirect(url_for('devops.gestion_negocios'))
         
-        result = make_api_request('POST', 'negocios', data)
-        if 'error' in result:
-            flash(f'Error creando negocio: {result["error"]}', 'error')
-        else:
-            flash('Negocio creado exitosamente', 'success')
-        
-        return redirect(url_for('devops.gestion_negocios'))
-    
-    # GET - Listar negocios
-    try:
+        # GET - Listar negocios
         result = make_api_request('GET', 'negocios')
-        negocios = result.get('data', []) if 'error' not in result else []
+        if 'error' in result:
+            logger.error(f"Error obteniendo negocios: {result['error']}")
+            flash(f'Error obteniendo negocios: {result["error"]}', 'error')
+            negocios = []
+        else:
+            negocios = result.get('data', [])
+        
+        return render_template('devops/negocios.html', negocios=negocios)
+        
     except Exception as e:
-        logger.error(f"Error obteniendo negocios: {e}")
-        negocios = []
-    
-    return render_template('devops/negocios.html', negocios=negocios)
+        logger.error(f"Error en gestión de negocios: {e}")
+        flash(f'Error interno: {str(e)}', 'error')
+        return render_template('devops/negocios.html', negocios=[])
 
 @devops_bp.route('/negocios/<int:negocio_id>/editar', methods=['POST'])
 @devops_login_required
@@ -447,42 +467,54 @@ def eliminar_oferta(oferta_id):
 @devops_login_required
 def gestion_precios():
     """Gestión de precios"""
-    if request.method == 'POST':
-        # Actualizar precio
-        producto_id = request.form.get('producto_id')
-        nuevo_precio = float(request.form.get('nuevo_precio', 0))
-        motivo = request.form.get('motivo', 'Actualización desde DevOps')
-        
-        if not producto_id or nuevo_precio <= 0:
-            flash('Producto y precio válido son requeridos', 'error')
+    try:
+        if request.method == 'POST':
+            # Actualizar precio
+            producto_id = request.form.get('producto_id')
+            nuevo_precio = float(request.form.get('nuevo_precio', 0))
+            motivo = request.form.get('motivo', 'Actualización desde DevOps')
+            
+            if not producto_id or nuevo_precio <= 0:
+                flash('Producto y precio válido son requeridos', 'error')
+                return redirect(url_for('devops.gestion_precios'))
+            
+            data = {
+                'precio': nuevo_precio,
+                'motivo': motivo
+            }
+            
+            result = make_api_request('PUT', f'precios/{producto_id}', data)
+            if 'error' in result:
+                flash(f'Error actualizando precio: {result["error"]}', 'error')
+            else:
+                flash('Precio actualizado exitosamente', 'success')
+            
             return redirect(url_for('devops.gestion_precios'))
         
-        data = {
-            'precio': nuevo_precio,
-            'motivo': motivo
-        }
-        
-        result = make_api_request('PUT', f'precios/{producto_id}', data)
-        if 'error' in result:
-            flash(f'Error actualizando precio: {result["error"]}', 'error')
-        else:
-            flash('Precio actualizado exitosamente', 'success')
-        
-        return redirect(url_for('devops.gestion_precios'))
-    
-    # GET - Listar precios y productos
-    try:
+        # GET - Listar precios y productos
         precios_result = make_api_request('GET', 'precios')
         productos_result = make_api_request('GET', 'productos')
         
-        precios = precios_result.get('data', []) if 'error' not in precios_result else []
-        productos = productos_result.get('data', []) if 'error' not in productos_result else []
+        if 'error' in precios_result:
+            logger.error(f"Error obteniendo precios: {precios_result['error']}")
+            flash(f'Error obteniendo precios: {precios_result["error"]}', 'error')
+            precios = []
+        else:
+            precios = precios_result.get('data', [])
+        
+        if 'error' in productos_result:
+            logger.error(f"Error obteniendo productos: {productos_result['error']}")
+            flash(f'Error obteniendo productos: {productos_result["error"]}', 'error')
+            productos = []
+        else:
+            productos = productos_result.get('data', [])
+        
+        return render_template('devops/precios.html', precios=precios, productos=productos)
+        
     except Exception as e:
-        logger.error(f"Error obteniendo datos: {e}")
-        precios = []
-        productos = []
-    
-    return render_template('devops/precios.html', precios=precios, productos=productos)
+        logger.error(f"Error en gestión de precios: {e}")
+        flash(f'Error interno: {str(e)}', 'error')
+        return render_template('devops/precios.html', precios=[], productos=[])
 
 # =============================
 # MANEJO DE ERRORES
@@ -491,28 +523,55 @@ def gestion_precios():
 @devops_bp.errorhandler(404)
 def devops_not_found(error):
     """Manejar errores 404 en DevOps"""
-    return jsonify({
-        'status': 'error',
-        'message': 'Endpoint DevOps no encontrado',
-        'available_endpoints': [
-            '/devops/',
-            '/devops/negocios',
-            '/devops/sucursales',
-            '/devops/productos',
-            '/devops/ofertas',
-            '/devops/precios'
-        ],
-        'timestamp': datetime.now().isoformat()
-    }), 404
+    if request.path.startswith('/devops/api/'):
+        return jsonify({
+            'status': 'error',
+            'message': 'Endpoint DevOps no encontrado',
+            'available_endpoints': [
+                '/devops/',
+                '/devops/negocios',
+                '/devops/sucursales',
+                '/devops/productos',
+                '/devops/ofertas',
+                '/devops/precios'
+            ],
+            'timestamp': datetime.now().isoformat()
+        }), 404
+    else:
+        # Para rutas HTML, redirigir al dashboard
+        return redirect(url_for('devops.devops_home'))
 
 @devops_bp.errorhandler(500)
 def devops_internal_error(error):
     """Manejar errores 500 en DevOps"""
-    return jsonify({
-        'status': 'error',
-        'message': 'Error interno del servidor DevOps',
-        'timestamp': datetime.now().isoformat()
-    }), 500
+    logger.error(f"Error interno DevOps: {error}")
+    
+    if request.path.startswith('/devops/api/'):
+        return jsonify({
+            'status': 'error',
+            'message': 'Error interno del servidor DevOps',
+            'timestamp': datetime.now().isoformat()
+        }), 500
+    else:
+        # Para rutas HTML, mostrar página de error
+        flash('Error interno del servidor. Intente nuevamente.', 'error')
+        return redirect(url_for('devops.devops_home'))
+
+@devops_bp.errorhandler(Exception)
+def devops_handle_exception(error):
+    """Manejar todas las excepciones no capturadas"""
+    logger.error(f"Excepción no manejada en DevOps: {error}")
+    
+    if request.path.startswith('/devops/api/'):
+        return jsonify({
+            'status': 'error',
+            'message': 'Error interno del servidor DevOps',
+            'timestamp': datetime.now().isoformat()
+        }), 500
+    else:
+        # Para rutas HTML, mostrar página de error
+        flash('Error interno del servidor. Intente nuevamente.', 'error')
+        return redirect(url_for('devops.devops_home'))
 
 # Crear aplicación Flask para ejecución directa
 if __name__ == "__main__":
