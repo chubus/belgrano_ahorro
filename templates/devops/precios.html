@@ -1,549 +1,219 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Precios - DevOps</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        body { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-            min-height: 100vh; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-        }
-        .main-container { 
-            background: white; 
-            border-radius: 15px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin: 20px auto; 
-            overflow: hidden;
-        }
-        .header-section { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-            color: white; 
-            padding: 30px; 
-            text-align: center; 
-        }
-        .stats-card { 
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef); 
-            border-radius: 10px; 
-            padding: 20px; 
-            margin: 10px 0; 
-            transition: all 0.3s ease;
-            border-left: 4px solid #17a2b8;
-        }
-        .stats-card:hover { 
-            transform: translateY(-5px); 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
-        }
-        .table-modern { 
-            border-radius: 10px; 
-            overflow: hidden; 
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
-        }
-        .btn-modern { 
-            border-radius: 25px; 
-            padding: 10px 25px; 
-            font-weight: 600; 
-            transition: all 0.3s ease; 
-            border: none;
-        }
-        .btn-modern:hover { 
-            transform: translateY(-2px); 
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2); 
-        }
-        .modal-modern .modal-content { 
-            border-radius: 15px; 
-            border: none; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
-        }
-        .search-box { 
-            border-radius: 25px; 
-            border: 2px solid #e9ecef; 
-            padding: 12px 20px; 
-            transition: all 0.3s ease; 
-        }
-        .search-box:focus { 
-            border-color: #17a2b8; 
-            box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25); 
-        }
-        .filter-badge {
-            background: linear-gradient(135deg, #17a2b8, #138496);
-            color: white;
-            border-radius: 20px;
-            padding: 5px 15px;
-            margin: 2px;
-            display: inline-block;
-            cursor: pointer; 
-            transition: all 0.3s ease;
-        }
-        .filter-badge:hover {
-            transform: scale(1.05);
-            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-        }
-        .filter-badge.active {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-        }
-        .table-hover tbody tr:hover {
-            background-color: rgba(23, 162, 184, 0.1);
-            transform: scale(1.01);
-            transition: all 0.3s ease;
-        }
-        .loading-spinner {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: #6c757d;
-        }
-        .empty-state i {
-            font-size: 3rem;
-            margin-bottom: 20px;
-        }
-        .price-highlight {
-            font-weight: bold;
-            color: #28a745;
-            font-size: 1.1em;
-        }
-        .discount-badge {
-            background: linear-gradient(135deg, #dc3545, #c82333);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-        }
-        .price-comparison {
-            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-            border-radius: 8px;
-            padding: 10px;
-            margin: 5px 0;
-        }
-    </style>
-</head>
-<body>
-    <div class="container-fluid">
-        <div class="main-container">
-            <!-- Header -->
-            <div class="header-section">
-                <h1><i class="bi bi-currency-dollar"></i> Gestión de Precios</h1>
-                <p class="mb-0">Administra los precios y descuentos del sistema</p>
+{% extends "devops/base.html" %}
+
+{% block title %}Gestión de Precios - DevOps{% endblock %}
+{% block page_title %}Gestión de Precios{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h4 class="mb-0">
+            <i class="fas fa-dollar-sign me-2"></i>Historial de Precios
+        </h4>
+        <p class="text-muted">Gestiona los precios de los productos</p>
+    </div>
+    <div class="col-md-6 text-end">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#actualizarPrecioModal">
+            <i class="fas fa-edit me-2"></i>Actualizar Precio
+        </button>
+    </div>
+</div>
+
+<!-- Tabla de Precios -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Producto ID</th>
+                        <th>Nombre del Producto</th>
+                        <th>Precio Actual</th>
+                        <th>Último Precio</th>
+                        <th>Fecha Último Cambio</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for precio in precios %}
+                    <tr>
+                        <td>{{ precio.producto_id }}</td>
+                        <td>
+                            <strong>{{ precio.nombre }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-success fs-6">${{ "%.2f"|format(precio.precio) }}</span>
+                        </td>
+                        <td>
+                            {% if precio.ultimo_precio and precio.ultimo_precio != precio.precio %}
+                                <span class="badge bg-warning fs-6">${{ "%.2f"|format(precio.ultimo_precio) }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if precio.fecha_ultimo %}
+                                <small class="text-muted">{{ precio.fecha_ultimo }}</small>
+                            {% else %}
+                                <span class="text-muted">Sin cambios</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-warning" 
+                                    onclick="actualizarPrecio({{ precio.producto_id }}, '{{ precio.nombre }}', {{ precio.precio }})">
+                                <i class="fas fa-edit"></i> Actualizar
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">
+                            <i class="fas fa-inbox me-2"></i>No hay precios registrados
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        
-            <!-- Content -->
-            <div class="p-4">
-                <!-- Stats -->
-                <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="stats-card text-center">
-                            <h3 class="text-primary mb-1" id="total-precios">0</h3>
-                            <p class="mb-0 text-muted">Total Precios</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="stats-card text-center">
-                            <h3 class="text-success mb-1" id="precio-promedio">$0</h3>
-                            <p class="mb-0 text-muted">Precio Promedio</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="stats-card text-center">
-                            <h3 class="text-warning mb-1" id="descuentos-activos">0</h3>
-                            <p class="mb-0 text-muted">Descuentos Activos</p>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="stats-card text-center">
-                            <h3 class="text-info mb-1" id="ahorro-total">$0</h3>
-                            <p class="mb-0 text-muted">Ahorro Total</p>
-                        </div>
-                    </div>
-                </div>
+    </div>
+</div>
 
-                <!-- Controls -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input type="text" class="form-control search-box" id="search-precios" placeholder="Buscar precios...">
-                        </div>
-                    </div>
-                    <div class="col-md-6 text-end">
-                        <button class="btn btn-primary btn-modern" data-bs-toggle="modal" data-bs-target="#modal-precio">
-                            <i class="bi bi-plus"></i> Nuevo Precio
-                        </button>
-                        <button class="btn btn-success btn-modern" onclick="cargarPrecios()">
-                            <i class="bi bi-arrow-clockwise"></i> Actualizar
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Filters -->
-                <div class="row mb-3">
-                    <div class="col-12">
-                        <div class="d-flex flex-wrap gap-2">
-                            <span class="filter-badge active" data-filter="all">Todos</span>
-                            <span class="filter-badge" data-filter="con-descuento">Con Descuento</span>
-                            <span class="filter-badge" data-filter="sin-descuento">Sin Descuento</span>
-                            <span class="filter-badge" data-filter="rango-precio">Por Rango</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Loading -->
-                <div class="loading-spinner" id="loading-precios">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Cargando...</span>
-                    </div>
-                    <p class="mt-2">Cargando precios...</p>
+<!-- Modal Actualizar Precio -->
+<div class="modal fade" id="actualizarPrecioModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Actualizar Precio
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            
-                <!-- Table -->
-                <div class="table-responsive" id="table-container">
-                    <table class="table table-hover table-modern" id="precios-table">
-                        <thead class="table-dark">
-                            <tr>
-                                <th><i class="bi bi-hash"></i> ID</th>
-                                <th><i class="bi bi-box-seam"></i> Producto</th>
-                                <th><i class="bi bi-currency-dollar"></i> Precio Original</th>
-                                <th><i class="bi bi-percent"></i> Descuento</th>
-                                <th><i class="bi bi-currency-dollar"></i> Precio Final</th>
-                                <th><i class="bi bi-shop"></i> Negocio</th>
-                                <th><i class="bi bi-gear"></i> Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="precios-tbody">
-                            <!-- Datos se cargarán aquí -->
-                        </tbody>
-                    </table>
-            </div>
-            
-                <!-- Empty State -->
-                <div class="empty-state" id="empty-state" style="display: none;">
-                    <i class="bi bi-currency-dollar"></i>
-                    <h4>No hay precios disponibles</h4>
-                    <p>Comienza creando tu primer precio</p>
-                    <button class="btn btn-primary btn-modern" data-bs-toggle="modal" data-bs-target="#modal-precio">
-                        <i class="bi bi-plus"></i> Crear Precio
-                </button>
-                </div>
-            </div>
-        </div>
-            </div>
-            
-    <!-- Modal Precio -->
-    <div class="modal fade modal-modern" id="modal-precio" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-currency-dollar"></i> Nuevo Precio</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
+            <form method="POST" action="{{ url_for('devops.gestion_precios') }}">
                 <div class="modal-body">
-                    <form id="form-precio">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <label class="form-label">Producto</label>
-                                <select class="form-control" id="producto_id" required>
-                                    <option value="">Seleccionar producto</option>
-                                    <option value="1">Producto 1</option>
-                                    <option value="2">Producto 2</option>
-                                    <option value="3">Producto 3</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Negocio</label>
-                                <select class="form-control" id="negocio_id" required>
-                                    <option value="">Seleccionar negocio</option>
-                                    <option value="1">Supermercado Central</option>
-                                    <option value="2">Farmacia San Martín</option>
-                                    <option value="3">Restaurante El Buen Sabor</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row mt-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Precio Original</label>
-                                <input type="number" class="form-control" id="precio_original" min="0" step="0.01" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Descuento (%)</label>
-                                <input type="number" class="form-control" id="descuento" min="0" max="100" step="0.01">
-                            </div>
-                        </div>
-                        <div class="row mt-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Precio Final</label>
-                                <input type="number" class="form-control" id="precio_final" min="0" step="0.01" readonly>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Válido Hasta</label>
-                                <input type="date" class="form-control" id="valido_hasta">
-                            </div>
-                        </div>
-                        <div class="mt-3">
-                            <label class="form-label">Notas</label>
-                            <textarea class="form-control" id="notas" rows="3"></textarea>
-                        </div>
-                    </form>
+                    <div class="mb-3">
+                        <label class="form-label">Producto *</label>
+                        <select class="form-select" name="producto_id" required>
+                            <option value="">Seleccionar producto</option>
+                            {% for producto in productos %}
+                            <option value="{{ producto.id }}">{{ producto.nombre }} - ${{ "%.2f"|format(producto.precio) }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nuevo Precio *</label>
+                        <input type="number" class="form-control" name="nuevo_precio" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Motivo del Cambio</label>
+                        <textarea class="form-control" name="motivo" rows="3" placeholder="Ej: Ajuste por inflación, oferta especial, etc."></textarea>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" onclick="guardarPrecio()">Guardar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save me-2"></i>Actualizar Precio
+                    </button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
+</div>
+
+<!-- Modal Editar Precio Específico -->
+<div class="modal fade" id="editarPrecioModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Actualizar Precio
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editarPrecioForm" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Producto</label>
+                        <input type="text" class="form-control" id="edit_producto_nombre" readonly>
+                        <input type="hidden" name="producto_id" id="edit_producto_id">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Precio Actual</label>
+                        <input type="text" class="form-control" id="edit_precio_actual" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nuevo Precio *</label>
+                        <input type="number" class="form-control" name="nuevo_precio" id="edit_nuevo_precio" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Motivo del Cambio</label>
+                        <textarea class="form-control" name="motivo" id="edit_motivo" rows="3" placeholder="Ej: Ajuste por inflación, oferta especial, etc."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save me-2"></i>Actualizar Precio
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function actualizarPrecio(producto_id, nombre, precio_actual) {
+    // Llenar el formulario de edición
+    document.getElementById('edit_producto_id').value = producto_id;
+    document.getElementById('edit_producto_nombre').value = nombre;
+    document.getElementById('edit_precio_actual').value = '$' + precio_actual.toFixed(2);
+    document.getElementById('edit_nuevo_precio').value = precio_actual;
+    document.getElementById('edit_motivo').value = '';
     
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        let preciosData = [];
-        let filtroActual = 'all';
+    // Configurar la acción del formulario
+    document.getElementById('editarPrecioForm').action = `/devops/precios`;
+    
+    // Mostrar el modal
+    const modal = new bootstrap.Modal(document.getElementById('editarPrecioModal'));
+    modal.show();
+}
 
-        // Cargar precios al iniciar
-        document.addEventListener('DOMContentLoaded', function() {
-            cargarPrecios();
-            configurarFiltros();
-            configurarCalculoPrecio();
-        });
-
-        // Cargar precios
-        async function cargarPrecios() {
-            document.getElementById('loading-precios').style.display = 'block';
-            document.getElementById('table-container').style.display = 'none';
-            document.getElementById('empty-state').style.display = 'none';
+// Calcular diferencia de precio
+document.addEventListener('DOMContentLoaded', function() {
+    const nuevoPrecioInput = document.getElementById('edit_nuevo_precio');
+    const precioActualInput = document.getElementById('edit_precio_actual');
+    
+    if (nuevoPrecioInput && precioActualInput) {
+        nuevoPrecioInput.addEventListener('input', function() {
+            const precioActual = parseFloat(precioActualInput.value.replace('$', ''));
+            const nuevoPrecio = parseFloat(this.value);
             
-            try {
-                const response = await fetch('/devops/precios?ajax=true&format=json&api=true&json=true', {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                });
-                const data = await response.json();
+            if (nuevoPrecio && precioActual) {
+                const diferencia = nuevoPrecio - precioActual;
+                const porcentaje = ((nuevoPrecio - precioActual) / precioActual) * 100;
                 
-                if (data.status === 'success') {
-                    preciosData = data.data.precios || [];
-                    mostrarPrecios(preciosData);
-                    actualizarStats();
+                // Mostrar información de cambio
+                let info = '';
+                if (diferencia > 0) {
+                    info = `+$${diferencia.toFixed(2)} (+${porcentaje.toFixed(1)}%)`;
+                } else if (diferencia < 0) {
+                    info = `-$${Math.abs(diferencia).toFixed(2)} (${porcentaje.toFixed(1)}%)`;
+                } else {
+                    info = 'Sin cambio';
                 }
-            } catch (error) {
-                console.error('Error cargando precios:', error);
-                mostrarError('Error cargando precios');
-            } finally {
-                document.getElementById('loading-precios').style.display = 'none';
-                document.getElementById('table-container').style.display = 'block';
-            }
-        }
-
-        // Mostrar precios en tabla
-        function mostrarPrecios(precios) {
-            const tbody = document.getElementById('precios-tbody');
-            tbody.innerHTML = '';
-
-            if (precios.length === 0) {
-                document.getElementById('empty-state').style.display = 'block';
-                document.getElementById('table-container').style.display = 'none';
-                return;
-            }
-
-            precios.forEach(precio => {
-                const row = document.createElement('tr');
-                const descuento = precio.descuento || 0;
-                const precioFinal = precio.precio_original - (precio.precio_original * descuento / 100);
-                const ahorro = precio.precio_original - precioFinal;
                 
-                row.innerHTML = `
-                    <td><strong>${precio.id}</strong></td>
-                    <td>
-                        <div>
-                            <strong>Producto ${precio.producto_id}</strong>
-                            <br><small class="text-muted">${precio.notas || 'Sin notas'}</small>
-                        </div>
-                    </td>
-                    <td>
-                        <span class="price-highlight">$${precio.precio_original}</span>
-                    </td>
-                    <td>
-                        ${descuento > 0 ? `<span class="discount-badge">${descuento}%</span>` : '<span class="text-muted">Sin descuento</span>'}
-                    </td>
-                    <td>
-                        <span class="price-highlight">$${precioFinal.toFixed(2)}</span>
-                        ${ahorro > 0 ? `<br><small class="text-success">Ahorras: $${ahorro.toFixed(2)}</small>` : ''}
-                    </td>
-                    <td>
-                        <small class="text-muted">Negocio ${precio.negocio_id}</small>
-                    </td>
-                    <td>
-                        <div class="btn-group" role="group">
-                            <button class="btn btn-sm btn-outline-primary" onclick="editarPrecio(${precio.id})" title="Editar">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-info" onclick="compararPrecios(${precio.producto_id})" title="Comparar">
-                                <i class="bi bi-graph-up"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-success" onclick="aplicarDescuento(${precio.id})" title="Aplicar Descuento">
-                                <i class="bi bi-percent"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="eliminarPrecio(${precio.id})" title="Eliminar">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        // Actualizar estadísticas
-        function actualizarStats() {
-            const total = preciosData.length;
-            const precioPromedio = preciosData.length > 0 ? 
-                Math.round(preciosData.reduce((sum, p) => sum + parseFloat(p.precio_original), 0) / preciosData.length) : 0;
-            const descuentosActivos = preciosData.filter(p => p.descuento > 0).length;
-            const ahorroTotal = preciosData.reduce((sum, p) => {
-                const descuento = p.descuento || 0;
-                return sum + (p.precio_original * descuento / 100);
-            }, 0);
-
-            document.getElementById('total-precios').textContent = total;
-            document.getElementById('precio-promedio').textContent = '$' + precioPromedio;
-            document.getElementById('descuentos-activos').textContent = descuentosActivos;
-            document.getElementById('ahorro-total').textContent = '$' + Math.round(ahorroTotal);
-        }
-
-        // Configurar filtros
-        function configurarFiltros() {
-            document.querySelectorAll('.filter-badge').forEach(badge => {
-                badge.addEventListener('click', function() {
-                    // Remover clase active de todos
-                    document.querySelectorAll('.filter-badge').forEach(b => b.classList.remove('active'));
-                    // Agregar clase active al clickeado
-                    this.classList.add('active');
-                    
-                    filtroActual = this.dataset.filter;
-                    aplicarFiltros();
-                });
-            });
-        }
-
-        // Aplicar filtros
-        function aplicarFiltros() {
-            let filtrados = preciosData;
-            
-            switch(filtroActual) {
-                case 'con-descuento':
-                    filtrados = preciosData.filter(p => p.descuento > 0);
-                    break;
-                case 'sin-descuento':
-                    filtrados = preciosData.filter(p => !p.descuento || p.descuento === 0);
-                    break;
-                case 'rango-precio':
-                    // Aquí se podría implementar filtro por rango de precio
-                    break;
-            }
-            
-            mostrarPrecios(filtrados);
-        }
-
-        // Configurar cálculo de precio
-        function configurarCalculoPrecio() {
-            const precioOriginal = document.getElementById('precio_original');
-            const descuento = document.getElementById('descuento');
-            const precioFinal = document.getElementById('precio_final');
-
-            function calcularPrecioFinal() {
-                const precio = parseFloat(precioOriginal.value) || 0;
-                const desc = parseFloat(descuento.value) || 0;
-                const final = precio - (precio * desc / 100);
-                precioFinal.value = final.toFixed(2);
-            }
-
-            precioOriginal.addEventListener('input', calcularPrecioFinal);
-            descuento.addEventListener('input', calcularPrecioFinal);
-        }
-
-        // Búsqueda
-        document.getElementById('search-precios').addEventListener('input', function(e) {
-            const termino = e.target.value.toLowerCase();
-            const filtrados = preciosData.filter(precio => 
-                precio.notas.toLowerCase().includes(termino) ||
-                precio.producto_id.toString().includes(termino) ||
-                precio.negocio_id.toString().includes(termino)
-            );
-            mostrarPrecios(filtrados);
-        });
-
-        // Guardar precio
-        function guardarPrecio() {
-            const form = document.getElementById('form-precio');
-            const formData = new FormData(form);
-            
-            // Aquí se implementaría la lógica para guardar
-            console.log('Guardando precio...');
-            
-            // Cerrar modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modal-precio'));
-            modal.hide();
-        }
-
-        // Editar precio
-        function editarPrecio(id) {
-            const precio = preciosData.find(p => p.id === id);
-            if (precio) {
-                // Llenar formulario con datos existentes
-                document.getElementById('producto_id').value = precio.producto_id;
-                document.getElementById('negocio_id').value = precio.negocio_id;
-                document.getElementById('precio_original').value = precio.precio_original;
-                document.getElementById('descuento').value = precio.descuento || 0;
-                document.getElementById('valido_hasta').value = precio.valido_hasta || '';
-                document.getElementById('notas').value = precio.notas || '';
-                
-                // Mostrar modal
-                const modal = new bootstrap.Modal(document.getElementById('modal-precio'));
-                modal.show();
-            }
-        }
-
-        // Comparar precios
-        function compararPrecios(productoId) {
-            // Redirigir a la página de comparación de precios
-            window.location.href = `/devops/precios?comparar=${productoId}`;
-        }
-
-        // Aplicar descuento
-        function aplicarDescuento(id) {
-            const precio = preciosData.find(p => p.id === id);
-            if (precio) {
-                const descuento = prompt('Ingrese el porcentaje de descuento:', precio.descuento || 0);
-                if (descuento !== null) {
-                    precio.descuento = parseFloat(descuento);
-                    mostrarPrecios(preciosData);
-                    actualizarStats();
+                // Crear o actualizar elemento de información
+                let infoElement = document.getElementById('precio-info');
+                if (!infoElement) {
+                    infoElement = document.createElement('small');
+                    infoElement.id = 'precio-info';
+                    infoElement.className = 'text-muted';
+                    nuevoPrecioInput.parentNode.appendChild(infoElement);
                 }
+                infoElement.textContent = info;
             }
-        }
-
-        // Eliminar precio
-        function eliminarPrecio(id) {
-            if (confirm('¿Estás seguro de eliminar este precio?')) {
-                preciosData = preciosData.filter(p => p.id !== id);
-                mostrarPrecios(preciosData);
-                actualizarStats();
-            }
-        }
-
-        // Mostrar error
-        function mostrarError(mensaje) {
-            const tbody = document.getElementById('precios-tbody');
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="text-center text-danger">
-                        <i class="bi bi-exclamation-triangle"></i> ${mensaje}
-                    </td>
-                </tr>
-            `;
-        }
-    </script>
-</body>
-</html>
+        });
+    }
+});
+</script>
+{% endblock %}

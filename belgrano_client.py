@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Cliente API para comunicación con Belgrano Ahorro
-Usado por DevOps para gestionar datos
+Cliente API completo para comunicación con Belgrano Ahorro
+Métodos CRUD para todos los recursos
 """
 
 import os
@@ -17,11 +17,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class BelgranoAhorroClient:
-    """Cliente para comunicación con la API de Belgrano Ahorro"""
+    """Cliente completo para comunicación con la API de Belgrano Ahorro"""
     
     def __init__(self):
-        self.base_url = os.getenv('BELGRANO_AHORRO_URL', 'http://localhost:5000')
-        self.api_key = os.getenv('BELGRANO_AHORRO_API_KEY', 'dev_api_key_123')
+        self.base_url = os.getenv('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com')
+        self.api_key = os.getenv('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
         self.timeout = 30
         
         # Headers por defecto
@@ -82,91 +82,225 @@ class BelgranoAhorroClient:
             logger.error(f"Unexpected error: {e}")
             return {'error': str(e), 'status_code': 500}
     
-    # === PRODUCTOS ===
-    def get_products(self) -> Dict:
-        """Obtener todos los productos"""
-        return self._make_request('GET', 'products')
+    # =============================
+    # MÉTODOS PARA NEGOCIOS
+    # =============================
     
-    def get_product(self, product_id: int) -> Dict:
-        """Obtener producto específico"""
-        return self._make_request('GET', f'products/{product_id}')
-    
-    def create_product(self, product_data: Dict) -> Dict:
-        """Crear nuevo producto"""
-        return self._make_request('POST', 'products', data=product_data)
-    
-    def update_product(self, product_id: int, product_data: Dict) -> Dict:
-        """Actualizar producto"""
-        return self._make_request('PUT', f'products/{product_id}', data=product_data)
-    
-    def delete_product(self, product_id: int) -> Dict:
-        """Eliminar producto"""
-        return self._make_request('DELETE', f'products/{product_id}')
-    
-    # === NEGOCIOS ===
-    def get_businesses(self) -> Dict:
+    def get_negocios(self) -> Dict:
         """Obtener todos los negocios"""
-        return self._make_request('GET', 'businesses')
+        return self._make_request('GET', 'negocios')
     
-    def create_business(self, business_data: Dict) -> Dict:
+    def get_negocio(self, negocio_id: int) -> Dict:
+        """Obtener negocio específico"""
+        return self._make_request('GET', f'negocios/{negocio_id}')
+    
+    def create_negocio(self, negocio_data: Dict) -> Dict:
         """Crear nuevo negocio"""
-        return self._make_request('POST', 'businesses', data=business_data)
+        return self._make_request('POST', 'negocios', data=negocio_data)
     
-    def update_business(self, business_id: int, business_data: Dict) -> Dict:
+    def update_negocio(self, negocio_id: int, negocio_data: Dict) -> Dict:
         """Actualizar negocio"""
-        return self._make_request('PUT', f'businesses/{business_id}', data=business_data)
+        return self._make_request('PUT', f'negocios/{negocio_id}', data=negocio_data)
     
-    def delete_business(self, business_id: int) -> Dict:
+    def delete_negocio(self, negocio_id: int) -> Dict:
         """Eliminar negocio"""
-        return self._make_request('DELETE', f'businesses/{business_id}')
+        return self._make_request('DELETE', f'negocios/{negocio_id}')
     
-    # === SUCURSALES ===
-    def get_branches(self) -> Dict:
+    # =============================
+    # MÉTODOS PARA SUCURSALES
+    # =============================
+    
+    def get_sucursales(self) -> Dict:
         """Obtener todas las sucursales"""
-        return self._make_request('GET', 'branches')
+        return self._make_request('GET', 'sucursales')
     
-    def create_branch(self, branch_data: Dict) -> Dict:
+    def get_sucursal(self, sucursal_id: int) -> Dict:
+        """Obtener sucursal específica"""
+        return self._make_request('GET', f'sucursales/{sucursal_id}')
+    
+    def create_sucursal(self, sucursal_data: Dict) -> Dict:
         """Crear nueva sucursal"""
-        return self._make_request('POST', 'branches', data=branch_data)
+        return self._make_request('POST', 'sucursales', data=sucursal_data)
     
-    def update_branch(self, branch_id: int, branch_data: Dict) -> Dict:
+    def update_sucursal(self, sucursal_id: int, sucursal_data: Dict) -> Dict:
         """Actualizar sucursal"""
-        return self._make_request('PUT', f'branches/{branch_id}', data=branch_data)
+        return self._make_request('PUT', f'sucursales/{sucursal_id}', data=sucursal_data)
     
-    def delete_branch(self, branch_id: int) -> Dict:
+    def delete_sucursal(self, sucursal_id: int) -> Dict:
         """Eliminar sucursal"""
-        return self._make_request('DELETE', f'branches/{branch_id}')
+        return self._make_request('DELETE', f'sucursales/{sucursal_id}')
     
-    # === OFERTAS ===
-    def get_offers(self) -> Dict:
+    # =============================
+    # MÉTODOS PARA PRODUCTOS
+    # =============================
+    
+    def get_productos(self) -> Dict:
+        """Obtener todos los productos"""
+        return self._make_request('GET', 'productos')
+    
+    def get_producto(self, producto_id: int) -> Dict:
+        """Obtener producto específico"""
+        return self._make_request('GET', f'productos/{producto_id}')
+    
+    def create_producto(self, producto_data: Dict) -> Dict:
+        """Crear nuevo producto"""
+        return self._make_request('POST', 'productos', data=producto_data)
+    
+    def update_producto(self, producto_id: int, producto_data: Dict) -> Dict:
+        """Actualizar producto"""
+        return self._make_request('PUT', f'productos/{producto_id}', data=producto_data)
+    
+    def delete_producto(self, producto_id: int) -> Dict:
+        """Eliminar producto"""
+        return self._make_request('DELETE', f'productos/{producto_id}')
+    
+    # =============================
+    # MÉTODOS PARA OFERTAS
+    # =============================
+    
+    def get_ofertas(self) -> Dict:
         """Obtener todas las ofertas"""
-        return self._make_request('GET', 'offers')
+        return self._make_request('GET', 'ofertas')
     
-    def create_offer(self, offer_data: Dict) -> Dict:
+    def get_oferta(self, oferta_id: int) -> Dict:
+        """Obtener oferta específica"""
+        return self._make_request('GET', f'ofertas/{oferta_id}')
+    
+    def create_oferta(self, oferta_data: Dict) -> Dict:
         """Crear nueva oferta"""
-        return self._make_request('POST', 'offers', data=offer_data)
+        return self._make_request('POST', 'ofertas', data=oferta_data)
     
-    def update_offer(self, offer_id: int, offer_data: Dict) -> Dict:
+    def update_oferta(self, oferta_id: int, oferta_data: Dict) -> Dict:
         """Actualizar oferta"""
-        return self._make_request('PUT', f'offers/{offer_id}', data=offer_data)
+        return self._make_request('PUT', f'ofertas/{oferta_id}', data=oferta_data)
     
-    def delete_offer(self, offer_id: int) -> Dict:
+    def delete_oferta(self, oferta_id: int) -> Dict:
         """Eliminar oferta"""
-        return self._make_request('DELETE', f'offers/{offer_id}')
+        return self._make_request('DELETE', f'ofertas/{oferta_id}')
     
-    # === CARRITO ===
-    def get_cart(self) -> Dict:
-        """Obtener carrito"""
-        return self._make_request('GET', 'cart')
+    # =============================
+    # MÉTODOS PARA PRECIOS
+    # =============================
     
-    def confirm_cart(self, cart_data: Dict) -> Dict:
-        """Confirmar carrito"""
-        return self._make_request('POST', 'cart', data=cart_data)
+    def get_precios(self) -> Dict:
+        """Obtener historial de precios"""
+        return self._make_request('GET', 'precios')
     
-    # === HEALTH CHECK ===
+    def update_precio(self, producto_id: int, precio_data: Dict) -> Dict:
+        """Actualizar precio de producto"""
+        return self._make_request('PUT', f'precios/{producto_id}', data=precio_data)
+    
+    # =============================
+    # MÉTODOS DE UTILIDAD
+    # =============================
+    
     def health_check(self) -> Dict:
         """Verificar estado de la API"""
         return self._make_request('GET', 'health')
+    
+    def get_status(self) -> Dict:
+        """Obtener estado detallado de la API"""
+        return self._make_request('GET', 'status')
+    
+    def ping(self) -> Dict:
+        """Ping simple"""
+        return self._make_request('GET', 'ping')
+    
+    # =============================
+    # MÉTODOS DE SINCRONIZACIÓN
+    # =============================
+    
+    def sync_data(self, tipo_cambio: str, datos: Dict) -> bool:
+        """Sincronizar datos con la API"""
+        try:
+            if tipo_cambio == 'negocio':
+                if 'id' in datos:
+                    return 'error' not in self.update_negocio(datos['id'], datos)
+                else:
+                    return 'error' not in self.create_negocio(datos)
+            
+            elif tipo_cambio == 'sucursal':
+                if 'id' in datos:
+                    return 'error' not in self.update_sucursal(datos['id'], datos)
+                else:
+                    return 'error' not in self.create_sucursal(datos)
+            
+            elif tipo_cambio == 'producto':
+                if 'id' in datos:
+                    return 'error' not in self.update_producto(datos['id'], datos)
+                else:
+                    return 'error' not in self.create_producto(datos)
+            
+            elif tipo_cambio == 'oferta':
+                if 'id' in datos:
+                    return 'error' not in self.update_oferta(datos['id'], datos)
+                else:
+                    return 'error' not in self.create_oferta(datos)
+            
+            elif tipo_cambio == 'precio':
+                return 'error' not in self.update_precio(datos['producto_id'], datos)
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error en sincronización: {e}")
+            return False
+    
+    # =============================
+    # MÉTODOS DE CONSULTA AVANZADA
+    # =============================
+    
+    def get_negocios_activos(self) -> Dict:
+        """Obtener solo negocios activos"""
+        result = self.get_negocios()
+        if 'error' in result:
+            return result
+        
+        negocios_activos = [n for n in result.get('data', []) if n.get('activo', False)]
+        return {
+            'status': 'success',
+            'data': negocios_activos,
+            'total': len(negocios_activos)
+        }
+    
+    def get_productos_por_negocio(self, negocio_id: int) -> Dict:
+        """Obtener productos de un negocio específico"""
+        result = self.get_productos()
+        if 'error' in result:
+            return result
+        
+        productos_negocio = [p for p in result.get('data', []) if p.get('negocio_id') == negocio_id]
+        return {
+            'status': 'success',
+            'data': productos_negocio,
+            'total': len(productos_negocio)
+        }
+    
+    def get_sucursales_por_negocio(self, negocio_id: int) -> Dict:
+        """Obtener sucursales de un negocio específico"""
+        result = self.get_sucursales()
+        if 'error' in result:
+            return result
+        
+        sucursales_negocio = [s for s in result.get('data', []) if s.get('negocio_id') == negocio_id]
+        return {
+            'status': 'success',
+            'data': sucursales_negocio,
+            'total': len(sucursales_negocio)
+        }
+    
+    def get_ofertas_activas(self) -> Dict:
+        """Obtener solo ofertas activas"""
+        result = self.get_ofertas()
+        if 'error' in result:
+            return result
+        
+        ofertas_activas = [o for o in result.get('data', []) if o.get('activa', False)]
+        return {
+            'status': 'success',
+            'data': ofertas_activas,
+            'total': len(ofertas_activas)
+        }
 
 # Instancia global del cliente
 belgrano_client = BelgranoAhorroClient()
@@ -189,9 +323,29 @@ def test_connection():
         logger.error(f"❌ Connection failed: {e}")
         return False
 
+def get_client():
+    """Obtener instancia del cliente"""
+    return belgrano_client
+
 if __name__ == "__main__":
     # Probar conexión
     if test_connection():
         print("✅ Belgrano Ahorro API connection successful")
+        
+        # Probar algunos métodos
+        print("\n📊 Probando métodos básicos...")
+        
+        # Health check
+        health = belgrano_client.health_check()
+        print(f"Health: {health}")
+        
+        # Status
+        status = belgrano_client.get_status()
+        print(f"Status: {status}")
+        
+        # Listar negocios
+        negocios = belgrano_client.get_negocios()
+        print(f"Negocios: {len(negocios.get('data', []))} encontrados")
+        
     else:
         print("❌ Belgrano Ahorro API connection failed")
