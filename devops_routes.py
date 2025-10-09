@@ -53,7 +53,7 @@ if not BELGRANO_AHORRO_API_KEY:
     else:
         logger.warning("⚠️ Variable de entorno BELGRANO_AHORRO_API_KEY no está definida")
 
-# Importar cliente API
+# Importar cliente API y gestor DevOps
 try:
     from belgrano_tickets.api_client import create_api_client, api_client as global_api_client
     if BELGRANO_AHORRO_URL and BELGRANO_AHORRO_API_KEY:
@@ -68,6 +68,21 @@ try:
 except ImportError as e:
     logger.error(f"No se pudo inicializar el cliente API: {e}")
     devops_api_client = None
+
+# Importar gestor DevOps mejorado
+try:
+    from devops_belgrano_manager_enhanced import devops_manager
+    logger.info("✅ Gestor DevOps mejorado inicializado")
+except ImportError as e:
+    logger.error(f"❌ No se pudo importar devops_belgrano_manager_enhanced: {e}")
+    # Fallback al gestor original
+    try:
+        from devops_belgrano_manager import DevOpsBelgranoManager
+        devops_manager = DevOpsBelgranoManager()
+        logger.info("✅ Gestor DevOps original inicializado como fallback")
+    except ImportError as e2:
+        logger.error(f"❌ No se pudo importar ningún gestor DevOps: {e2}")
+        devops_manager = None
 
 # Crear blueprint con prefijo
 devops_bp = Blueprint('devops', __name__, url_prefix='/devops')
@@ -680,16 +695,18 @@ def devops_health():
             
             # Verificar conexión con API externa
             try:
-                # response = requests.get(
-                #     build_api_url('healthz'),
-                #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
-                #     timeout=5
-                # )
-                # if response.status_code == 200:
-                #     health_status['checks']['api_connection'] = 'healthy'
-                # else:
-                #     health_status['checks']['api_connection'] = 'warning'
-                health_status['checks']['api_connection'] = 'disabled'  # Temporalmente deshabilitado
+                if devops_manager:
+                    connectivity = devops_manager.test_connectivity()
+                    if connectivity['overall_status'] == 'success':
+                        health_status['checks']['api_connection'] = 'healthy'
+                    elif connectivity['overall_status'] == 'partial':
+                        health_status['checks']['api_connection'] = 'warning'
+                    else:
+                        health_status['checks']['api_connection'] = 'error'
+                        health_status['api_error'] = connectivity.get('message', 'Error de conectividad')
+                else:
+                    health_status['checks']['api_connection'] = 'disabled'
+                    health_status['api_error'] = 'Gestor DevOps no disponible'
             except Exception as e:
                 health_status['checks']['api_connection'] = 'error'
                 health_status['api_error'] = str(e)
@@ -830,29 +847,46 @@ def gestion_ofertas():
             if not datos:
                 datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
             
-            # Crear nueva oferta
-            oferta_id = str(uuid.uuid4())
-            nueva_oferta = {
-                'id': oferta_id,
+            # Crear oferta usando el gestor DevOps
+            oferta_data = {
                 'titulo': titulo,
                 'descripcion': descripcion,
                 'productos': productos,
                 'hasta_agotar_stock': hasta_agotar_stock,
-                'activa': activa,
-                'fecha_creacion': datetime.now().isoformat()
+                'activa': activa
             }
             
-            # Agregar a la lista
-            if 'ofertas' not in datos:
-                datos['ofertas'] = []
-            datos['ofertas'].append(nueva_oferta)
-            
-            # Guardar
-            if guardar_datos_json(datos):
-                flash(f'Oferta "{titulo}" creada exitosamente', 'success')
-                logger.info(f"Oferta creada desde DevOps: {titulo}")
+            if devops_manager:
+                success, message = devops_manager.create_oferta(oferta_data)
+                if success:
+                    flash(f'Oferta "{titulo}" creada exitosamente', 'success')
+                    logger.info(f"Oferta creada desde DevOps: {titulo}")
+                else:
+                    flash(f'Error al crear oferta: {message}', 'error')
             else:
-                flash('Error al guardar la oferta', 'error')
+                # Fallback local
+                oferta_id = str(uuid.uuid4())
+                nueva_oferta = {
+                    'id': oferta_id,
+                    'titulo': titulo,
+                    'descripcion': descripcion,
+                    'productos': productos,
+                    'hasta_agotar_stock': hasta_agotar_stock,
+                    'activa': activa,
+                    'fecha_creacion': datetime.now().isoformat()
+                }
+                
+                # Agregar a la lista
+                if 'ofertas' not in datos:
+                    datos['ofertas'] = []
+                datos['ofertas'].append(nueva_oferta)
+                
+                # Guardar
+                if guardar_datos_json(datos):
+                    flash(f'Oferta "{titulo}" creada exitosamente (local)', 'success')
+                    logger.info(f"Oferta creada localmente: {titulo}")
+                else:
+                    flash('Error al guardar la oferta', 'error')
                 
         except Exception as e:
             logger.error(f"Error creando oferta desde DevOps: {e}")
@@ -867,31 +901,35 @@ def gestion_ofertas():
         request.args.get('api') == 'true' and
         request.args.get('json') == 'true'):
         try:
-            # Simular datos de ofertas
-            ofertas = [
-                {
-                    'id': 1,
-                    'titulo': 'Oferta Especial 50%',
-                    'descripcion': 'Descuento del 50% en productos seleccionados',
-                    'descuento': 50,
-                    'producto_id': 1,
-                    'producto_nombre': 'Producto Ejemplo',
-                    'fecha_inicio': '2025-01-19',
-                    'fecha_fin': '2025-01-31',
-                    'activa': True
-                },
-                {
-                    'id': 2,
-                    'titulo': 'Oferta 2x1',
-                    'descripcion': 'Lleva 2 productos y paga solo 1',
-                    'descuento': 100,
-                    'producto_id': 2,
-                    'producto_nombre': 'Producto Ejemplo 2',
-                    'fecha_inicio': '2025-01-20',
-                    'fecha_fin': '2025-02-15',
-                    'activa': True
-                }
-            ]
+            # Obtener datos reales usando el gestor DevOps
+            if devops_manager:
+                ofertas = devops_manager.get_ofertas()
+            else:
+                # Fallback con datos simulados
+                ofertas = [
+                    {
+                        'id': 1,
+                        'titulo': 'Oferta Especial 50%',
+                        'descripcion': 'Descuento del 50% en productos seleccionados',
+                        'descuento': 50,
+                        'producto_id': 1,
+                        'producto_nombre': 'Producto Ejemplo',
+                        'fecha_inicio': '2025-01-19',
+                        'fecha_fin': '2025-01-31',
+                        'activa': True
+                    },
+                    {
+                        'id': 2,
+                        'titulo': 'Oferta 2x1',
+                        'descripcion': 'Lleva 2 productos y paga solo 1',
+                        'descuento': 100,
+                        'producto_id': 2,
+                        'producto_nombre': 'Producto Ejemplo 2',
+                        'fecha_inicio': '2025-01-20',
+                        'fecha_fin': '2025-02-15',
+                        'activa': True
+                    }
+                ]
             
             return jsonify({
                 'status': 'success',
@@ -952,31 +990,50 @@ def gestion_negocios():
             if not datos:
                 datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
             
-            # Crear nuevo negocio
-            negocio_id = str(uuid.uuid4())
-            nuevo_negocio = {
-                'id': negocio_id,
+            # Crear negocio usando el gestor DevOps
+            negocio_data = {
                 'nombre': nombre,
                 'descripcion': descripcion,
                 'logo': request.form.get('logo', ''),
                 'telefono': request.form.get('telefono', ''),
                 'direccion': request.form.get('direccion', ''),
                 'email': request.form.get('email', ''),
-                'activo': True,
-                'fecha_creacion': datetime.now().isoformat()
+                'activo': True
             }
             
-            # Agregar al diccionario
-            if 'negocios' not in datos:
-                datos['negocios'] = {}
-            datos['negocios'][negocio_id] = nuevo_negocio
-            
-            # Guardar
-            if guardar_datos_json(datos):
-                flash(f'Negocio "{nombre}" creado exitosamente', 'success')
-                logger.info(f"Negocio creado desde DevOps: {nombre}")
+            if devops_manager:
+                success, message = devops_manager.create_negocio(negocio_data)
+                if success:
+                    flash(f'Negocio "{nombre}" creado exitosamente', 'success')
+                    logger.info(f"Negocio creado desde DevOps: {nombre}")
+                else:
+                    flash(f'Error al crear negocio: {message}', 'error')
             else:
-                flash('Error al guardar el negocio', 'error')
+                # Fallback local
+                negocio_id = str(uuid.uuid4())
+                nuevo_negocio = {
+                    'id': negocio_id,
+                    'nombre': nombre,
+                    'descripcion': descripcion,
+                    'logo': request.form.get('logo', ''),
+                    'telefono': request.form.get('telefono', ''),
+                    'direccion': request.form.get('direccion', ''),
+                    'email': request.form.get('email', ''),
+                    'activo': True,
+                    'fecha_creacion': datetime.now().isoformat()
+                }
+                
+                # Agregar al diccionario
+                if 'negocios' not in datos:
+                    datos['negocios'] = {}
+                datos['negocios'][negocio_id] = nuevo_negocio
+                
+                # Guardar
+                if guardar_datos_json(datos):
+                    flash(f'Negocio "{nombre}" creado exitosamente (local)', 'success')
+                    logger.info(f"Negocio creado localmente: {nombre}")
+                else:
+                    flash('Error al guardar el negocio', 'error')
                 
         except Exception as e:
             logger.error(f"Error creando negocio desde DevOps: {e}")
@@ -993,36 +1050,40 @@ def gestion_negocios():
         try:
             from datetime import datetime
             
-            # Simular datos de negocios
-            negocios = [
-                {
-                    'id': 1,
-                    'nombre': 'Supermercado Central',
-                    'descripcion': 'Supermercado con productos frescos y ofertas diarias',
-                    'direccion': 'Av. Belgrano 1234',
-                    'telefono': '+54 11 1234-5678',
-                    'email': 'info@supercentral.com',
-                    'activo': True
-                },
-                {
-                    'id': 2,
-                    'nombre': 'Farmacia San Martín',
-                    'descripcion': 'Farmacia con medicamentos y productos de salud',
-                    'direccion': 'Calle San Martín 567',
-                    'telefono': '+54 11 9876-5432',
-                    'email': 'contacto@farmaciasanmartin.com',
-                    'activo': True
-                },
-                {
-                    'id': 3,
-                    'nombre': 'Restaurante El Buen Sabor',
-                    'descripcion': 'Restaurante con comida casera y delivery',
-                    'direccion': 'Av. Corrientes 890',
-                    'telefono': '+54 11 5555-1234',
-                    'email': 'pedidos@elbuensabor.com',
-                    'activo': True
-                }
-            ]
+            # Obtener datos reales usando el gestor DevOps
+            if devops_manager:
+                negocios = devops_manager.get_negocios()
+            else:
+                # Fallback con datos simulados
+                negocios = [
+                    {
+                        'id': 1,
+                        'nombre': 'Supermercado Central',
+                        'descripcion': 'Supermercado con productos frescos y ofertas diarias',
+                        'direccion': 'Av. Belgrano 1234',
+                        'telefono': '+54 11 1234-5678',
+                        'email': 'info@supercentral.com',
+                        'activo': True
+                    },
+                    {
+                        'id': 2,
+                        'nombre': 'Farmacia San Martín',
+                        'descripcion': 'Farmacia con medicamentos y productos de salud',
+                        'direccion': 'Calle San Martín 567',
+                        'telefono': '+54 11 9876-5432',
+                        'email': 'contacto@farmaciasanmartin.com',
+                        'activo': True
+                    },
+                    {
+                        'id': 3,
+                        'nombre': 'Restaurante El Buen Sabor',
+                        'descripcion': 'Restaurante con comida casera y delivery',
+                        'direccion': 'Av. Corrientes 890',
+                        'telefono': '+54 11 5555-1234',
+                        'email': 'pedidos@elbuensabor.com',
+                        'activo': True
+                    }
+                ]
             
             return jsonify({
                 'status': 'success',
@@ -1078,32 +1139,51 @@ def gestion_productos():
                 flash('El precio debe ser un número válido', 'error')
                 return redirect(url_for('devops.gestion_productos'))
             
-            # Simular creación de producto
-            import uuid
-            producto_id = str(uuid.uuid4())
-            nuevo_producto = {
-                'id': producto_id,
+            # Crear producto usando el gestor DevOps
+            producto_data = {
                 'nombre': nombre,
                 'precio': precio_float,
                 'categoria': categoria,
                 'negocio': negocio,
                 'descripcion': request.form.get('descripcion', ''),
                 'imagen': request.form.get('imagen', ''),
-                'activo': True,
-                'fecha_creacion': datetime.now().isoformat()
+                'activo': True
             }
             
-            # Agregar a la lista
-            if 'productos' not in datos:
-                datos['productos'] = []
-            datos['productos'].append(nuevo_producto)
-            
-            # Guardar
-            if guardar_datos_json(datos):
-                flash(f'Producto "{nombre}" creado exitosamente', 'success')
-                logger.info(f"Producto creado desde DevOps: {nombre}")
+            if devops_manager:
+                success, message = devops_manager.create_producto(producto_data)
+                if success:
+                    flash(f'Producto "{nombre}" creado exitosamente', 'success')
+                    logger.info(f"Producto creado desde DevOps: {nombre}")
+                else:
+                    flash(f'Error al crear producto: {message}', 'error')
             else:
-                flash('Error al guardar el producto', 'error')
+                # Fallback local
+                import uuid
+                producto_id = str(uuid.uuid4())
+                nuevo_producto = {
+                    'id': producto_id,
+                    'nombre': nombre,
+                    'precio': precio_float,
+                    'categoria': categoria,
+                    'negocio': negocio,
+                    'descripcion': request.form.get('descripcion', ''),
+                    'imagen': request.form.get('imagen', ''),
+                    'activo': True,
+                    'fecha_creacion': datetime.now().isoformat()
+                }
+                
+                # Agregar a la lista
+                if 'productos' not in datos:
+                    datos['productos'] = []
+                datos['productos'].append(nuevo_producto)
+                
+                # Guardar
+                if guardar_datos_json(datos):
+                    flash(f'Producto "{nombre}" creado exitosamente (local)', 'success')
+                    logger.info(f"Producto creado localmente: {nombre}")
+                else:
+                    flash('Error al guardar el producto', 'error')
                 
         except Exception as e:
             logger.error(f"Error creando producto desde DevOps: {e}")
@@ -1120,36 +1200,40 @@ def gestion_productos():
         try:
             from datetime import datetime
             
-            # Simular datos de productos
-            productos = [
-                {
-                    'id': 1,
-                    'nombre': 'Leche Entera 1L',
-                    'descripcion': 'Leche fresca pasteurizada',
-                    'precio': 850.00,
-                    'categoria_id': 1,
-                    'negocio_id': 1,
-                    'activo': True
-                },
-                {
-                    'id': 2,
-                    'nombre': 'Pan Integral',
-                    'descripcion': 'Pan de trigo integral fresco',
-                    'precio': 450.00,
-                    'categoria_id': 2,
-                    'negocio_id': 1,
-                    'activo': True
-                },
-                {
-                    'id': 3,
-                    'nombre': 'Aspirina 500mg',
-                    'descripcion': 'Analgésico y antipirético',
-                    'precio': 1200.00,
-                    'categoria_id': 3,
-                    'negocio_id': 2,
-                    'activo': True
-                }
-            ]
+            # Obtener datos reales usando el gestor DevOps
+            if devops_manager:
+                productos = devops_manager.get_productos()
+            else:
+                # Fallback con datos simulados
+                productos = [
+                    {
+                        'id': 1,
+                        'nombre': 'Leche Entera 1L',
+                        'descripcion': 'Leche fresca pasteurizada',
+                        'precio': 850.00,
+                        'categoria_id': 1,
+                        'negocio_id': 1,
+                        'activo': True
+                    },
+                    {
+                        'id': 2,
+                        'nombre': 'Pan Integral',
+                        'descripcion': 'Pan de trigo integral fresco',
+                        'precio': 450.00,
+                        'categoria_id': 2,
+                        'negocio_id': 1,
+                        'activo': True
+                    },
+                    {
+                        'id': 3,
+                        'nombre': 'Aspirina 500mg',
+                        'descripcion': 'Analgésico y antipirético',
+                        'precio': 1200.00,
+                        'categoria_id': 3,
+                        'negocio_id': 2,
+                        'activo': True
+                    }
+                ]
             
             return jsonify({
                 'status': 'success',
@@ -1363,32 +1447,41 @@ def eliminar_producto(producto_id):
     from flask import request, make_response, flash, redirect, url_for
     
     try:
-        from app_unificado import cargar_datos_completos, guardar_datos_json
-        datos = cargar_datos_completos()
-        if not datos:
-            flash('Error cargando datos', 'error')
-            return redirect(url_for('devops.gestion_productos'))
-        
-        # Buscar y eliminar producto
-        productos = datos.get('productos', [])
-        producto_encontrado = False
-        for i, producto in enumerate(productos):
-            if str(producto.get('id')) == str(producto_id):
-                nombre_producto = producto.get('nombre', 'Sin nombre')
-                productos.pop(i)
-                producto_encontrado = True
-                break
-        
-        if not producto_encontrado:
-            flash('Producto no encontrado', 'error')
-            return redirect(url_for('devops.gestion_productos'))
-        
-        # Guardar
-        if guardar_datos_json(datos):
-            flash(f'Producto "{nombre_producto}" eliminado exitosamente', 'success')
-            logger.info(f"Producto eliminado desde DevOps: {nombre_producto}")
+        if devops_manager:
+            success, message = devops_manager.delete_producto(producto_id)
+            if success:
+                flash(f'Producto eliminado exitosamente', 'success')
+                logger.info(f"Producto eliminado desde DevOps: ID {producto_id}")
+            else:
+                flash(f'Error al eliminar producto: {message}', 'error')
         else:
-            flash('Error al guardar los cambios', 'error')
+            # Fallback local
+            from app_unificado import cargar_datos_completos, guardar_datos_json
+            datos = cargar_datos_completos()
+            if not datos:
+                flash('Error cargando datos', 'error')
+                return redirect(url_for('devops.gestion_productos'))
+            
+            # Buscar y eliminar producto
+            productos = datos.get('productos', [])
+            producto_encontrado = False
+            for i, producto in enumerate(productos):
+                if str(producto.get('id')) == str(producto_id):
+                    nombre_producto = producto.get('nombre', 'Sin nombre')
+                    productos.pop(i)
+                    producto_encontrado = True
+                    break
+            
+            if not producto_encontrado:
+                flash('Producto no encontrado', 'error')
+                return redirect(url_for('devops.gestion_productos'))
+            
+            # Guardar
+            if guardar_datos_json(datos):
+                flash(f'Producto eliminado exitosamente (local)', 'success')
+                logger.info(f"Producto eliminado localmente: ID {producto_id}")
+            else:
+                flash('Error al guardar los cambios', 'error')
             
     except Exception as e:
         logger.error(f"Error eliminando producto desde DevOps: {e}")
@@ -1403,27 +1496,36 @@ def eliminar_negocio(negocio_id):
     from flask import request, make_response, flash, redirect, url_for
     
     try:
-        from app_unificado import cargar_datos_completos, guardar_datos_json
-        datos = cargar_datos_completos()
-        if not datos:
-            flash('Error cargando datos', 'error')
-            return redirect(url_for('devops.gestion_negocios'))
-        
-        # Buscar y eliminar negocio
-        negocios = datos.get('negocios', {})
-        if negocio_id not in negocios:
-            flash('Negocio no encontrado', 'error')
-            return redirect(url_for('devops.gestion_negocios'))
-        
-        nombre_negocio = negocios[negocio_id].get('nombre', 'Sin nombre')
-        del negocios[negocio_id]
-        
-        # Guardar
-        if guardar_datos_json(datos):
-            flash(f'Negocio "{nombre_negocio}" eliminado exitosamente', 'success')
-            logger.info(f"Negocio eliminado desde DevOps: {nombre_negocio}")
+        if devops_manager:
+            success, message = devops_manager.delete_negocio(negocio_id)
+            if success:
+                flash(f'Negocio eliminado exitosamente', 'success')
+                logger.info(f"Negocio eliminado desde DevOps: ID {negocio_id}")
+            else:
+                flash(f'Error al eliminar negocio: {message}', 'error')
         else:
-            flash('Error al guardar los cambios', 'error')
+            # Fallback local
+            from app_unificado import cargar_datos_completos, guardar_datos_json
+            datos = cargar_datos_completos()
+            if not datos:
+                flash('Error cargando datos', 'error')
+                return redirect(url_for('devops.gestion_negocios'))
+            
+            # Buscar y eliminar negocio
+            negocios = datos.get('negocios', {})
+            if negocio_id not in negocios:
+                flash('Negocio no encontrado', 'error')
+                return redirect(url_for('devops.gestion_negocios'))
+            
+            nombre_negocio = negocios[negocio_id].get('nombre', 'Sin nombre')
+            del negocios[negocio_id]
+            
+            # Guardar
+            if guardar_datos_json(datos):
+                flash(f'Negocio eliminado exitosamente (local)', 'success')
+                logger.info(f"Negocio eliminado localmente: ID {negocio_id}")
+            else:
+                flash('Error al guardar los cambios', 'error')
             
     except Exception as e:
         logger.error(f"Error eliminando negocio desde DevOps: {e}")
@@ -1522,33 +1624,29 @@ def sincronizacion_manual():
             
             # Sincronizar ofertas
             try:
-                # response = requests.get(
-                #     build_api_url('v1/ofertas'),
-                #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
-                #     timeout=API_TIMEOUT_SECS
-                # )
-                # sync_results['ofertas'] = {
-                #     'status': 'success' if response.status_code == 200 else 'error',
-                #     'status_code': response.status_code,
-                #     'count': len(response.json()) if response.status_code == 200 else 0
-                # }
-                sync_results['ofertas'] = {'status': 'disabled', 'message': 'API temporalmente deshabilitada'}
+                if devops_manager:
+                    ofertas = devops_manager.get_ofertas()
+                    sync_results['ofertas'] = {
+                        'status': 'success',
+                        'count': len(ofertas),
+                        'message': f'{len(ofertas)} ofertas obtenidas'
+                    }
+                else:
+                    sync_results['ofertas'] = {'status': 'error', 'error': 'Gestor DevOps no disponible'}
             except Exception as e:
                 sync_results['ofertas'] = {'status': 'error', 'error': str(e)}
             
             # Sincronizar negocios
             try:
-                # response = requests.get(
-                #     build_api_url('v1/negocios'),
-                #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
-                #     timeout=API_TIMEOUT_SECS
-                # )
-                # sync_results['negocios'] = {
-                #     'status': 'success' if response.status_code == 200 else 'error',
-                #     'status_code': response.status_code,
-                #     'count': len(response.json()) if response.status_code == 200 else 0
-                # }
-                sync_results['negocios'] = {'status': 'disabled', 'message': 'API temporalmente deshabilitada'}
+                if devops_manager:
+                    negocios = devops_manager.get_negocios()
+                    sync_results['negocios'] = {
+                        'status': 'success',
+                        'count': len(negocios),
+                        'message': f'{len(negocios)} negocios obtenidos'
+                    }
+                else:
+                    sync_results['negocios'] = {'status': 'error', 'error': 'Gestor DevOps no disponible'}
             except Exception as e:
                 sync_results['negocios'] = {'status': 'error', 'error': str(e)}
             
@@ -2045,27 +2143,15 @@ def conectar_belgrano():
             }
             
             # Intentar conectar con Belgrano Ahorro
-            if BELGRANO_AHORRO_URL and BELGRANO_AHORRO_API_KEY:
-                try:
-                    # response = requests.get(
-                    #     build_api_url('healthz'),
-                    #     headers={'X-API-Key': BELGRANO_AHORRO_API_KEY},
-                    #     timeout=5
-                    # )
-                    # if response.status_code == 200:
-                    #     connection_status['belgrano_ahorro']['status'] = 'connected'
-                    #     connection_status['belgrano_ahorro']['response_time'] = response.elapsed.total_seconds()
-                    # else:
-                    #     connection_status['belgrano_ahorro']['status'] = 'error'
-                    #     connection_status['belgrano_ahorro']['error'] = f'HTTP {response.status_code}'
-                    connection_status['belgrano_ahorro']['status'] = 'disabled'
-                    connection_status['belgrano_ahorro']['message'] = 'API temporalmente deshabilitada'
-                except Exception as e:
-                    connection_status['belgrano_ahorro']['status'] = 'error'
-                    connection_status['belgrano_ahorro']['error'] = str(e)
+            if devops_manager:
+                connectivity = devops_manager.test_connectivity()
+                connection_status['belgrano_ahorro']['status'] = connectivity['overall_status']
+                connection_status['belgrano_ahorro']['endpoints'] = connectivity.get('endpoints', {})
+                connection_status['belgrano_ahorro']['success_count'] = connectivity.get('success_count', 0)
+                connection_status['belgrano_ahorro']['total_endpoints'] = connectivity.get('total_endpoints', 0)
             else:
                 connection_status['belgrano_ahorro']['status'] = 'not_configured'
-                connection_status['belgrano_ahorro']['message'] = 'Variables de entorno no configuradas'
+                connection_status['belgrano_ahorro']['message'] = 'Gestor DevOps no disponible'
             
             return jsonify({
                 'status': 'success',
@@ -2081,6 +2167,34 @@ def conectar_belgrano():
     
     # Si no es AJAX, devolver template HTML
     return render_template('devops/conectar.html')
+
+@devops_bp.route('/system-status')
+@devops_login_required
+def system_status():
+    """Estado completo del sistema DevOps"""
+    try:
+        if devops_manager:
+            status = devops_manager.get_system_status()
+            return jsonify({
+                'status': 'success',
+                'data': status
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Gestor DevOps no disponible',
+                'data': {
+                    'timestamp': datetime.now().isoformat(),
+                    'fallback_mode': True,
+                    'api_configured': False
+                }
+            }), 503
+    except Exception as e:
+        logger.error(f"Error obteniendo estado del sistema: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error interno: {str(e)}'
+        }), 500
 
 # =================================================================
 # INTERFAZ WEB DEVOPS UI

@@ -32,6 +32,7 @@ import os
 import requests
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 from datetime import datetime, timedelta
 import uuid
 import re
@@ -2398,10 +2399,33 @@ def agregar_negocio_mejorado():
     return redirect(url_for('admin_panel'))
 
 # ==========================================
+# API AUTHENTICATION MIDDLEWARE
+# ==========================================
+
+def require_api_key(f):
+    """Decorador para validar API key en endpoints /api/v1/*"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Verificar API key en headers
+        api_key = request.headers.get('X-API-Key') or request.headers.get('Authorization', '').replace('Bearer ', '')
+        
+        # Validar contra la clave configurada
+        if not api_key or api_key != BELGRANO_AHORRO_API_KEY:
+            logger.warning(f"Acceso no autorizado a {request.path} desde {request.remote_addr}")
+            return jsonify({
+                'error': 'No autorizado',
+                'message': 'API key inválida o faltante'
+            }), 401
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+# ==========================================
 # API ENDPOINTS PARA DEVOPS
 # ==========================================
 
 @app.route('/api/v1/negocios', methods=['GET'])
+@require_api_key
 def api_get_negocios():
     """API endpoint para obtener todos los negocios"""
     try:
@@ -2415,12 +2439,14 @@ def api_get_negocios():
             negocio_data['id'] = negocio_id
             negocios.append(negocio_data)
         
+        logger.info(f"API: Negocios obtenidos exitosamente ({len(negocios)} items)")
         return jsonify(negocios), 200
     except Exception as e:
         logger.error(f"Error obteniendo negocios: {e}")
-        return jsonify({'error': 'Error interno del servidor'}), 500
+        return jsonify({'error': 'Servicio DevOps temporalmente no disponible'}), 503
 
 @app.route('/api/v1/negocios', methods=['POST'])
+@require_api_key
 def api_create_negocio():
     """API endpoint para crear un nuevo negocio"""
     try:
@@ -2469,6 +2495,7 @@ def api_create_negocio():
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 @app.route('/api/v1/negocios/<negocio_id>', methods=['PUT'])
+@require_api_key
 def api_update_negocio(negocio_id):
     """API endpoint para actualizar un negocio existente"""
     try:
@@ -2500,6 +2527,7 @@ def api_update_negocio(negocio_id):
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 @app.route('/api/v1/negocios/<negocio_id>', methods=['DELETE'])
+@require_api_key
 def api_delete_negocio(negocio_id):
     """API endpoint para eliminar un negocio"""
     try:
@@ -2524,6 +2552,7 @@ def api_delete_negocio(negocio_id):
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 @app.route('/api/v1/ofertas', methods=['GET'])
+@require_api_key
 def api_get_ofertas():
     """API endpoint para obtener todas las ofertas"""
     try:
@@ -2543,6 +2572,7 @@ def api_get_ofertas():
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 @app.route('/api/v1/ofertas', methods=['POST'])
+@require_api_key
 def api_create_oferta():
     """API endpoint para crear una nueva oferta"""
     try:
@@ -2592,6 +2622,7 @@ def api_create_oferta():
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 @app.route('/api/v1/ofertas/<oferta_id>', methods=['PUT'])
+@require_api_key
 def api_update_oferta(oferta_id):
     """API endpoint para actualizar una oferta existente"""
     try:
@@ -2623,6 +2654,7 @@ def api_update_oferta(oferta_id):
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 @app.route('/api/v1/ofertas/<oferta_id>', methods=['DELETE'])
+@require_api_key
 def api_delete_oferta(oferta_id):
     """API endpoint para eliminar una oferta"""
     try:
@@ -2647,6 +2679,7 @@ def api_delete_oferta(oferta_id):
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 @app.route('/api/v1/productos', methods=['GET'])
+@require_api_key
 def api_get_productos():
     """API endpoint para obtener todos los productos"""
     try:
@@ -2660,6 +2693,7 @@ def api_get_productos():
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 @app.route('/api/v1/productos/<producto_id>', methods=['PUT'])
+@require_api_key
 def api_update_producto(producto_id):
     """API endpoint para actualizar un producto"""
     try:
@@ -2697,7 +2731,7 @@ def api_update_producto(producto_id):
             
     except Exception as e:
         logger.error(f"Error actualizando producto via API: {e}")
-        return jsonify({'error': 'Error interno del servidor'}), 500
+        return jsonify({'error': 'Servicio DevOps temporalmente no disponible'}), 503
 
 # ==========================================
 # INICIO DE LA APLICACIÓN

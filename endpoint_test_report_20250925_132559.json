@@ -1,0 +1,338 @@
+[
+  {
+    "endpoint": "http://localhost:5001/health",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /health (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC470ECF0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:23:07.691595"
+  },
+  {
+    "endpoint": "http://localhost:5000/health",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /health (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC46DF390>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:23:11.786533"
+  },
+  {
+    "endpoint": "http://localhost:5001/status",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC46DFC50>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:23:15.857034"
+  },
+  {
+    "endpoint": "http://localhost:5000/status",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC46E3360>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:23:19.960365"
+  },
+  {
+    "endpoint": "http://localhost:5001/ping",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /ping (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC46E29E0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:23:24.028795"
+  },
+  {
+    "endpoint": "http://localhost:5000/ping",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /ping (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4789490>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:23:28.078250"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/health",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /api/health (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4791040>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:23:32.156108"
+  },
+  {
+    "endpoint": "http://localhost:5000/api/health",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/health (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4792250>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:23:36.239343"
+  },
+  {
+    "endpoint": "http://localhost:5000/",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4792580>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:23:40.282890"
+  },
+  {
+    "endpoint": "http://localhost:5000/login",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /login (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC47928B0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:23:44.386821"
+  },
+  {
+    "endpoint": "http://localhost:5000/register",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /register (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4792BE0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:23:48.458847"
+  },
+  {
+    "endpoint": "http://localhost:5000/productos",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /productos (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4792F10>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:23:52.507746"
+  },
+  {
+    "endpoint": "http://localhost:5000/carrito",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /carrito (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4793240>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:23:56.584478"
+  },
+  {
+    "endpoint": "http://localhost:5000/checkout",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /checkout (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4793570>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:00.663557"
+  },
+  {
+    "endpoint": "http://localhost:5000/mis_pedidos",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /mis_pedidos (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC47938A0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:04.711432"
+  },
+  {
+    "endpoint": "http://localhost:5000/perfil",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /perfil (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4793BD0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:08.792888"
+  },
+  {
+    "endpoint": "http://localhost:5000/admin",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /admin (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4793F00>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:12.863521"
+  },
+  {
+    "endpoint": "http://localhost:5000/ticketera",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /ticketera (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC480C270>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:16.942432"
+  },
+  {
+    "endpoint": "http://localhost:5001/",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4793BD0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:21.069202"
+  },
+  {
+    "endpoint": "http://localhost:5001/login",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /login (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC47939B0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:25.145128"
+  },
+  {
+    "endpoint": "http://localhost:5001/health",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /health (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4793680>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:29.206016"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /api/tickets (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4793350>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:33.280541"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /api/tickets (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4793020>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:37.373538"
+  },
+  {
+    "endpoint": "http://localhost:5001/panel",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /panel (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4792BE0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:41.563348"
+  },
+  {
+    "endpoint": "http://localhost:5001/tickets",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /tickets (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC47928B0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:45.668191"
+  },
+  {
+    "endpoint": "http://localhost:5001/gestion_flota",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /gestion_flota (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4792580>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:49.727475"
+  },
+  {
+    "endpoint": "http://localhost:5001/gestion_usuarios",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /gestion_usuarios (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4790C00>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:53.801400"
+  },
+  {
+    "endpoint": "http://localhost:5001/reportes",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /reportes (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4792030>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:24:57.865732"
+  },
+  {
+    "endpoint": "http://localhost:5001/perfil",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /perfil (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4792140>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:25:01.920884"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /api/tickets (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4791370>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:25:05.992978"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /api/tickets (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4791040>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:25:10.088446"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /api/tickets (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4790E20>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:25:14.156796"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /api/tickets (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC47917B0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:25:18.235990"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /api/tickets (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC47917B0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:25:22.335117"
+  },
+  {
+    "endpoint": "http://localhost:5001/endpoint-que-no-existe",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /endpoint-que-no-existe (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4790E20>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:25:26.427809"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/endpoint-inexistente",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /api/endpoint-inexistente (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4791150>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:25:30.524498"
+  },
+  {
+    "endpoint": "http://localhost:5001/admin/panel-inexistente",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /admin/panel-inexistente (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4791260>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:25:34.607274"
+  },
+  {
+    "endpoint": "http://localhost:5001/tickets/999999",
+    "method": "GET",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /tickets/999999 (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4792360>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:25:38.690767"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /api/tickets (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4790380>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:25:42.762291"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /api/tickets (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4790270>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:25:46.850745"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /api/tickets (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC4792580>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:25:50.950510"
+  },
+  {
+    "endpoint": "http://localhost:5001/api/tickets",
+    "method": "POST",
+    "status_code": 0,
+    "response": "",
+    "error": "HTTPConnectionPool(host='localhost', port=5001): Max retries exceeded with url: /api/tickets (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000020AC47927A0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))",
+    "timestamp": "2025-09-25T13:25:55.051988"
+  }
+]

@@ -430,12 +430,12 @@ class DevOpsBelgranoManager:
             
             cursor = conn.cursor()
             if negocio_id:
-            cursor.execute("""
+                cursor.execute("""
                     SELECT p.id, p.nombre, p.precio, c.nombre as negocio_nombre
-                FROM productos p
+                    FROM productos p
                     JOIN comerciantes c ON p.negocio_id = c.id
                     WHERE p.negocio_id = ?
-                ORDER BY p.nombre
+                    ORDER BY p.nombre
                 """, (negocio_id,))
             else:
                 cursor.execute("""
@@ -470,11 +470,11 @@ class DevOpsBelgranoManager:
                 return False
             
             cursor = conn.cursor()
-                cursor.execute("""
-                    UPDATE productos 
-                    SET precio = ?
-                    WHERE id = ?
-                """, (nuevo_precio, producto_id))
+            cursor.execute("""
+                UPDATE productos 
+                SET precio = ?
+                WHERE id = ?
+            """, (nuevo_precio, producto_id))
             
             conn.commit()
             conn.close()
@@ -483,6 +483,145 @@ class DevOpsBelgranoManager:
             
         except Exception as e:
             logger.error(f"Error actualizando precio: {e}")
+            return False
+
+    # =================================================================
+    # FUNCIONES CRUD GENÉRICAS (con fallback local)
+    # =================================================================
+    def _read_local_json(self) -> Dict:
+        try:
+            with open('productos.json', 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error leyendo productos.json: {e}")
+            return {}
+
+    def _write_local_json(self, data: Dict) -> bool:
+        try:
+            with open('productos.json', 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            return True
+        except Exception as e:
+            logger.error(f"Error escribiendo productos.json: {e}")
+            return False
+
+    def get_items(self, kind: str) -> List[Dict]:
+        """Obtener items por tipo: productos, sucursales, negocios, ofertas"""
+        kind = (kind or '').lower()
+        try:
+            if kind == 'productos':
+                return self.get_productos()
+            if kind == 'negocios':
+                return self.get_negocios()
+            if kind == 'ofertas':
+                return self.get_ofertas()
+            if kind == 'sucursales':
+                data = self._read_local_json()
+                sucursales = data.get('sucursales', {})
+                # Normalizar a lista
+                out = []
+                for negocio_id, suc_dict in sucursales.items():
+                    for sid, suc in suc_dict.items():
+                        suc['id'] = sid
+                        suc['negocio_id'] = negocio_id
+                        out.append(suc)
+                return out
+            logger.warning(f"Tipo no soportado en get_items: {kind}")
+            return []
+        except Exception as e:
+            logger.error(f"Error en get_items({kind}): {e}")
+            return []
+
+    def create_item(self, kind: str, data: Dict) -> bool:
+        kind = (kind or '').lower()
+        try:
+            if kind == 'productos':
+                return self.create_producto(data)
+            if kind == 'negocios':
+                return self.create_negocio(data)
+            if kind == 'ofertas':
+                return self.create_oferta(data)
+            if kind == 'sucursales':
+                contenido = self._read_local_json()
+                sucursales = contenido.setdefault('sucursales', {})
+                negocio_id = str(data.get('negocio_id') or data.get('negocio'))
+                if not negocio_id:
+                    raise ValueError('negocio_id requerido para sucursal')
+                sucursales.setdefault(negocio_id, {})
+                from uuid import uuid4
+                sid = str(data.get('id') or uuid4())
+                suc = {
+                    'id': sid,
+                    'nombre': data.get('nombre', ''),
+                    'direccion': data.get('direccion', ''),
+                    'telefono': data.get('telefono', ''),
+                    'activo': data.get('activo', True),
+                }
+                sucursales[negocio_id][sid] = suc
+                if self._write_local_json(contenido):
+                    logger.info(f"✅ Sucursal creada: {suc.get('nombre')} (negocio {negocio_id})")
+                    return True
+                return False
+            logger.warning(f"Tipo no soportado en create_item: {kind}")
+            return False
+        except Exception as e:
+            logger.error(f"Error en create_item({kind}): {e}")
+            return False
+
+    def update_item(self, kind: str, item_id: Any, data: Dict) -> bool:
+        kind = (kind or '').lower()
+        try:
+            if kind == 'productos':
+                return self.update_producto(int(item_id), data)
+            if kind == 'negocios':
+                return self.update_negocio(int(item_id), data)
+            if kind == 'ofertas':
+                return self.update_oferta(int(item_id), data)
+            if kind == 'sucursales':
+                contenido = self._read_local_json()
+                sucursales = contenido.get('sucursales', {})
+                # buscar en todos los negocios
+                for negocio_id, suc_dict in sucursales.items():
+                    if str(item_id) in suc_dict:
+                        suc = suc_dict[str(item_id)]
+                        suc.update({k: v for k, v in data.items() if k != 'id'})
+                        if self._write_local_json(contenido):
+                            logger.info(f"✅ Sucursal actualizada: {item_id}")
+                            return True
+                        return False
+                logger.warning(f"Sucursal no encontrada: {item_id}")
+                return False
+            logger.warning(f"Tipo no soportado en update_item: {kind}")
+            return False
+        except Exception as e:
+            logger.error(f"Error en update_item({kind}): {e}")
+            return False
+
+    def delete_item(self, kind: str, item_id: Any) -> bool:
+        kind = (kind or '').lower()
+        try:
+            if kind == 'productos':
+                return self.delete_producto(int(item_id))
+            if kind == 'negocios':
+                return self.delete_negocio(int(item_id))
+            if kind == 'ofertas':
+                return self.delete_oferta(int(item_id))
+            if kind == 'sucursales':
+                contenido = self._read_local_json()
+                sucursales = contenido.get('sucursales', {})
+                for negocio_id, suc_dict in list(sucursales.items()):
+                    if str(item_id) in suc_dict:
+                        del suc_dict[str(item_id)]
+                        if self._write_local_json(contenido):
+                            logger.info(f"✅ Sucursal eliminada: {item_id}")
+                            return True
+                        return False
+                logger.warning(f"Sucursal no encontrada: {item_id}")
+                return False
+            logger.warning(f"Tipo no soportado en delete_item: {kind}")
+            return False
+        except Exception as e:
+            logger.error(f"Error en delete_item({kind}): {e}")
             return False
     
     # =================================================================
