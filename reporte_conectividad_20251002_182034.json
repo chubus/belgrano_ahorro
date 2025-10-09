@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-10-02T18:20:14.407273",
+  "tests": [
+    {
+      "name": "Belgrano Ahorro Health Check",
+      "status": "success",
+      "response_code": 200,
+      "url": "https://belgranoahorro-hp30.onrender.com/healthz"
+    },
+    {
+      "name": "Belgrano Ahorro API Endpoints",
+      "status": "partial",
+      "endpoints_tested": 3,
+      "endpoints_success": 2
+    },
+    {
+      "name": "Base de Datos Belgrano Ahorro",
+      "status": "success",
+      "productos": 52,
+      "ofertas": 7,
+      "negocios": 9
+    },
+    {
+      "name": "Configuración DevOps",
+      "status": "success",
+      "config_files": 3,
+      "env_vars": 0
+    },
+    {
+      "name": "Comunicación API DevOps-Belgrano",
+      "status": "error",
+      "error": "'list' object has no attribute 'get'"
+    }
+  ],
+  "summary": {
+    "total_tests": 5,
+    "passed_tests": 3,
+    "failed_tests": 2,
+    "success_rate": 60.0,
+    "status": "PROBLEMATICA"
+  }
+}

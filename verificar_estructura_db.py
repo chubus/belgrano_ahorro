@@ -46,4 +46,7 @@ def verificar_estructura():
 
 if __name__ == "__main__":
     verificar_estructura()
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb

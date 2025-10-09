@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Sistema DevOps Sólido para Belgrano Tickets
-Proporciona gestión completa de la aplicación desde DevOps
+Sistema DevOps Completo para Belgrano Tickets
+Control total sobre el contenido de Belgrano Ahorro
 """
 
 import os
@@ -12,7 +12,7 @@ from functools import wraps
 from datetime import datetime
 import logging
 from urllib.parse import urljoin
-from flask import Blueprint, request, jsonify, redirect, url_for, session, make_response, render_template
+from flask import Blueprint, request, jsonify, redirect, url_for, session, make_response, render_template, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Configuración de logging
@@ -20,25 +20,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuración de API y credenciales DevOps
-try:
-    from config_env import get_api_config
-    api_config = get_api_config()
-    BELGRANO_AHORRO_URL = api_config['belgrano_ahorro_url']
-    BELGRANO_AHORRO_API_KEY = api_config['belgrano_ahorro_api_key']
-except ImportError:
-    # Fallback a variables de entorno directas
-    BELGRANO_AHORRO_URL = os.environ.get('BELGRANO_AHORRO_URL')
-    BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY')
-
+BELGRANO_AHORRO_URL = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com')
+BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
 API_TIMEOUT_SECS = 10
 
-# Credenciales de DevOps (propias, separadas del login de ticketera)
+# Credenciales de DevOps
 DEVOPS_USERNAME = os.environ.get('DEVOPS_USERNAME', 'devops')
 DEVOPS_PASSWORD_PLAIN = os.environ.get('DEVOPS_PASSWORD', 'DevOps2025!Secure')
-
-# Hash de la contraseña para comparación segura
 DEVOPS_PASSWORD_HASH = generate_password_hash(DEVOPS_PASSWORD_PLAIN)
 
+<<<<<<< HEAD
 # Validar variables de entorno críticas
 env_status = os.environ.get('FLASK_ENV', 'development')
 if not BELGRANO_AHORRO_URL:
@@ -84,11 +75,13 @@ except ImportError as e:
         logger.error(f"❌ No se pudo importar ningún gestor DevOps: {e2}")
         devops_manager = None
 
+=======
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb
 # Crear blueprint con prefijo
 devops_bp = Blueprint('devops', __name__, url_prefix='/devops')
 
 # =============================
-# AUTENTICACIÓN DEVOPS (PROPIA)
+# AUTENTICACIÓN DEVOPS
 # =============================
 
 def devops_is_authenticated():
@@ -103,8 +96,6 @@ def devops_login_required(fn):
     """Decorador para requerir autenticación de DevOps"""
     def wrapper(*args, **kwargs):
         if not devops_is_authenticated():
-            # Redirigir directamente al login de DevOps
-            logger.info("Redirigiendo a DevOps login")
             return redirect('/devops/login')
         return fn(*args, **kwargs)
     wrapper.__name__ = fn.__name__
@@ -112,564 +103,140 @@ def devops_login_required(fn):
 
 @devops_bp.route('/login', methods=['GET', 'POST'])
 def devops_login():
-    """Login propio de DevOps con credenciales separadas."""
+    """Login de DevOps"""
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
-        if username == DEVOPS_USERNAME and check_password_hash(DEVOPS_PASSWORD_HASH, password):
-            try:
-                session['devops_authenticated'] = True
-                session.permanent = True
-                logger.info(f"Login exitoso de DevOps: {username}")
-                return redirect(url_for('devops.devops_home'))
-            except Exception as e:
-                logger.error(f"Error estableciendo sesión DevOps: {e}")
-                return make_response("Error interno del servidor", 500)
-        else:
-            logger.warning(f"Intento de login fallido de DevOps: {username}")
-            # Mostrar formulario con error
-            html_error = f"""
-            <!doctype html>
-            <html>
-            <head>
-                <meta charset='utf-8'>
-                <title>DevOps Login - Belgrano Tickets</title>
-                <style>
-                    body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }}
-                    .container {{ max-width: 400px; margin: 50px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-                    h2 {{ color: #333; text-align: center; margin-bottom: 30px; }}
-                    .form-group {{ margin-bottom: 20px; }}
-                    label {{ display: block; margin-bottom: 5px; font-weight: bold; color: #555; }}
-                    input[type="text"], input[type="password"] {{ width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }}
-                    button {{ width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }}
-                    button:hover {{ background: #0056b3; }}
-                    .info {{ background: #e7f3ff; padding: 15px; border-radius: 4px; margin-bottom: 20px; border-left: 4px solid #007bff; }}
-                    .error {{ background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px; margin-bottom: 20px; border-left: 4px solid #dc3545; }}
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h2>🔧 DevOps Login</h2>
-                    <div class="error">
-                        <strong>❌ Credenciales incorrectas</strong><br>
-                        Verifique su usuario y contraseña
-                    </div>
-                    <div class="info">
-                        <strong>Sistema DevOps</strong><br>
-                        Acceso independiente para administración del sistema
-                    </div>
-                    <form method='post'>
-                        <div class="form-group">
-                            <label>Usuario DevOps:</label>
-                            <input type="text" name='username' value='{username}' required />
-                        </div>
-                        <div class="form-group">
-                            <label>Contraseña:</label>
-                            <input type='password' name='password' placeholder='Ingrese su contraseña' required />
-                        </div>
-                        <button type='submit'>🔐 Ingresar a DevOps</button>
-                    </form>
-                    <div style="text-align: center; margin-top: 20px; color: #666;">
-                        <small>Sistema DevOps v2.0 - Belgrano Tickets</small>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """
-            return make_response(html_error, 401)
-
-    # Formulario HTML mejorado para DevOps
-    html = f"""
-    <!doctype html>
-    <html>
-    <head>
-        <meta charset='utf-8'>
-        <title>DevOps Login - Belgrano Tickets</title>
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }}
-            .container {{ max-width: 400px; margin: 50px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-            h2 {{ color: #333; text-align: center; margin-bottom: 30px; }}
-            .form-group {{ margin-bottom: 20px; }}
-            label {{ display: block; margin-bottom: 5px; font-weight: bold; color: #555; }}
-            input[type="text"], input[type="password"] {{ width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }}
-            button {{ width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }}
-            button:hover {{ background: #0056b3; }}
-            .info {{ background: #e7f3ff; padding: 15px; border-radius: 4px; margin-bottom: 20px; border-left: 4px solid #007bff; }}
-            .error {{ color: #dc3545; margin-top: 10px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h2>🔧 DevOps Login</h2>
-            <div class="info">
-                <strong>Sistema DevOps</strong><br>
-                Acceso independiente para administración del sistema
-            </div>
-            <form method='post'>
-                <div class="form-group">
-                    <label>Usuario DevOps:</label>
-                    <input type="text" name='username' value='{DEVOPS_USERNAME}' required />
-                </div>
-                <div class="form-group">
-                    <label>Contraseña:</label>
-                    <input type='password' name='password' placeholder='Ingrese su contraseña' required />
-                </div>
-                <button type='submit'>🔐 Ingresar a DevOps</button>
-            </form>
-            <div style="text-align: center; margin-top: 20px; color: #666;">
-                <small>Sistema DevOps v2.0 - Belgrano Tickets</small>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-    return make_response(html, 200)
-
-@devops_bp.route('/logout', methods=['POST', 'GET'])
-def devops_logout():
-    """Cerrar sesión de DevOps"""
-    try:
-        session.pop('devops_authenticated', None)
-        logger.info("Logout exitoso de DevOps")
-        return redirect(url_for('devops.devops_login'))
-    except Exception as e:
-        logger.error(f"Error en logout DevOps: {e}")
-        return redirect('/devops/login')
-
-@devops_bp.route('/test')
-def devops_test():
-    """Endpoint de prueba para verificar que DevOps funciona"""
-    from flask import request, make_response
-    
-    # Si es una petición AJAX, devolver JSON
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({
-        'status': 'success',
-        'message': 'DevOps funcionando correctamente',
-        'timestamp': datetime.now().isoformat(),
-            'authenticated': devops_is_authenticated(),
-            'endpoints': {
-                'health': '/devops/health',
-                'status': '/devops/status',
-                'ofertas': '/devops/ofertas',
-                'negocios': '/devops/negocios',
-                'productos': '/devops/productos',
-                'precios': '/devops/precios'
-            }
-        })
-    
-    # Si no es AJAX, devolver HTML formateado
-    html = """
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Test DevOps - Belgrano Tickets</title>
-        <style>
-            body { 
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                min-height: 100vh;
-                margin: 0;
-                padding: 20px;
-            }
-            .container { 
-                max-width: 800px; 
-                margin: 50px auto; 
-                background: white; 
-                border-radius: 15px; 
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-                overflow: hidden;
-            }
-            .header { 
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                color: white; 
-                padding: 30px; 
-                text-align: center; 
-            }
-            .content { padding: 30px; }
-            .status-card {
-                background: linear-gradient(135deg, #28a745, #20c997);
-                color: white;
-                padding: 20px;
-                border-radius: 10px;
-                margin: 20px 0;
-                text-align: center;
-            }
-            .endpoint-list {
-                background: #f8f9fa;
-                padding: 20px;
-                border-radius: 10px;
-                margin: 20px 0;
-            }
-            .endpoint-item {
-                padding: 10px;
-                margin: 5px 0;
-                background: white;
-                border-radius: 5px;
-                border-left: 4px solid #667eea;
-            }
-            .btn {
-                display: inline-block;
-                padding: 12px 24px;
-                background: linear-gradient(135deg, #667eea, #764ba2);
-                color: white;
-                text-decoration: none;
-                border-radius: 8px;
-                font-weight: 600;
-                transition: all 0.3s ease;
-                margin: 5px;
-            }
-            .btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>🔧 Test DevOps</h1>
-                <p>Sistema DevOps funcionando correctamente</p>
-            </div>
-            
-            <div class="content">
-                <div class="status-card">
-                    <h3>✅ Sistema Operativo</h3>
-                    <p>DevOps está funcionando correctamente</p>
-                    <p><strong>Timestamp:</strong> """ + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + """</p>
-                </div>
-                
-                <div class="endpoint-list">
-                    <h4>📋 Endpoints Disponibles</h4>
-                    <div class="endpoint-item">
-                        <strong>GET</strong> /devops/health - Health check del sistema
-                    </div>
-                    <div class="endpoint-item">
-                        <strong>GET</strong> /devops/status - Estado detallado del sistema
-                    </div>
-                    <div class="endpoint-item">
-                        <strong>GET</strong> /devops/ofertas - Gestión de ofertas
-                    </div>
-                    <div class="endpoint-item">
-                        <strong>GET</strong> /devops/negocios - Gestión de negocios
-                    </div>
-                    <div class="endpoint-item">
-                        <strong>GET</strong> /devops/productos - Gestión de productos
-                    </div>
-                    <div class="endpoint-item">
-                        <strong>GET</strong> /devops/precios - Gestión de precios
-                    </div>
-                </div>
-                
-                <div style="text-align: center; margin-top: 30px;">
-                    <a href="/devops/" class="btn">🏠 Panel Principal</a>
-                    <a href="/devops/health" class="btn">💚 Health Check</a>
-                </div>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-    return make_response(html, 200)
-
-# Función para construir URLs de API
-def build_api_url(endpoint):
-    """Construir URL completa de API"""
-    if not BELGRANO_AHORRO_URL:
-        logger.warning("BELGRANO_AHORRO_URL no está configurada")
-        return None
-    return urljoin(BELGRANO_AHORRO_URL, f'/api/{endpoint}')
-
-# Función para sincronizar cambios
-def sincronizar_cambio_inmediato(tipo_cambio, datos):
-    """Sincronizar cambio inmediatamente con la API"""
-    try:
-        logger.info(f"Sincronizando cambio: {tipo_cambio}")
         
-        if not devops_api_client:
-            logger.warning("Cliente API no disponible para sincronización")
-            return False
-            
-        # Usar el cliente API para sincronizar
-        resultado = devops_api_client.sync_data(tipo_cambio, datos)
-        if resultado:
-            logger.info(f"Sincronización exitosa: {tipo_cambio}")
-            return True
+        if username == DEVOPS_USERNAME and check_password_hash(DEVOPS_PASSWORD_HASH, password):
+            session['devops_authenticated'] = True
+            session.permanent = True
+            logger.info(f"Login exitoso de DevOps: {username}")
+            return redirect(url_for('devops.devops_home'))
         else:
-            logger.error(f"Error en sincronización de {tipo_cambio}")
-            return False
-            
-    except Exception as e:
-        logger.error(f"Error en sincronización: {e}")
-        return False
-
-# =================================================================
-# RUTAS PRINCIPALES DE DEVOPS
-# =================================================================
+            flash('Credenciales incorrectas', 'error')
+    
+    return render_template('devops/login.html', 
+                         username=DEVOPS_USERNAME)
 
 @devops_bp.route('/')
 @devops_login_required
 def devops_home():
-    """Panel principal de DevOps - Información del sistema"""
-    from flask import request, make_response
-    
-    # Solo devolver JSON si se solicita explícitamente con todos los parámetros
-    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
-        request.args.get('ajax') == 'true' and 
-        request.args.get('format') == 'json' and 
-        request.args.get('api') == 'true' and
-        request.args.get('json') == 'true'):
-        try:
-            # Obtener información del sistema
-            system_info = {
-                'timestamp': datetime.now().isoformat(),
-                'service': 'DevOps System',
-                'version': '2.0.0',
-                'status': 'operational',
-                'environment': {
-                    'python_version': os.sys.version,
-                    'working_directory': os.getcwd(),
-                    'environment_variables': {
-                        'BELGRANO_AHORRO_URL': BELGRANO_AHORRO_URL,
-                        'BELGRANO_AHORRO_API_KEY': '***configurada***' if BELGRANO_AHORRO_API_KEY else 'No configurada'
-                    }
-                },
-                'endpoints': {
-                    'health': '/devops/health',
-                    'info': '/devops/info',
-                    'status': '/devops/status',
-                    'ofertas': '/devops/ofertas',
-                    'negocios': '/devops/negocios',
-                    'sync': '/devops/sync',
-                    'logs': '/devops/logs'
-                }
-            }
-            
-            return jsonify({
-                'status': 'success',
-                'message': 'Sistema DevOps funcionando correctamente',
-                'data': system_info
-            })
-            
-        except Exception as e:
-            logger.error(f"Error en devops_home: {e}")
-            return jsonify({
-                'status': 'error',
-                'message': f'Error interno: {str(e)}'
-            }), 500
-    
-    # Si no es AJAX, devolver template HTML
+    """Panel principal de DevOps"""
+    return render_template('devops/dashboard.html')
+
+@devops_bp.route('/logout')
+def devops_logout():
+    """Cerrar sesión de DevOps"""
+    session.pop('devops_authenticated', None)
+    return redirect(url_for('devops.devops_login'))
+
+# =============================
+# API CLIENT FUNCTIONS
+# =============================
+
+def make_api_request(method, endpoint, data=None):
+    """Realizar request a la API de Belgrano Ahorro usando el cliente mejorado"""
     try:
-        return render_template('devops/dashboard.html')
-    except Exception as e:
-        logger.error(f"Error cargando dashboard: {e}")
-        # Fallback con HTML básico
-    html = """
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Panel DevOps - Belgrano Tickets</title>
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                min-height: 100vh;
-                padding: 20px;
-            }
-            .container { 
-                max-width: 1400px; 
-                margin: 0 auto; 
-                background: white; 
-                border-radius: 15px; 
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-                overflow: hidden;
-            }
-            .header { 
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                color: white; 
-                padding: 30px; 
-                text-align: center; 
-            }
-            .header h1 { font-size: 2.5em; margin-bottom: 10px; }
-            .header p { font-size: 1.2em; opacity: 0.9; }
-            .content { padding: 30px; }
-            .stats {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 20px;
-                margin-bottom: 30px;
-            }
-            .stat-card {
-                background: linear-gradient(135deg, #667eea, #764ba2);
-                color: white;
-                padding: 25px;
-                border-radius: 10px;
-                text-align: center;
-            }
-            .stat-card h3 {
-                font-size: 2.5em;
-                margin-bottom: 10px;
-            }
-            .stat-card p {
-                opacity: 0.9;
-                font-size: 1.1em;
-            }
-            .grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                gap: 20px;
-                margin-bottom: 30px;
-            }
-            .card {
-                background: white;
-                border-radius: 10px;
-                padding: 20px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                border-left: 4px solid #667eea;
-            }
-            .card h3 {
-                color: #667eea;
-                margin-bottom: 15px;
-                font-size: 1.3em;
-            }
-            .btn {
-                display: inline-block;
-                padding: 12px 24px;
-                background: linear-gradient(135deg, #667eea, #764ba2);
-                color: white;
-                text-decoration: none;
-                border-radius: 8px;
-                font-weight: 600;
-                transition: all 0.3s ease;
-                margin: 5px;
-            }
-            .btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            }
-            .btn-success { background: linear-gradient(135deg, #28a745, #20c997); }
-            .btn-warning { background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; }
-            .btn-info { background: linear-gradient(135deg, #17a2b8, #138496); }
-            .btn-danger { background: linear-gradient(135deg, #dc3545, #c82333); }
-            .status-indicator {
-                display: inline-block;
-                width: 12px;
-                height: 12px;
-                border-radius: 50%;
-                margin-right: 8px;
-            }
-            .status-online { background: #28a745; }
-            .status-offline { background: #dc3545; }
-            .status-warning { background: #ffc107; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>🔧 Panel DevOps</h1>
-                <p>Sistema de gestión y administración de Belgrano Tickets</p>
-            </div>
-            
-            <div class="content">
-                <div class="stats">
-                    <div class="stat-card">
-                        <h3 id="system-status">Online</h3>
-                        <p>Estado del Sistema</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3 id="total-endpoints">12</h3>
-                        <p>Endpoints Activos</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3 id="uptime">24h</h3>
-                        <p>Tiempo Activo</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3 id="version">v2.0</h3>
-                        <p>Versión</p>
-                    </div>
-                </div>
-                
-                <div class="grid">
-                    <div class="card">
-                        <h3>🎯 Gestión de Contenido</h3>
-                        <p>Administra ofertas, productos, negocios y precios del sistema.</p>
-                        <a href="/devops/ofertas" class="btn">Gestionar Ofertas</a>
-                        <a href="/devops/negocios" class="btn">Gestionar Negocios</a>
-                        <a href="/devops/productos" class="btn">Gestionar Productos</a>
-                        <a href="/devops/precios" class="btn">Gestionar Precios</a>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>🔧 Herramientas de Desarrollo</h3>
-                        <p>Herramientas para monitoreo, logs y configuración del sistema.</p>
-                        <a href="/devops/logs" class="btn btn-info">Ver Logs</a>
-                        <a href="/devops/config" class="btn btn-info">Configuración</a>
-                        <a href="/devops/health" class="btn btn-warning">Health Check</a>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>🔄 Sincronización y Datos</h3>
-                        <p>Gestiona la sincronización de datos entre sistemas.</p>
-                        <a href="/devops/sync" class="btn btn-success">Sincronizar Datos</a>
-                        <a href="/devops/conectar-belgrano" class="btn btn-info">Conectar Belgrano Ahorro</a>
-                        <button class="btn btn-warning" onclick="actualizarEstadisticas()">Actualizar Stats</button>
-                    </div>
-                    
-                    <div class="card">
-                        <h3>📊 Estado del Sistema</h3>
-                        <p>Información en tiempo real del estado del sistema.</p>
-                        <span class="status-indicator status-online"></span>Sistema Online<br>
-                        <span class="status-indicator status-online"></span>API Conectada<br>
-                        <span class="status-indicator status-online"></span>Base de Datos OK<br>
-                        <button class="btn btn-info" onclick="cargarInfoSistema()">Ver Detalles</button>
-                    </div>
-                </div>
-                
-                <div style="text-align: center; margin-top: 30px;">
-                    <a href="/devops/logout" class="btn btn-danger">Cerrar Sesión</a>
-                </div>
-            </div>
-        </div>
+        # Importar cliente mejorado
+        from belgrano_client_gateway import BelgranoAhorroClientGateway
         
-        <script>
-            function actualizarEstadisticas() {
-                document.getElementById('uptime').textContent = '25h';
-                document.getElementById('total-endpoints').textContent = '13';
-                alert('Estadísticas actualizadas correctamente');
-            }
-            
-            function cargarInfoSistema() {
-                fetch('/devops/?ajax=true', {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        alert('Sistema: ' + data.data.service + ' v' + data.data.version + '\\nEstado: ' + data.data.status);
-                    }
-                })
-                .catch(error => {
-                    alert('Error cargando información: ' + error);
-                });
-            }
-            
-            // Cargar información inicial
-            cargarInfoSistema();
-        </script>
-    </body>
-    </html>
-    """
-    return make_response(html, 200)
+        # Crear cliente
+        client = BelgranoAhorroClientGateway(use_gateway=True)
+        
+        # Mapear métodos a funciones del cliente
+        if method == 'GET':
+            if endpoint == 'negocios':
+                result = client.get_negocios()
+            elif endpoint == 'productos':
+                result = client.get_productos()
+            elif endpoint == 'ofertas':
+                result = client.get_ofertas()
+            elif endpoint == 'sucursales':
+                result = client.get_sucursales()
+            elif endpoint.startswith('negocios/'):
+                negocio_id = int(endpoint.split('/')[1])
+                result = client.get_negocio(negocio_id)
+            elif endpoint.startswith('productos/'):
+                producto_id = int(endpoint.split('/')[1])
+                result = client.get_producto(producto_id)
+            elif endpoint.startswith('ofertas/'):
+                oferta_id = int(endpoint.split('/')[1])
+                result = client.get_oferta(oferta_id)
+            elif endpoint.startswith('sucursales/'):
+                sucursal_id = int(endpoint.split('/')[1])
+                result = client.get_sucursal(sucursal_id)
+            else:
+                result = {'success': False, 'error': f'Endpoint no soportado: {endpoint}'}
+        
+        elif method == 'POST':
+            if endpoint == 'negocios':
+                result = client.create_negocio(data)
+            elif endpoint == 'productos':
+                result = client.create_producto(data)
+            elif endpoint == 'ofertas':
+                result = client.create_oferta(data)
+            elif endpoint == 'sucursales':
+                result = client.create_sucursal(data)
+            else:
+                result = {'success': False, 'error': f'Endpoint no soportado: {endpoint}'}
+        
+        elif method == 'PUT':
+            if endpoint.startswith('negocios/'):
+                negocio_id = int(endpoint.split('/')[1])
+                result = client.update_negocio(negocio_id, data)
+            elif endpoint.startswith('productos/'):
+                producto_id = int(endpoint.split('/')[1])
+                result = client.update_producto(producto_id, data)
+            elif endpoint.startswith('ofertas/'):
+                oferta_id = int(endpoint.split('/')[1])
+                result = client.update_oferta(oferta_id, data)
+            elif endpoint.startswith('sucursales/'):
+                sucursal_id = int(endpoint.split('/')[1])
+                result = client.update_sucursal(sucursal_id, data)
+            elif endpoint.startswith('precios/'):
+                producto_id = int(endpoint.split('/')[1])
+                result = client.update_precio(producto_id, data)
+            else:
+                result = {'success': False, 'error': f'Endpoint no soportado: {endpoint}'}
+        
+        elif method == 'DELETE':
+            if endpoint.startswith('negocios/'):
+                negocio_id = int(endpoint.split('/')[1])
+                result = client.delete_negocio(negocio_id)
+            elif endpoint.startswith('productos/'):
+                producto_id = int(endpoint.split('/')[1])
+                result = client.delete_producto(producto_id)
+            elif endpoint.startswith('ofertas/'):
+                oferta_id = int(endpoint.split('/')[1])
+                result = client.delete_oferta(oferta_id)
+            elif endpoint.startswith('sucursales/'):
+                sucursal_id = int(endpoint.split('/')[1])
+                result = client.delete_sucursal(sucursal_id)
+            else:
+                result = {'success': False, 'error': f'Endpoint no soportado: {endpoint}'}
+        
+        else:
+            result = {'success': False, 'error': f'Método no soportado: {method}'}
+        
+        # Asegurar estructura consistente
+        if not result.get('data'):
+            result['data'] = []
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error en API request: {e}")
+        return {'error': str(e), 'data': []}
+
+# =============================
+# RUTAS PRINCIPALES
+# =============================
 
 @devops_bp.route('/health')
 @devops_login_required
 def devops_health():
+<<<<<<< HEAD
     """Health check completo del sistema DevOps"""
     from flask import request, make_response
     
@@ -725,94 +292,125 @@ def devops_health():
     
     # Si no es AJAX, devolver template HTML
     return render_template('devops/health.html')
+=======
+    """Health check del sistema"""
+    try:
+        health_data = make_api_request('GET', 'health')
+        return jsonify({
+            'status': 'success',
+            'data': health_data,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@devops_bp.route('/sync')
+@devops_login_required
+def devops_sync():
+    """Panel de sincronización"""
+    return render_template('devops/sync.html')
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb
 
 @devops_bp.route('/status')
 @devops_login_required
 def devops_status():
-    """Estado detallado del sistema"""
+    """Estado detallado del sistema DevOps"""
     try:
-        status = {
+        # Obtener información del sistema
+        system_info = {
             'timestamp': datetime.now().isoformat(),
-            'system': {
-                'uptime': 'N/A',
-                'memory_usage': 'N/A',
-                'cpu_usage': 'N/A',
-                'disk_usage': 'N/A'
-            },
+            'devops_status': 'active',
             'services': {
-                'web_server': 'running',
-                'database': 'connected',
-                'api_client': 'active',
-                'sync_service': 'active'
+                'belgrano_ahorro': 'checking...',
+                'ticketera': 'checking...',
+                'gateway': 'checking...',
+                'sync': 'checking...'
             },
-            'configuration': {
-                'belgrano_ahorro_url': BELGRANO_AHORRO_URL,
-                'api_key_configured': bool(BELGRANO_AHORRO_API_KEY),
-                'timeout_seconds': API_TIMEOUT_SECS
+            'database': {
+                'belgrano_ahorro_db': 'checking...',
+                'tickets_db': 'checking...'
             }
         }
         
-        return jsonify({
-            'status': 'success',
-            'data': status
-        })
+        # Verificar servicios
+        try:
+            response = requests.get('http://localhost:5000/', timeout=2)
+            system_info['services']['belgrano_ahorro'] = 'active' if response.status_code == 200 else 'error'
+        except:
+            system_info['services']['belgrano_ahorro'] = 'inactive'
+        
+        try:
+            response = requests.get('http://localhost:5001/', timeout=2)
+            system_info['services']['ticketera'] = 'active' if response.status_code == 200 else 'error'
+        except:
+            system_info['services']['ticketera'] = 'inactive'
+        
+        try:
+            response = requests.get('http://localhost:5003/gateway/health', timeout=2)
+            system_info['services']['gateway'] = 'active' if response.status_code == 200 else 'error'
+        except:
+            system_info['services']['gateway'] = 'inactive'
+        
+        try:
+            response = requests.get('http://localhost:5004/sync/status', timeout=2)
+            system_info['services']['sync'] = 'active' if response.status_code == 200 else 'error'
+        except:
+            system_info['services']['sync'] = 'inactive'
+        
+        # Verificar bases de datos
+        import os
+        system_info['database']['belgrano_ahorro_db'] = 'active' if os.path.exists('belgrano_ahorro.db') else 'missing'
+        system_info['database']['tickets_db'] = 'active' if os.path.exists('belgrano_tickets.db') else 'missing'
+        
+        return render_template('devops/status.html', system_info=system_info)
         
     except Exception as e:
-        logger.error(f"Error obteniendo status: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error obteniendo status: {str(e)}'
-        }), 500
+        logger.error(f"Error obteniendo estado: {e}")
+        return render_template('devops/status.html', error=str(e))
 
 @devops_bp.route('/info')
 @devops_login_required
 def devops_info():
-    """Información completa del sistema DevOps"""
+    """Información completa del servicio DevOps"""
     try:
-        return jsonify({
-            'status': 'success',
-            'message': 'Información del sistema DevOps',
-            'data': {
-        'service': 'DevOps System v2.0',
-        'description': 'Sistema de gestión DevOps para Belgrano Tickets',
-        'features': [
-            'Monitoreo de salud del sistema',
-            'Gestión de ofertas y negocios',
-            'Sincronización con API externa',
-            'Logging y debugging',
-            'Panel de administración'
-        ],
-        'endpoints': {
-            'monitoring': {
-                'GET': '/devops/health - Health check',
-                'GET': '/devops/status - Estado del sistema',
-                'GET': '/devops/info - Información del servicio'
-            },
-            'management': {
-                'GET': '/devops/ofertas - Gestión de ofertas',
-                'GET': '/devops/negocios - Gestión de negocios',
-                'POST': '/devops/sync - Sincronización manual'
-            },
-            'utilities': {
-                'GET': '/devops/logs - Ver logs del sistema',
-                'GET': '/devops/config - Configuración actual'
+        info = {
+            'service': 'DevOps Belgrano Tickets',
+            'version': '2.0.0',
+            'timestamp': datetime.now().isoformat(),
+            'endpoints': [
+                '/devops/ - Panel principal',
+                '/devops/login - Autenticación',
+                '/devops/health - Health check',
+                '/devops/status - Estado del sistema',
+                '/devops/info - Información del servicio',
+                '/devops/negocios - Gestión de negocios',
+                '/devops/productos - Gestión de productos',
+                '/devops/ofertas - Gestión de ofertas',
+                '/devops/sucursales - Gestión de sucursales',
+                '/devops/precios - Gestión de precios',
+                '/devops/sync - Panel de sincronización'
+            ],
+            'features': [
+                'Gestión completa de contenido',
+                'Sincronización en tiempo real',
+                'API Gateway integrado',
+                'Autenticación segura',
+                'Interfaz web moderna'
+            ],
+            'configuration': {
+                'belgrano_ahorro_url': BELGRANO_AHORRO_URL,
+                'api_timeout': API_TIMEOUT_SECS,
+                'devops_username': DEVOPS_USERNAME
             }
-        },
-        'documentation': {
-            'api_docs': '/devops/docs',
-            'health_endpoint': '/devops/health',
-            'status_endpoint': '/devops/status'
-        },
-        'timestamp': datetime.now().isoformat()
-            }
-        })
+        }
+        
+        return render_template('devops/info.html', info=info)
+        
     except Exception as e:
         logger.error(f"Error obteniendo información: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error obteniendo información: {str(e)}'
-        }), 500
+        return render_template('devops/info.html', error=str(e))
 
+<<<<<<< HEAD
 # ================================================================
 # AUTENTICACIÓN (YA MANEJADA ARRIBA CON SISTEMA PROPIO)
 # ================================================================
@@ -966,16 +564,20 @@ def gestion_ofertas():
         logger.error(f"Error cargando datos para ofertas: {e}")
         # Fallback con datos vacíos
         return render_template('devops/ofertas.html', ofertas=[])
+=======
+# =============================
+# GESTIÓN DE NEGOCIOS
+# =============================
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb
 
 @devops_bp.route('/negocios', methods=['GET', 'POST'])
 @devops_login_required
 def gestion_negocios():
-    """Gestión completa de negocios"""
-    from flask import request, make_response, render_template, flash, redirect, url_for
-    
-    # Manejar POST requests (crear negocio)
+    """Gestión completa de negocios - NUNCA devuelve JSON"""
+    # Siempre devolver HTML, nunca JSON
     if request.method == 'POST':
         try:
+<<<<<<< HEAD
             nombre = request.form.get('nombre', '').strip()
             descripcion = request.form.get('descripcion', '').strip()
             
@@ -996,8 +598,16 @@ def gestion_negocios():
                 'descripcion': descripcion,
                 'logo': request.form.get('logo', ''),
                 'telefono': request.form.get('telefono', ''),
+=======
+            # Crear negocio
+            data = {
+                'nombre': request.form.get('nombre'),
+                'descripcion': request.form.get('descripcion', ''),
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb
                 'direccion': request.form.get('direccion', ''),
+                'telefono': request.form.get('telefono', ''),
                 'email': request.form.get('email', ''),
+<<<<<<< HEAD
                 'activo': True
             }
             
@@ -1035,12 +645,28 @@ def gestion_negocios():
                 else:
                     flash('Error al guardar el negocio', 'error')
                 
+=======
+                'activo': request.form.get('activo') == 'on'
+            }
+            
+            if not data['nombre']:
+                flash('El nombre es requerido', 'error')
+                return redirect(url_for('devops.gestion_negocios'))
+            
+            result = make_api_request('POST', 'negocios', data)
+            if 'error' in result:
+                flash(f'Error creando negocio: {result["error"]}', 'error')
+            else:
+                flash('Negocio creado exitosamente', 'success')
+            
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb
         except Exception as e:
-            logger.error(f"Error creando negocio desde DevOps: {e}")
-            flash('Error interno al crear el negocio', 'error')
+            logger.error(f"Error creando negocio: {e}")
+            flash('Error interno al crear negocio', 'error')
         
         return redirect(url_for('devops.gestion_negocios'))
     
+<<<<<<< HEAD
     # Solo devolver JSON si se solicita explícitamente con todos los parámetros
     if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
         request.args.get('ajax') == 'true' and 
@@ -1104,25 +730,146 @@ def gestion_negocios():
             }), 500
     
     # Si no es AJAX, devolver template HTML
+=======
+    # GET - Listar negocios
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb
     try:
-        # Cargar datos de negocios para el template
-        from app_unificado import cargar_datos_completos
-        datos = cargar_datos_completos()
-        negocios = list(datos.get('negocios', {}).values()) if datos else []
-        
-        return render_template('devops/negocios.html', negocios=negocios)
+        result = make_api_request('GET', 'negocios')
+        if 'error' in result:
+            logger.error(f"Error obteniendo negocios: {result['error']}")
+            flash(f'Error obteniendo negocios: {result["error"]}', 'error')
+            negocios = []
+        else:
+            negocios = result.get('data', [])
     except Exception as e:
-        logger.error(f"Error cargando datos para negocios: {e}")
-        return render_template('devops/negocios.html', negocios=[])
+        logger.error(f"Error en gestión de negocios: {e}")
+        flash('Error interno al obtener negocios', 'error')
+        negocios = []
+    
+    # SIEMPRE devolver HTML
+    return render_template('devops/negocios.html', negocios=negocios)
+
+@devops_bp.route('/negocios/<int:negocio_id>/editar', methods=['POST'])
+@devops_login_required
+def editar_negocio(negocio_id):
+    """Editar negocio"""
+    data = {
+        'nombre': request.form.get('nombre'),
+        'descripcion': request.form.get('descripcion', ''),
+        'direccion': request.form.get('direccion', ''),
+        'telefono': request.form.get('telefono', ''),
+        'email': request.form.get('email', ''),
+        'activo': request.form.get('activo') == 'on'
+    }
+    
+    result = make_api_request('PUT', f'negocios/{negocio_id}', data)
+    if 'error' in result:
+        flash(f'Error actualizando negocio: {result["error"]}', 'error')
+    else:
+        flash('Negocio actualizado exitosamente', 'success')
+    
+    return redirect(url_for('devops.gestion_negocios'))
+
+@devops_bp.route('/negocios/<int:negocio_id>/eliminar', methods=['POST'])
+@devops_login_required
+def eliminar_negocio(negocio_id):
+    """Eliminar negocio"""
+    result = make_api_request('DELETE', f'negocios/{negocio_id}')
+    if 'error' in result:
+        flash(f'Error eliminando negocio: {result["error"]}', 'error')
+    else:
+        flash('Negocio eliminado exitosamente', 'success')
+    
+    return redirect(url_for('devops.gestion_negocios'))
+
+# =============================
+# GESTIÓN DE SUCURSALES
+# =============================
+
+@devops_bp.route('/sucursales', methods=['GET', 'POST'])
+@devops_login_required
+def gestion_sucursales():
+    """Gestión completa de sucursales"""
+    if request.method == 'POST':
+        # Crear sucursal
+        data = {
+            'nombre': request.form.get('nombre'),
+            'direccion': request.form.get('direccion', ''),
+            'telefono': request.form.get('telefono', ''),
+            'email': request.form.get('email', ''),
+            'negocio_id': request.form.get('negocio_id'),
+            'activo': request.form.get('activo') == 'on'
+        }
+        
+        if not data['nombre'] or not data['negocio_id']:
+            flash('El nombre y negocio son requeridos', 'error')
+            return redirect(url_for('devops.gestion_sucursales'))
+        
+        result = make_api_request('POST', 'sucursales', data)
+        if 'error' in result:
+            flash(f'Error creando sucursal: {result["error"]}', 'error')
+        else:
+            flash('Sucursal creada exitosamente', 'success')
+        
+        return redirect(url_for('devops.gestion_sucursales'))
+    
+    # GET - Listar sucursales y negocios
+    try:
+        sucursales_result = make_api_request('GET', 'sucursales')
+        negocios_result = make_api_request('GET', 'negocios')
+        
+        sucursales = sucursales_result.get('data', []) if 'error' not in sucursales_result else []
+        negocios = negocios_result.get('data', []) if 'error' not in negocios_result else []
+    except Exception as e:
+        logger.error(f"Error obteniendo datos: {e}")
+        sucursales = []
+        negocios = []
+    
+    return render_template('devops/sucursales.html', sucursales=sucursales, negocios=negocios)
+
+@devops_bp.route('/sucursales/<int:sucursal_id>/editar', methods=['POST'])
+@devops_login_required
+def editar_sucursal(sucursal_id):
+    """Editar sucursal"""
+    data = {
+        'nombre': request.form.get('nombre'),
+        'direccion': request.form.get('direccion', ''),
+        'telefono': request.form.get('telefono', ''),
+        'email': request.form.get('email', ''),
+        'negocio_id': request.form.get('negocio_id'),
+        'activo': request.form.get('activo') == 'on'
+    }
+    
+    result = make_api_request('PUT', f'sucursales/{sucursal_id}', data)
+    if 'error' in result:
+        flash(f'Error actualizando sucursal: {result["error"]}', 'error')
+    else:
+        flash('Sucursal actualizada exitosamente', 'success')
+    
+    return redirect(url_for('devops.gestion_sucursales'))
+
+@devops_bp.route('/sucursales/<int:sucursal_id>/eliminar', methods=['POST'])
+@devops_login_required
+def eliminar_sucursal(sucursal_id):
+    """Eliminar sucursal"""
+    result = make_api_request('DELETE', f'sucursales/{sucursal_id}')
+    if 'error' in result:
+        flash(f'Error eliminando sucursal: {result["error"]}', 'error')
+    else:
+        flash('Sucursal eliminada exitosamente', 'success')
+    
+    return redirect(url_for('devops.gestion_sucursales'))
+
+# =============================
+# GESTIÓN DE PRODUCTOS
+# =============================
 
 @devops_bp.route('/productos', methods=['GET', 'POST'])
 @devops_login_required
 def gestion_productos():
     """Gestión completa de productos"""
-    from flask import request, make_response, render_template, flash, redirect, url_for
-    
-    # Manejar POST requests (crear producto)
     if request.method == 'POST':
+<<<<<<< HEAD
         try:
             nombre = request.form.get('nombre', '').strip()
             precio = request.form.get('precio', '').strip()
@@ -1254,29 +1001,60 @@ def gestion_productos():
             }), 500
     
     # Si no es AJAX, devolver template HTML con datos
-    try:
-        # Cargar datos de productos para el template
-        from app_unificado import cargar_datos_completos
-        datos = cargar_datos_completos()
-        productos = datos.get('productos', []) if datos else []
-        negocios = list(datos.get('negocios', {}).values()) if datos else []
-        categorias = list(datos.get('categorias', {}).values()) if datos else []
+=======
+        # Crear producto
+        data = {
+            'nombre': request.form.get('nombre'),
+            'descripcion': request.form.get('descripcion', ''),
+            'precio': float(request.form.get('precio', 0)),
+            'categoria': request.form.get('categoria', ''),
+            'stock': int(request.form.get('stock', 0)),
+            'negocio_id': request.form.get('negocio_id'),
+            'activo': request.form.get('activo') == 'on'
+        }
         
-        return render_template('devops/productos.html', productos=productos, negocios=negocios, categorias=categorias)
+        if not data['nombre'] or data['precio'] <= 0:
+            flash('El nombre y precio son requeridos', 'error')
+            return redirect(url_for('devops.gestion_productos'))
+        
+        result = make_api_request('POST', 'productos', data)
+        if 'error' in result:
+            flash(f'Error creando producto: {result["error"]}', 'error')
+        else:
+            flash('Producto creado exitosamente', 'success')
+        
+        return redirect(url_for('devops.gestion_productos'))
+    
+    # GET - Listar productos y negocios
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb
+    try:
+        productos_result = make_api_request('GET', 'productos')
+        negocios_result = make_api_request('GET', 'negocios')
+        
+        productos = productos_result.get('data', []) if 'error' not in productos_result else []
+        negocios = negocios_result.get('data', []) if 'error' not in negocios_result else []
     except Exception as e:
-        logger.error(f"Error cargando datos para productos: {e}")
-        return render_template('devops/productos.html', productos=[], negocios=[], categorias=[])
+        logger.error(f"Error obteniendo datos: {e}")
+        productos = []
+        negocios = []
+    
+    return render_template('devops/productos.html', productos=productos, negocios=negocios)
 
-# =================================================================
-# ENDPOINTS DE EDICIÓN Y ELIMINACIÓN
-# =================================================================
-
-@devops_bp.route('/productos/editar/<producto_id>', methods=['GET', 'POST'])
+@devops_bp.route('/productos/<int:producto_id>/editar', methods=['POST'])
 @devops_login_required
 def editar_producto(producto_id):
-    """Editar un producto existente"""
-    from flask import request, make_response, render_template, flash, redirect, url_for
+    """Editar producto"""
+    data = {
+        'nombre': request.form.get('nombre'),
+        'descripcion': request.form.get('descripcion', ''),
+        'precio': float(request.form.get('precio', 0)),
+        'categoria': request.form.get('categoria', ''),
+        'stock': int(request.form.get('stock', 0)),
+        'negocio_id': request.form.get('negocio_id'),
+        'activo': request.form.get('activo') == 'on'
+    }
     
+<<<<<<< HEAD
     if request.method == 'POST':
         try:
             nombre = request.form.get('nombre', '').strip()
@@ -1486,15 +1264,27 @@ def eliminar_producto(producto_id):
     except Exception as e:
         logger.error(f"Error eliminando producto desde DevOps: {e}")
         flash('Error interno al eliminar el producto', 'error')
+=======
+    result = make_api_request('PUT', f'productos/{producto_id}', data)
+    if 'error' in result:
+        flash(f'Error actualizando producto: {result["error"]}', 'error')
+    else:
+        flash('Producto actualizado exitosamente', 'success')
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb
     
     return redirect(url_for('devops.gestion_productos'))
 
-@devops_bp.route('/negocios/eliminar/<negocio_id>', methods=['POST'])
+@devops_bp.route('/productos/<int:producto_id>/eliminar', methods=['POST'])
 @devops_login_required
-def eliminar_negocio(negocio_id):
-    """Eliminar un negocio"""
-    from flask import request, make_response, flash, redirect, url_for
+def eliminar_producto(producto_id):
+    """Eliminar producto"""
+    result = make_api_request('DELETE', f'productos/{producto_id}')
+    if 'error' in result:
+        flash(f'Error eliminando producto: {result["error"]}', 'error')
+    else:
+        flash('Producto eliminado exitosamente', 'success')
     
+<<<<<<< HEAD
     try:
         if devops_manager:
             success, message = devops_manager.delete_negocio(negocio_id)
@@ -1532,96 +1322,108 @@ def eliminar_negocio(negocio_id):
         flash('Error interno al eliminar el negocio', 'error')
     
     return redirect(url_for('devops.gestion_negocios'))
+=======
+    return redirect(url_for('devops.gestion_productos'))
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb
 
-@devops_bp.route('/precios')
+# =============================
+# GESTIÓN DE OFERTAS
+# =============================
+
+@devops_bp.route('/ofertas', methods=['GET', 'POST'])
+@devops_login_required
+def gestion_ofertas():
+    """Gestión completa de ofertas"""
+    if request.method == 'POST':
+        # Crear oferta
+        data = {
+            'titulo': request.form.get('titulo'),
+            'descripcion': request.form.get('descripcion', ''),
+            'descuento_porcentaje': float(request.form.get('descuento_porcentaje', 0)),
+            'descuento_fijo': float(request.form.get('descuento_fijo', 0)),
+            'activa': request.form.get('activa') == 'on'
+        }
+        
+        if not data['titulo']:
+            flash('El título es requerido', 'error')
+            return redirect(url_for('devops.gestion_ofertas'))
+        
+        result = make_api_request('POST', 'ofertas', data)
+        if 'error' in result:
+            flash(f'Error creando oferta: {result["error"]}', 'error')
+        else:
+            flash('Oferta creada exitosamente', 'success')
+        
+        return redirect(url_for('devops.gestion_ofertas'))
+    
+    # GET - Listar ofertas
+    try:
+        result = make_api_request('GET', 'ofertas')
+        ofertas = result.get('data', []) if 'error' not in result else []
+    except Exception as e:
+        logger.error(f"Error obteniendo ofertas: {e}")
+        ofertas = []
+    
+    return render_template('devops/ofertas.html', ofertas=ofertas)
+
+@devops_bp.route('/ofertas/<int:oferta_id>/editar', methods=['POST'])
+@devops_login_required
+def editar_oferta(oferta_id):
+    """Editar oferta"""
+    data = {
+        'titulo': request.form.get('titulo'),
+        'descripcion': request.form.get('descripcion', ''),
+        'descuento_porcentaje': float(request.form.get('descuento_porcentaje', 0)),
+        'descuento_fijo': float(request.form.get('descuento_fijo', 0)),
+        'activa': request.form.get('activa') == 'on'
+    }
+    
+    result = make_api_request('PUT', f'ofertas/{oferta_id}', data)
+    if 'error' in result:
+        flash(f'Error actualizando oferta: {result["error"]}', 'error')
+    else:
+        flash('Oferta actualizada exitosamente', 'success')
+    
+    return redirect(url_for('devops.gestion_ofertas'))
+
+@devops_bp.route('/ofertas/<int:oferta_id>/eliminar', methods=['POST'])
+@devops_login_required
+def eliminar_oferta(oferta_id):
+    """Eliminar oferta"""
+    result = make_api_request('DELETE', f'ofertas/{oferta_id}')
+    if 'error' in result:
+        flash(f'Error eliminando oferta: {result["error"]}', 'error')
+    else:
+        flash('Oferta eliminada exitosamente', 'success')
+    
+    return redirect(url_for('devops.gestion_ofertas'))
+
+# =============================
+# GESTIÓN DE PRECIOS
+# =============================
+
+@devops_bp.route('/precios', methods=['GET', 'POST'])
 @devops_login_required
 def gestion_precios():
-    """Gestión completa de precios"""
-    from flask import request, make_response, render_template
-    
-    # Solo devolver JSON si se solicita explícitamente con todos los parámetros
-    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
-        request.args.get('ajax') == 'true' and 
-        request.args.get('format') == 'json' and 
-        request.args.get('api') == 'true' and
-        request.args.get('json') == 'true'):
+    """Gestión de precios - NUNCA devuelve JSON"""
+    # Siempre devolver HTML, nunca JSON
+    if request.method == 'POST':
         try:
-            from datetime import datetime
+            # Actualizar precio
+            producto_id = request.form.get('producto_id')
+            nuevo_precio = float(request.form.get('nuevo_precio', 0))
+            motivo = request.form.get('motivo', 'Actualización desde DevOps')
             
-            # Simular datos de precios
-            precios = [
-                {
-                    'id': 1,
-                    'producto_id': 1,
-                    'negocio_id': 1,
-                    'precio': 850.00,
-                    'precio_anterior': 1000.00,
-                    'descuento': 15.0,
-                    'fecha_actualizacion': '2025-01-19',
-                    'activo': True
-                },
-                {
-                    'id': 2,
-                    'producto_id': 2,
-                    'negocio_id': 1,
-                    'precio': 450.00,
-                    'precio_anterior': 500.00,
-                    'descuento': 10.0,
-                    'fecha_actualizacion': '2025-01-18',
-                    'activo': True
-                },
-                {
-                    'id': 3,
-                    'producto_id': 3,
-                    'negocio_id': 2,
-                    'precio': 1200.00,
-                    'precio_anterior': 1200.00,
-                    'descuento': 0.0,
-                    'fecha_actualizacion': '2025-01-17',
-                    'activo': True
-                }
-            ]
+            if not producto_id or nuevo_precio <= 0:
+                flash('Producto y precio válido son requeridos', 'error')
+                return redirect(url_for('devops.gestion_precios'))
             
-            return jsonify({
-                'status': 'success',
-                'data': {
-                    'precios': precios,
-                    'total': len(precios),
-                    'timestamp': datetime.now().isoformat()
-                },
-                'source': 'simulated',
-                'message': f'Precios obtenidos correctamente ({len(precios)} encontrados)'
-            })
-        except Exception as e:
-            return jsonify({
-                'status': 'error',
-                'message': f'Error obteniendo precios: {str(e)}',
-                'data': [],
-                'source': 'error'
-            }), 500
-    
-    # Si no es AJAX, devolver template HTML
-    return render_template('devops/precios.html')
-
-# =================================================================
-# SINCRONIZACIÓN Y UTILIDADES
-# =================================================================
-
-@devops_bp.route('/sync', methods=['GET', 'POST'])
-@devops_login_required
-def sincronizacion_manual():
-    """Forzar sincronización manual"""
-    from flask import request, make_response
-    
-    # Siempre devolver JSON para este endpoint
-        try:
-            sync_results = {
-                'timestamp': datetime.now().isoformat(),
-                'ofertas': {'status': 'pending'},
-                'negocios': {'status': 'pending'},
-                'overall_status': 'running'
+            data = {
+                'precio': nuevo_precio,
+                'motivo': motivo
             }
             
+<<<<<<< HEAD
             # Sincronizar ofertas
             try:
                 if devops_manager:
@@ -1655,241 +1457,19 @@ def sincronizacion_manual():
                 sync_results['overall_status'] = 'success'
             elif any(item['status'] == 'success' for item in [sync_results['ofertas'], sync_results['negocios']]):
                 sync_results['overall_status'] = 'partial'
+=======
+            result = make_api_request('PUT', f'precios/{producto_id}', data)
+            if 'error' in result:
+                flash(f'Error actualizando precio: {result["error"]}', 'error')
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb
             else:
-                sync_results['overall_status'] = 'error'
-            
-            return jsonify({
-                'status': 'success',
-                'message': 'Sincronización completada',
-                'data': sync_results
-            })
+                flash('Precio actualizado exitosamente', 'success')
             
         except Exception as e:
-            logger.error(f"Error en sincronización manual: {e}")
-            return jsonify({
-                'status': 'error',
-                'message': f'Error en sincronización: {str(e)}'
-            }), 500
-    html = """
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Sincronización de Datos - DevOps</title>
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-                min-height: 100vh;
-                padding: 20px;
-            }
-            .container { 
-                max-width: 1400px; 
-                margin: 0 auto; 
-                background: white; 
-                border-radius: 15px; 
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-                overflow: hidden;
-            }
-            .header { 
-                background: linear-gradient(135deg, #28a745 0%, #20c997 100%); 
-                color: white; 
-                padding: 30px; 
-                text-align: center; 
-            }
-            .header h1 { font-size: 2.5em; margin-bottom: 10px; }
-            .header p { font-size: 1.2em; opacity: 0.9; }
-            .content { padding: 30px; }
-            .toolbar { 
-                display: flex; 
-                gap: 15px; 
-                margin-bottom: 30px; 
-                flex-wrap: wrap;
-                align-items: center;
-            }
-            .btn { 
-                padding: 12px 24px; 
-                border: none; 
-                border-radius: 8px; 
-                cursor: pointer; 
-                font-weight: 600;
-                transition: all 0.3s ease;
-                text-decoration: none; 
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-            }
-            .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
-            .btn-primary { background: linear-gradient(135deg, #007bff, #0056b3); color: white; }
-            .btn-success { background: linear-gradient(135deg, #28a745, #20c997); color: white; }
-            .btn-warning { background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; }
-            .btn-danger { background: linear-gradient(135deg, #dc3545, #c82333); color: white; }
-            .btn-secondary { background: linear-gradient(135deg, #6c757d, #5a6268); color: white; }
-            .sync-section { 
-                background: white; 
-                border-radius: 10px; 
-                margin-bottom: 20px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                overflow: hidden;
-            }
-            .sync-header { 
-                background: linear-gradient(135deg, #f8f9fa, #e9ecef); 
-                padding: 20px; 
-                border-bottom: 1px solid #dee2e6;
-                font-weight: 600;
-                color: #495057;
-            }
-            .sync-body { padding: 20px; }
-            .sync-item {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 15px 0;
-                border-bottom: 1px solid #f1f3f4;
-            }
-            .sync-item:last-child { border-bottom: none; }
-            .sync-label {
-                font-weight: 600;
-                color: #495057;
-                flex: 1;
-            }
-            .sync-status {
-                padding: 8px 16px;
-                border-radius: 20px;
-                font-size: 12px;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }
-            .status-success { background: linear-gradient(135deg, #d4edda, #c3e6cb); color: #155724; }
-            .status-error { background: linear-gradient(135deg, #f8d7da, #f5c6cb); color: #721c24; }
-            .status-pending { background: linear-gradient(135deg, #fff3cd, #ffeaa7); color: #856404; }
-            .status-disabled { background: linear-gradient(135deg, #e2e3e5, #d6d8db); color: #6c757d; }
-            .status-partial { background: linear-gradient(135deg, #d1ecf1, #bee5eb); color: #0c5460; }
-            .loading { 
-                text-align: center; 
-                padding: 40px; 
-                color: #6c757d; 
-                font-size: 18px;
-            }
-            .spinner {
-                border: 4px solid #f3f3f3;
-                border-top: 4px solid #28a745;
-                border-radius: 50%;
-                width: 40px;
-                height: 40px;
-                animation: spin 1s linear infinite;
-                margin: 0 auto 20px;
-            }
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-            .alert { 
-                padding: 15px 20px; 
-                border-radius: 8px; 
-                margin-bottom: 20px; 
-                font-weight: 500;
-                animation: slideIn 0.3s ease;
-            }
-            @keyframes slideIn {
-                from { opacity: 0; transform: translateY(-10px); }
-                to { opacity: 1; transform: translateY(0); }
-            }
-            .alert-success { 
-                background: linear-gradient(135deg, #d4edda, #c3e6cb); 
-                color: #155724; 
-                border-left: 4px solid #28a745;
-            }
-            .alert-danger { 
-                background: linear-gradient(135deg, #f8d7da, #f5c6cb); 
-                color: #721c24; 
-                border-left: 4px solid #dc3545;
-            }
-            .stats {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 20px;
-                margin-bottom: 30px;
-            }
-            .stat-card {
-                background: linear-gradient(135deg, #28a745, #20c997);
-                color: white;
-                padding: 25px;
-                border-radius: 10px;
-                text-align: center;
-            }
-            .stat-card h3 {
-                font-size: 2.5em;
-                margin-bottom: 10px;
-            }
-            .stat-card p {
-                opacity: 0.9;
-                font-size: 1.1em;
-            }
-            @media (max-width: 768px) {
-                .toolbar { flex-direction: column; align-items: stretch; }
-                .sync-item { flex-direction: column; align-items: flex-start; }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>🔄 Sincronización de Datos</h1>
-                <p>Sincronización manual y automática de datos del sistema</p>
-            </div>
-            
-            <div class="content">
-                <div class="stats" id="stats-container">
-                    <div class="stat-card">
-                        <h3 id="total-syncs">0</h3>
-                        <p>Sincronizaciones</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3 id="success-syncs">0</h3>
-                        <p>Exitosas</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3 id="error-syncs">0</h3>
-                        <p>Con Errores</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3 id="last-sync">Nunca</h3>
-                        <p>Última Sync</p>
-                    </div>
-                </div>
-                
-                <div class="toolbar">
-                    <button class="btn btn-success" onclick="iniciarSincronizacion()">
-                        🔄 Iniciar Sincronización
-                    </button>
-                    <button class="btn btn-warning" onclick="programarSync()">
-                        ⏰ Programar Sync
-                    </button>
-                    <button class="btn btn-primary" onclick="verHistorial()">
-                        📊 Ver Historial
-                    </button>
-                    <button class="btn btn-secondary" onclick="volverPanel()">
-                        ← Volver al Panel
-                    </button>
-                </div>
-                
-                <div id="loading" class="loading" style="display: none;">
-                    <div class="spinner"></div>
-                    Sincronizando datos...
-                </div>
-                
-                <div id="alert-container"></div>
-                
-                <div id="sync-container" style="display: none;">
-                    <!-- Resultados de sincronización se cargarán aquí -->
-                </div>
-            </div>
-        </div>
+            logger.error(f"Error actualizando precio: {e}")
+            flash('Error interno al actualizar precio', 'error')
         
+<<<<<<< HEAD
         <script>
             let syncData = null;
             
@@ -2205,45 +1785,143 @@ def system_status():
 def devops_ui():
     """Interfaz web para gestión de endpoints DevOps"""
     from flask import render_template
+=======
+        return redirect(url_for('devops.gestion_precios'))
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb
     
+    # GET - Listar precios y productos
     try:
-        return render_template('devops.html')
+        precios_result = make_api_request('GET', 'precios')
+        productos_result = make_api_request('GET', 'productos')
+        
+        if 'error' in precios_result:
+            logger.error(f"Error obteniendo precios: {precios_result['error']}")
+            flash(f'Error obteniendo precios: {precios_result["error"]}', 'error')
+            precios = []
+        else:
+            precios = precios_result.get('data', [])
+        
+        if 'error' in productos_result:
+            logger.error(f"Error obteniendo productos: {productos_result['error']}")
+            flash(f'Error obteniendo productos: {productos_result["error"]}', 'error')
+            productos = []
+        else:
+            productos = productos_result.get('data', [])
+            
     except Exception as e:
-        logger.error(f"Error cargando interfaz DevOps UI: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error cargando interfaz: {str(e)}'
-        }), 500
+        logger.error(f"Error en gestión de precios: {e}")
+        flash('Error interno al obtener datos', 'error')
+        precios = []
+        productos = []
+    
+    # SIEMPRE devolver HTML
+    return render_template('devops/precios.html', precios=precios, productos=productos)
 
-# =================================================================
+# =============================
+# MIDDLEWARE ANTI-JSON CRUDO
+# =============================
+
+@devops_bp.before_request
+def before_request():
+    """Middleware para prevenir JSON crudo"""
+    pass
+
+@devops_bp.after_request
+def after_request(response):
+    """Middleware para garantizar que nunca se devuelva JSON crudo"""
+    try:
+        # Si la respuesta es JSON, convertir a HTML
+        if response.content_type and 'application/json' in response.content_type:
+            logger.warning("Interceptando respuesta JSON - convirtiendo a HTML")
+            # Redirigir al dashboard en lugar de devolver JSON
+            return redirect(url_for('devops.devops_home'))
+        
+        # Si la respuesta contiene JSON crudo en el contenido, redirigir
+        if response.data:
+            content_str = response.data.decode('utf-8', errors='ignore')
+            if ('"status":"error"' in content_str or 
+                '"message":"Error interno del servidor DevOps"' in content_str or
+                '"timestamp":' in content_str):
+                logger.warning("Interceptando JSON crudo - redirigiendo")
+                return redirect(url_for('devops.devops_home'))
+        
+        return response
+    except Exception as e:
+        logger.error(f"Error en middleware anti-JSON: {e}")
+        return redirect(url_for('devops.devops_home'))
+
+# =============================
 # MANEJO DE ERRORES
-# =================================================================
+# =============================
 
 @devops_bp.errorhandler(404)
 def devops_not_found(error):
     """Manejar errores 404 en DevOps"""
-    return jsonify({
-        'status': 'error',
-        'message': 'Endpoint de DevOps no encontrado',
-        'available_endpoints': [
-            '/devops/',
-            '/devops/health',
-            '/devops/status',
-            '/devops/info',
-            '/devops/ofertas',
-            '/devops/negocios',
-            '/devops/sync',
-            '/devops/logs',
-            '/devops/config'
-        ],
-        'timestamp': datetime.now().isoformat()
-    }), 404
+    if request.path.startswith('/devops/api/'):
+        return jsonify({
+            'status': 'error',
+            'message': 'Endpoint DevOps no encontrado',
+            'available_endpoints': [
+                '/devops/',
+                '/devops/negocios',
+                '/devops/sucursales',
+                '/devops/productos',
+                '/devops/ofertas',
+                '/devops/precios'
+            ],
+            'timestamp': datetime.now().isoformat()
+        }), 404
+    else:
+        # Para rutas HTML, redirigir al dashboard
+        return redirect(url_for('devops.devops_home'))
 
 @devops_bp.errorhandler(500)
 def devops_internal_error(error):
     """Manejar errores 500 en DevOps"""
-    return jsonify({
-        'status': 'error',
-        'message': 'Error interno del servidor DevOps',
-        'timestamp': datetime.now().isoformat()
-    }), 500
+    logger.error(f"Error interno DevOps: {error}")
+    
+    if request.path.startswith('/devops/api/'):
+        return jsonify({
+            'status': 'error',
+            'message': 'Error interno del servidor DevOps',
+            'timestamp': datetime.now().isoformat()
+        }), 500
+    else:
+        # Para rutas HTML, mostrar página de error
+        flash('Error interno del servidor. Intente nuevamente.', 'error')
+        return redirect(url_for('devops.devops_home'))
+
+@devops_bp.errorhandler(Exception)
+def devops_handle_exception(error):
+    """Manejar todas las excepciones no capturadas"""
+    logger.error(f"Excepción no manejada en DevOps: {error}")
+    
+    if request.path.startswith('/devops/api/'):
+        return jsonify({
+            'status': 'error',
+            'message': 'Error interno del servidor DevOps',
+            'timestamp': datetime.now().isoformat()
+        }), 500
+    else:
+        # Para rutas HTML, mostrar página de error
+        flash('Error interno del servidor. Intente nuevamente.', 'error')
+        return redirect(url_for('devops.devops_home'))
+
+# Crear aplicación Flask para ejecución directa
+if __name__ == "__main__":
+    from flask import Flask
+    app = Flask(__name__)
+    app.secret_key = 'devops_secret_key_2025'
+    app.register_blueprint(devops_bp)
+    
+    print("Iniciando DevOps en puerto 5002...")
+    print("URL: http://localhost:5002/devops/")
+    print("Credenciales: devops / DevOps2025!Secure")
+    print("Presiona Ctrl+C para detener")
+    
+    try:
+        app.run(host='0.0.0.0', port=5002, debug=False)
+    except KeyboardInterrupt:
+        print("\nDevOps detenido")
+    except Exception as e:
+        print(f"Error iniciando DevOps: {e}")

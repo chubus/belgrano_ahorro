@@ -16,7 +16,7 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         if not session.get('usuario_id'):
             logger.warning(f"Intento de acceso no autorizado a {request.endpoint} desde {request.remote_addr}")
-            if request.is_xhr or request.path.startswith('/api/'):
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
                 return jsonify({'error': 'No autorizado', 'redirect': '/login'}), 401
             flash('Debes iniciar sesión para acceder a esta página', 'warning')
             return redirect(url_for('login'))
@@ -29,14 +29,14 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if not session.get('usuario_id'):
             logger.warning(f"Intento de acceso no autorizado a {request.endpoint} desde {request.remote_addr}")
-            if request.is_xhr or request.path.startswith('/api/'):
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
                 return jsonify({'error': 'No autorizado', 'redirect': '/login'}), 401
             flash('Debes iniciar sesión para acceder a esta página', 'warning')
             return redirect(url_for('login'))
         
         if session.get('usuario_rol') != 'admin':
             logger.warning(f"Intento de acceso sin permisos de admin a {request.endpoint} por usuario {session.get('usuario_id')}")
-            if request.is_xhr or request.path.startswith('/api/'):
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
                 return jsonify({'error': 'Acceso denegado', 'redirect': '/'}), 403
             flash('No tienes permisos para acceder a esta página', 'danger')
             return redirect(url_for('index'))
@@ -78,7 +78,7 @@ def validate_input_data(required_fields=None, optional_fields=None):
                     for field in required_fields:
                         if not data.get(field):
                             logger.warning(f"Campo requerido faltante: {field} en {request.endpoint}")
-                            if request.is_xhr or request.path.startswith('/api/'):
+                            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
                                 return jsonify({'error': f'Campo requerido: {field}'}), 400
                             flash(f'El campo {field} es requerido', 'danger')
                             return redirect(request.url)
@@ -89,7 +89,7 @@ def validate_input_data(required_fields=None, optional_fields=None):
                     email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
                     if not re.match(email_pattern, data['email']):
                         logger.warning(f"Email inválido: {data['email']} en {request.endpoint}")
-                        if request.is_xhr or request.path.startswith('/api/'):
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
                             return jsonify({'error': 'Formato de email inválido'}), 400
                         flash('Por favor ingresa un email válido', 'danger')
                         return redirect(request.url)
@@ -98,7 +98,7 @@ def validate_input_data(required_fields=None, optional_fields=None):
                 if 'password' in data and data.get('password'):
                     if len(data['password']) < 6:
                         logger.warning(f"Contraseña muy corta en {request.endpoint}")
-                        if request.is_xhr or request.path.startswith('/api/'):
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
                             return jsonify({'error': 'La contraseña debe tener al menos 6 caracteres'}), 400
                         flash('La contraseña debe tener al menos 6 caracteres', 'danger')
                         return redirect(request.url)
@@ -139,7 +139,7 @@ def rate_limit(max_requests=5, window=60):
             # Verificar límite
             if len(request_counts[client_ip]) >= max_requests:
                 logger.warning(f"Rate limit excedido para IP: {client_ip} en {request.endpoint}")
-                if request.is_xhr or request.path.startswith('/api/'):
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
                     return jsonify({'error': 'Demasiadas solicitudes. Intenta más tarde.'}), 429
                 flash('Demasiadas solicitudes. Intenta más tarde.', 'warning')
                 return redirect(request.url)

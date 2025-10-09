@@ -3,8 +3,8 @@
 # BELGRANO AHORRO - TICKETERA
 # =================================================================
 
-# Usar imagen base estable y ligera
-FROM python:3.9-slim
+# Usar imagen base estable y soportada por Render
+FROM python:3.9-bullseye
 
 # Deshabilitar BuildKit para evitar problemas de conexión
 ENV DOCKER_BUILDKIT=0

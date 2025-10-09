@@ -176,4 +176,7 @@ X-Source: devops
 2. Tests de integración
 3. Tests de carga
 4. Deploy a producción
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb

@@ -48,6 +48,14 @@ except Exception as e:
     print(f"❌ Error importando db: {e}")
     raise  # Detén la app si el import falla
 
+# Importar API RESTful
+try:
+    from api_belgrano_ahorro import api_bp
+    print("✅ API RESTful importada correctamente")
+except Exception as e:
+    print(f"❌ Error importando API: {e}")
+    api_bp = None
+
 # Función para obtener conexión a la base de datos
 def get_db_connection():
     """Obtener conexión a la base de datos"""
@@ -73,6 +81,11 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = 'belgrano_ahorro_secret_key_2025'  # Clave secreta para sesiones
 
+# Registrar API RESTful
+if api_bp:
+    app.register_blueprint(api_bp)
+    print("✅ API RESTful registrada en /api/*")
+
 # Configurar entorno
 # Configurar variables de entorno por defecto
 if 'FLASK_ENV' not in os.environ:
@@ -90,6 +103,10 @@ app.config['ENV'] = os.environ.get('FLASK_ENV', 'development')
 
 # Registrar manejadores de errores
 register_error_handlers(app)
+
+# Configurar variables de entorno para DevOps
+os.environ.setdefault("BELGRANO_AHORRO_URL", "https://belgranoahorro-hp30.onrender.com")
+os.environ.setdefault("BELGRANO_AHORRO_API_KEY", "belgrano_ahorro_api_key_2025")
 
 # Importar y registrar blueprint de DevOps
 try:
@@ -136,6 +153,7 @@ else:
 def buscar_productos(productos, busqueda):
     """
     Buscar productos por nombre, descripción o categoría
+    holi
     
     PARÁMETROS:
     - productos: lista de productos a buscar
@@ -481,12 +499,18 @@ def login():
         # Validación de campos
         if not email or not password:
             logger.warning("Login fallido - Campos incompletos")
+            # Si es una petición AJAX, devolver JSON
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Campos requeridos: email y password'}), 400
             flash('❌ Por favor completa todos los campos obligatorios', 'danger')
             return render_template('login.html')
         
         # Validación de formato de email
         if not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email):
             logger.warning(f"Login fallido - Email inválido: {email}")
+            # Si es una petición AJAX, devolver JSON
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Formato de email inválido'}), 400
             flash('❌ Por favor ingresa un email válido', 'danger')
             return render_template('login.html')
         
@@ -543,6 +567,9 @@ def register():
         # Validaciones mejoradas
         if not all([nombre, apellido, email, password, confirmar_password]):
             logger.warning("Registro fallido - Campos obligatorios incompletos")
+            # Si es una petición AJAX, devolver JSON
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'error': 'Todos los campos son obligatorios'}), 400
             flash('Por favor completa todos los campos obligatorios', 'danger')
             return render_template('register.html')
         
@@ -930,6 +957,34 @@ def index():
                          productos_por_negocio=productos_por_negocio,
                          busqueda=busqueda,
                          productos_filtrados=productos_filtrados)
+
+@app.route("/productos")
+def productos():
+    """
+    RUTA DE PRODUCTOS - Página de todos los productos
+    """
+    # Obtener parámetro de búsqueda
+    busqueda = request.args.get('busqueda', '').strip()
+    
+    # Cargar datos completos
+    datos = cargar_datos_completos()
+    productos = datos.get('productos', [])
+    categorias = datos.get('categorias', {})
+    
+    # Filtrar productos activos
+    productos_activos = [p for p in productos if p.get('activo', True)]
+    
+    # Filtrar por búsqueda si existe
+    if busqueda:
+        productos_activos = [
+            p for p in productos_activos 
+            if busqueda.lower() in p['nombre'].lower()
+        ]
+    
+    return render_template("productos.html", 
+                         productos=productos_activos,
+                         categorias=categorias,
+                         busqueda=busqueda)
 
 @app.route("/negocio/<negocio_id>")
 def ver_negocio(negocio_id):
@@ -2560,16 +2615,102 @@ def api_get_ofertas():
         if not datos or 'ofertas' not in datos:
             return jsonify([]), 200
         
-        # Convertir diccionario a lista
-        ofertas = []
-        for oferta_id, oferta_data in datos['ofertas'].items():
-            oferta_data['id'] = oferta_id
-            ofertas.append(oferta_data)
+        # Verificar si ofertas es una lista o diccionario
+        ofertas_data = datos['ofertas']
+        if isinstance(ofertas_data, list):
+            # Si es lista, devolverla directamente
+            return jsonify(ofertas_data), 200
+        elif isinstance(ofertas_data, dict):
+            # Si es diccionario, convertir a lista
+            ofertas = []
+            for oferta_id, oferta_data in ofertas_data.items():
+                oferta_data['id'] = oferta_id
+                ofertas.append(oferta_data)
+            return jsonify(ofertas), 200
+        else:
+            return jsonify([]), 200
         
-        return jsonify(ofertas), 200
     except Exception as e:
         logger.error(f"Error obteniendo ofertas: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/categorias', methods=['GET'])
+def api_get_categorias():
+    """API endpoint para obtener todas las categorías"""
+    try:
+        datos = cargar_datos_completos()
+        categorias = datos.get('categorias', {})
+        
+        # Convertir diccionario a lista
+        categorias_lista = []
+        for cat_id, cat_data in categorias.items():
+            cat_data['id'] = cat_id
+            categorias_lista.append(cat_data)
+        
+        return jsonify(categorias_lista), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo categorías: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/sucursales', methods=['GET'])
+def api_get_sucursales():
+    """API endpoint para obtener todas las sucursales"""
+    try:
+        datos = cargar_datos_completos()
+        sucursales = datos.get('sucursales', {})
+        
+        # Convertir diccionario a lista
+        sucursales_lista = []
+        for suc_id, suc_data in sucursales.items():
+            suc_data['id'] = suc_id
+            sucursales_lista.append(suc_data)
+        
+        return jsonify(sucursales_lista), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo sucursales: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/pedidos', methods=['GET'])
+def api_get_pedidos():
+    """API endpoint para obtener pedidos del usuario"""
+    try:
+        # Por ahora devolver lista vacía hasta implementar autenticación
+        return jsonify([]), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo pedidos: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/usuarios', methods=['GET'])
+def api_get_usuarios():
+    """API endpoint para obtener usuarios (solo admin)"""
+    try:
+        # Por ahora devolver lista vacía hasta implementar autenticación
+        return jsonify([]), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo usuarios: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/test-ticketera', methods=['GET'])
+def api_test_ticketera():
+    """Endpoint de prueba para verificar conectividad con Ticketera"""
+    try:
+        import requests
+        response = requests.get('http://localhost:5001/api/test', timeout=5)
+        return jsonify({
+            'status': 'success',
+            'ticketera_status': response.status_code,
+            'message': 'Conectividad verificada'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error conectando con Ticketera: {str(e)}'
+        }), 500
+
+@app.route('/api/v1/immediate-test', methods=['GET'])
+def api_immediate_test():
+    """Endpoint de prueba inmediato"""
+    return "OK", 200
 
 @app.route('/api/v1/ofertas', methods=['POST'])
 @require_api_key

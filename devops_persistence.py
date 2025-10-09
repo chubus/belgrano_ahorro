@@ -48,39 +48,39 @@ class DevOpsPersistence:
                 
                 # Crear tabla de negocios si no existe
                 cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS negocios (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        nombre TEXT NOT NULL,
-                        descripcion TEXT,
-                        direccion TEXT,
-                        telefono TEXT,
-                        email TEXT,
-                        activo BOOLEAN DEFAULT 1,
-                        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-                
+                CREATE TABLE IF NOT EXISTS negocios (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    descripcion TEXT,
+                    direccion TEXT,
+                    telefono TEXT,
+                    email TEXT,
+                    activo BOOLEAN DEFAULT 1,
+                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
                 # Crear tabla de productos si no existe
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS productos (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        nombre TEXT NOT NULL,
-                        descripcion TEXT,
-                        precio REAL NOT NULL,
-                        categoria TEXT,
-                        stock INTEGER DEFAULT 0,
-                        stock_minimo INTEGER DEFAULT 0,
-                        negocio_id INTEGER,
-                        activo BOOLEAN DEFAULT 1,
-                        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-                    )
-                ''')
-                
-                # Crear tabla de sucursales si no existe
-                cursor.execute('''
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS productos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    descripcion TEXT,
+                    precio REAL NOT NULL,
+                    categoria TEXT,
+                    stock INTEGER DEFAULT 0,
+                    stock_minimo INTEGER DEFAULT 0,
+                    negocio_id INTEGER,
+                    activo BOOLEAN DEFAULT 1,
+                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+                )
+            ''')
+            
+            # Crear tabla de sucursales si no existe
+            cursor.execute('''
                     CREATE TABLE IF NOT EXISTS sucursales (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         nombre TEXT NOT NULL,
@@ -94,23 +94,23 @@ class DevOpsPersistence:
                         FOREIGN KEY (negocio_id) REFERENCES negocios(id)
                     )
                 ''')
-
-                # Crear tabla de ofertas si no existe
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS ofertas (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        titulo TEXT NOT NULL,
-                        descripcion TEXT,
-                        productos TEXT,  -- JSON string de productos
-                        hasta_agotar_stock BOOLEAN DEFAULT 0,
-                        activa BOOLEAN DEFAULT 1,
-                        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-                
-                # Crear historial de precios si no existe
-                cursor.execute('''
+            
+            # Crear tabla de ofertas si no existe
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS ofertas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    titulo TEXT NOT NULL,
+                    descripcion TEXT,
+                    productos TEXT,  -- JSON string de productos
+                    hasta_agotar_stock BOOLEAN DEFAULT 0,
+                    activa BOOLEAN DEFAULT 1,
+                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Crear historial de precios si no existe
+            cursor.execute('''
                     CREATE TABLE IF NOT EXISTS precios_historial (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         producto_id INTEGER NOT NULL,
@@ -123,18 +123,18 @@ class DevOpsPersistence:
                 ''')
 
                 # Crear tabla de categorías si no existe
-                cursor.execute('''
-                    CREATE TABLE IF NOT EXISTS categorias (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        nombre TEXT NOT NULL UNIQUE,
-                        descripcion TEXT,
-                        activa BOOLEAN DEFAULT 1,
-                        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-                
-                conn.commit()
-                logger.info("Base de datos DevOps inicializada correctamente")
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS categorias (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL UNIQUE,
+                    descripcion TEXT,
+                    activa BOOLEAN DEFAULT 1,
+                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            conn.commit()
+            logger.info("Base de datos DevOps inicializada correctamente")
                 
         except Exception as e:
             logger.error(f"Error inicializando base de datos: {e}")
@@ -175,7 +175,7 @@ class DevOpsPersistence:
                         'email': row[5],
                         'activo': bool(row[6]),
                         'fecha_creacion': row[7],
-                        'fecha_actualizacion': row[8]
+                        'fecha_actualizacion': row[7] if len(row) > 7 else row[7]  # Usar fecha_creacion si no hay fecha_actualizacion
                     }
                 
         except Exception as e:
@@ -201,7 +201,7 @@ class DevOpsPersistence:
                         'email': row[5],
                         'activo': bool(row[6]),
                         'fecha_creacion': row[7],
-                        'fecha_actualizacion': row[8]
+                        'fecha_actualizacion': row[7] if len(row) > 7 else row[7]  # Usar fecha_creacion si no hay fecha_actualizacion
                     })
                 
                 return negocios
@@ -250,7 +250,7 @@ class DevOpsPersistence:
                         'activo': bool(row[8]),
                         'fecha_creacion': row[9],
                         'fecha_actualizacion': row[10]
-                    }
+                }
                 
         except Exception as e:
             logger.error(f"Error creando producto: {e}")
@@ -285,7 +285,7 @@ class DevOpsPersistence:
         except Exception as e:
             logger.error(f"Error obteniendo productos: {e}")
             return []
-
+    
     def obtener_categorias(self) -> List[Dict]:
         """Obtener todas las categorías"""
         try:
@@ -324,7 +324,7 @@ class DevOpsPersistence:
 
                 # Registrar historial
                 cursor.execute('INSERT INTO precios_historial (producto_id, precio_anterior, precio_nuevo, motivo) VALUES (?, ?, ?, ?)', (int(producto_id), precio_anterior, float(nuevo_precio), motivo or 'Actualización desde DevOps'))
-
+                
                 conn.commit()
 
                 # Devolver producto actualizado
@@ -338,7 +338,7 @@ class DevOpsPersistence:
         except Exception as e:
             logger.error(f"Error actualizando precio: {e}")
             raise
-
+    
     def obtener_precios(self) -> List[Dict]:
         """Obtener lista de productos con sus precios y último cambio"""
         try:
@@ -404,7 +404,7 @@ class DevOpsPersistence:
                         'activa': bool(row[5]),
                         'fecha_creacion': row[6],
                         'fecha_actualizacion': row[7]
-                    }
+                }
                 
         except Exception as e:
             logger.error(f"Error creando oferta: {e}")
@@ -455,7 +455,7 @@ class DevOpsPersistence:
                 ))
                 sucursal_id = cursor.lastrowid
                 conn.commit()
-
+                
                 cursor.execute('SELECT * FROM sucursales WHERE id = ?', (sucursal_id,))
                 row = cursor.fetchone()
                 if row:
@@ -473,7 +473,7 @@ class DevOpsPersistence:
         except Exception as e:
             logger.error(f"Error creando sucursal: {e}")
             raise
-
+    
     def obtener_sucursales(self, negocio_id: Optional[int] = None) -> List[Dict]:
         """Obtener sucursales, opcionalmente filtradas por negocio"""
         try:
@@ -501,7 +501,7 @@ class DevOpsPersistence:
         except Exception as e:
             logger.error(f"Error obteniendo sucursales: {e}")
             return []
-
+    
     def sincronizar_con_belgrano_ahorro(self):
         """Sincronizar datos con la aplicación principal de Belgrano Ahorro"""
         try:
@@ -509,7 +509,7 @@ class DevOpsPersistence:
             # Por ahora, los datos ya están en la misma base de datos
             logger.info("Sincronización con Belgrano Ahorro completada")
             return True
-            
+                
         except Exception as e:
             logger.error(f"Error en sincronización: {e}")
             return False

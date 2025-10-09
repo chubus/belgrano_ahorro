@@ -1,694 +1,871 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-API REST para Belgrano Ahorro
-Expone endpoints para que Belgrano Tickets pueda consumir datos
+API RESTful para Belgrano Ahorro
+Endpoints completos para comunicación con DevOps
+Soporte bilingüe: español e inglés
 """
 
-from flask import Blueprint, jsonify, request
-from datetime import datetime
-import sqlite3
+import os
 import json
+import sqlite3
 import logging
+from datetime import datetime
+from flask import Blueprint, request, jsonify, g
 from functools import wraps
 
 # Configurar logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Crear blueprint para la API
-api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
+api_bp = Blueprint('belgrano_api', __name__, url_prefix='/api')
 
-# ==========================================
-# UTILIDADES Y DECORADORES
-# ==========================================
+def register_api_blueprint(app):
+    """Registrar el blueprint de API en la aplicación Flask"""
+    if 'belgrano_api' not in [bp.name for bp in app.blueprints.values()]:
+        app.register_blueprint(api_bp)
+        logger.info("API blueprint registrado correctamente")
+    else:
+        logger.info("API blueprint ya estaba registrado")
 
 def require_api_key(f):
-    """Decorador para requerir API key"""
+    """Decorator para requerir API key válida"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        api_key = request.headers.get('X-API-Key')
-        if not api_key or api_key != 'belgrano_ahorro_api_key_2025':
-            return jsonify({'error': 'API key requerida'}), 401
+        # Obtener API key del header Authorization
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'error': 'Authorization header required'}), 401
+        
+        api_key = auth_header.split(' ')[1]
+        expected_api_key = os.getenv('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
+        
+        if api_key != expected_api_key:
+            logger.warning(f"Invalid API key attempt: {api_key[:10]}...")
+            return jsonify({'error': 'Invalid API key'}), 401
+        
         return f(*args, **kwargs)
     return decorated_function
 
 def get_db_connection():
     """Obtener conexión a la base de datos"""
-    conn = sqlite3.connect('belgrano_ahorro.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+    db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
+    return sqlite3.connect(db_path)
 
-# ==========================================
-# ENDPOINTS DE PRODUCTOS
-# ==========================================
-
-@api_bp.route('/productos', methods=['GET'])
-@require_api_key
-def get_productos():
-    """Obtener todos los productos disponibles"""
+def ensure_tables():
+    """Crear tablas requeridas si no existen"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Obtener productos con información de comerciantes
-        query = """
-        SELECT p.*, c.nombre as comerciante_nombre, c.direccion as comerciante_direccion
-        FROM productos p
-        LEFT JOIN comerciantes c ON p.comerciante_id = c.id
-        WHERE p.activo = 1
-        ORDER BY p.nombre
-        """
-        
-        cursor.execute(query)
-        productos = cursor.fetchall()
-        
-        productos_list = []
-        for producto in productos:
-            productos_list.append({
-                'id': producto['id'],
-                'nombre': producto['nombre'],
-                'descripcion': producto['descripcion'],
-                'precio': producto['precio'],
-                'categoria': producto['categoria'],
-                'stock': producto['stock'],
-                'imagen': producto['imagen'],
-                'comerciante': {
-                    'id': producto['comerciante_id'],
-                    'nombre': producto['comerciante_nombre'],
-                    'direccion': producto['comerciante_direccion']
-                },
-                'activo': bool(producto['activo']),
-                'fecha_creacion': producto['fecha_creacion']
-            })
-        
-        conn.close()
-        
-        return jsonify({
-            'status': 'success',
-            'total': len(productos_list),
-            'productos': productos_list,
-            'timestamp': datetime.now().isoformat()
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo productos: {e}")
-        return jsonify({
-            'status': 'error',
-            'error': 'Error interno del servidor',
-            'timestamp': datetime.now().isoformat()
-        }), 500
-
-@api_bp.route('/productos/<int:producto_id>', methods=['GET'])
-@require_api_key
-def get_producto(producto_id):
-    """Obtener un producto específico"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        query = """
-        SELECT p.*, c.nombre as comerciante_nombre, c.direccion as comerciante_direccion
-        FROM productos p
-        LEFT JOIN comerciantes c ON p.comerciante_id = c.id
-        WHERE p.id = ? AND p.activo = 1
-        """
-        
-        cursor.execute(query, (producto_id,))
-        producto = cursor.fetchone()
-        
-        if not producto:
-            return jsonify({
-                'status': 'error',
-                'error': 'Producto no encontrado'
-            }), 404
-        
-        producto_data = {
-            'id': producto['id'],
-            'nombre': producto['nombre'],
-            'descripcion': producto['descripcion'],
-            'precio': producto['precio'],
-            'categoria': producto['categoria'],
-            'stock': producto['stock'],
-            'imagen': producto['imagen'],
-            'comerciante': {
-                'id': producto['comerciante_id'],
-                'nombre': producto['comerciante_nombre'],
-                'direccion': producto['comerciante_direccion']
-            },
-            'activo': bool(producto['activo']),
-            'fecha_creacion': producto['fecha_creacion']
-        }
-        
-        conn.close()
-        
-        return jsonify({
-            'status': 'success',
-            'producto': producto_data,
-            'timestamp': datetime.now().isoformat()
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo producto {producto_id}: {e}")
-        return jsonify({
-            'status': 'error',
-            'error': 'Error interno del servidor',
-            'timestamp': datetime.now().isoformat()
-        }), 500
-
-@api_bp.route('/productos/categoria/<categoria>', methods=['GET'])
-@require_api_key
-def get_productos_por_categoria(categoria):
-    """Obtener productos por categoría"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        query = """
-        SELECT p.*, c.nombre as comerciante_nombre
-        FROM productos p
-        LEFT JOIN comerciantes c ON p.comerciante_id = c.id
-        WHERE p.categoria = ? AND p.activo = 1
-        ORDER BY p.nombre
-        """
-        
-        cursor.execute(query, (categoria,))
-        productos = cursor.fetchall()
-        
-        productos_list = []
-        for producto in productos:
-            productos_list.append({
-                'id': producto['id'],
-                'nombre': producto['nombre'],
-                'precio': producto['precio'],
-                'stock': producto['stock'],
-                'comerciante': producto['comerciante_nombre']
-            })
-        
-        conn.close()
-        
-        return jsonify({
-            'status': 'success',
-            'categoria': categoria,
-            'total': len(productos_list),
-            'productos': productos_list,
-            'timestamp': datetime.now().isoformat()
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo productos por categoría {categoria}: {e}")
-        return jsonify({
-            'status': 'error',
-            'error': 'Error interno del servidor',
-            'timestamp': datetime.now().isoformat()
-        }), 500
-
-# ==========================================
-# ENDPOINTS DE PEDIDOS
-# ==========================================
-
-@api_bp.route('/pedidos', methods=['GET'])
-@require_api_key
-def get_pedidos():
-    """Obtener todos los pedidos"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        query = """
-        SELECT p.*, u.nombre as cliente_nombre, u.email as cliente_email
-        FROM pedidos p
-        LEFT JOIN usuarios u ON p.usuario_id = u.id
-        ORDER BY p.fecha_pedido DESC
-        LIMIT 100
-        """
-        
-        cursor.execute(query)
-        pedidos = cursor.fetchall()
-        
-        pedidos_list = []
-        for pedido in pedidos:
-            # Obtener items del pedido
-            cursor.execute("""
-                SELECT pi.*, p.nombre as producto_nombre
-                FROM pedido_items pi
-                LEFT JOIN productos p ON pi.producto_id = p.id
-                WHERE pi.pedido_id = ?
-            """, (pedido['id'],))
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
             
-            items = cursor.fetchall()
-            items_list = []
-            for item in items:
-                items_list.append({
-                    'producto_id': item['producto_id'],
-                    'producto_nombre': item['producto_nombre'],
-                    'cantidad': item['cantidad'],
-                    'precio_unitario': item['precio_unitario'],
-                    'subtotal': item['subtotal']
+            # Tabla negocios
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS negocios (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    descripcion TEXT,
+                    direccion TEXT,
+                    telefono TEXT,
+                    email TEXT,
+                    activo BOOLEAN DEFAULT 1,
+                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Tabla sucursales
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS sucursales (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    direccion TEXT,
+                    telefono TEXT,
+                    email TEXT,
+                    negocio_id INTEGER NOT NULL,
+                    activo BOOLEAN DEFAULT 1,
+                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+                )
+            ''')
+            
+            # Tabla productos
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS productos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    descripcion TEXT,
+                    precio REAL NOT NULL,
+                    categoria TEXT,
+                    stock INTEGER DEFAULT 0,
+                    stock_minimo INTEGER DEFAULT 0,
+                    negocio_id INTEGER,
+                    activo BOOLEAN DEFAULT 1,
+                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+                )
+            ''')
+            
+            # Tabla ofertas
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS ofertas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    titulo TEXT NOT NULL,
+                    descripcion TEXT,
+                    descuento_porcentaje REAL DEFAULT 0.0,
+                    descuento_fijo REAL DEFAULT 0.0,
+                    activa BOOLEAN DEFAULT 1,
+                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Tabla precios_historial
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS precios_historial (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    producto_id INTEGER NOT NULL,
+                    precio_anterior REAL NOT NULL,
+                    precio_nuevo REAL NOT NULL,
+                    motivo TEXT,
+                    fecha_cambio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (producto_id) REFERENCES productos(id)
+                )
+            ''')
+            
+            # Insertar datos de ejemplo si las tablas están vacías
+            cursor.execute('SELECT COUNT(*) FROM negocios')
+            if cursor.fetchone()[0] == 0:
+                cursor.execute('''
+                    INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo)
+                    VALUES ('Negocio Ejemplo', 'Descripción del negocio', 'Dirección ejemplo', '123456789', 'ejemplo@email.com', 1)
+                ''')
+            
+            cursor.execute('SELECT COUNT(*) FROM productos')
+            if cursor.fetchone()[0] == 0:
+                cursor.execute('''
+                    INSERT INTO productos (nombre, descripcion, precio, categoria, stock, negocio_id, activo)
+                    VALUES ('Producto Ejemplo', 'Descripción del producto', 100.0, 'Categoría', 10, 1, 1)
+                ''')
+            
+            cursor.execute('SELECT COUNT(*) FROM sucursales')
+            if cursor.fetchone()[0] == 0:
+                cursor.execute('''
+                    INSERT INTO sucursales (nombre, direccion, telefono, email, negocio_id, activo)
+                    VALUES ('Sucursal Ejemplo', 'Dirección sucursal', '987654321', 'sucursal@email.com', 1, 1)
+                ''')
+            
+            conn.commit()
+            logger.info("Tablas verificadas/creadas correctamente con datos de ejemplo")
+    except Exception as e:
+        logger.error(f"Error asegurando tablas: {e}")
+
+# Garantizar tablas al importar el módulo
+ensure_tables()
+
+# =============================
+# ENDPOINTS DE NEGOCIOS
+# =============================
+
+@api_bp.route('/negocios', methods=['GET', 'POST'])
+@require_api_key
+def api_negocios():
+    """CRUD de negocios"""
+    try:
+        if request.method == 'GET':
+            # Listar negocios
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT id, nombre, descripcion, direccion, telefono, email, activo, fecha_creacion
+                    FROM negocios
+                    ORDER BY nombre
+                ''')
+                rows = cursor.fetchall()
+                
+                negocios = []
+                for row in rows:
+                    negocios.append({
+                        'id': row[0],
+                        'nombre': row[1],
+                        'descripcion': row[2],
+                        'direccion': row[3],
+                        'telefono': row[4],
+                        'email': row[5],
+                        'activo': bool(row[6]),
+                        'fecha_creacion': row[7]
+                    })
+                
+                return jsonify({
+                    'status': 'success',
+                    'data': negocios,
+                    'total': len(negocios)
                 })
+        
+        elif request.method == 'POST':
+            # Crear negocio
+            data = request.get_json()
             
-            pedidos_list.append({
-                'id': pedido['id'],
-                'numero_pedido': pedido['numero_pedido'],
-                'cliente': {
-                    'id': pedido['usuario_id'],
-                    'nombre': pedido['cliente_nombre'],
-                    'email': pedido['cliente_email']
-                },
-                'total': pedido['total'],
-                'estado': pedido['estado'],
-                'metodo_pago': pedido['metodo_pago'],
-                'direccion': pedido['direccion'],
-                'notas': pedido['notas'],
-                'fecha_pedido': pedido['fecha_pedido'],
-                'items': items_list
-            })
-        
-        conn.close()
-        
-        return jsonify({
-            'status': 'success',
-            'total': len(pedidos_list),
-            'pedidos': pedidos_list,
-            'timestamp': datetime.now().isoformat()
-        }), 200
-        
+            if 'nombre' not in data:
+                return jsonify({'error': 'Missing required field: nombre'}), 400
+            
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (
+                    data['nombre'],
+                    data.get('descripcion', ''),
+                    data.get('direccion', ''),
+                    data.get('telefono', ''),
+                    data.get('email', ''),
+                    data.get('activo', True)
+                ))
+                
+                negocio_id = cursor.lastrowid
+                conn.commit()
+                
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Negocio creado exitosamente',
+                    'data': {'id': negocio_id}
+                }), 201
+    
     except Exception as e:
-        logger.error(f"Error obteniendo pedidos: {e}")
-        return jsonify({
-            'status': 'error',
-            'error': 'Error interno del servidor',
-            'timestamp': datetime.now().isoformat()
-        }), 500
+        logger.error(f"Error in api_negocios: {e}")
+        return jsonify({'error': str(e)}), 500
 
-@api_bp.route('/pedidos/<numero_pedido>', methods=['GET'])
+@api_bp.route('/negocios/<int:negocio_id>', methods=['GET', 'PUT', 'DELETE'])
 @require_api_key
-def get_pedido(numero_pedido):
-    """Obtener un pedido específico por número"""
+def api_negocio_detail(negocio_id):
+    """CRUD individual de negocio"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Obtener pedido
-        query = """
-        SELECT p.*, u.nombre as cliente_nombre, u.email as cliente_email, u.telefono
-        FROM pedidos p
-        LEFT JOIN usuarios u ON p.usuario_id = u.id
-        WHERE p.numero_pedido = ?
-        """
-        
-        cursor.execute(query, (numero_pedido,))
-        pedido = cursor.fetchone()
-        
-        if not pedido:
-            return jsonify({
-                'status': 'error',
-                'error': 'Pedido no encontrado'
-            }), 404
-        
-        # Obtener items del pedido
-        cursor.execute("""
-            SELECT pi.*, p.nombre as producto_nombre
-            FROM pedido_items pi
-            LEFT JOIN productos p ON pi.producto_id = p.id
-            WHERE pi.pedido_id = ?
-        """, (pedido['id'],))
-        
-        items = cursor.fetchall()
-        items_list = []
-        for item in items:
-            items_list.append({
-                'producto_id': item['producto_id'],
-                'producto_nombre': item['producto_nombre'],
-                'cantidad': item['cantidad'],
-                'precio_unitario': item['precio_unitario'],
-                'subtotal': item['subtotal']
-            })
-        
-        pedido_data = {
-            'id': pedido['id'],
-            'numero_pedido': pedido['numero_pedido'],
-            'cliente': {
-                'id': pedido['usuario_id'],
-                'nombre': pedido['cliente_nombre'],
-                'email': pedido['cliente_email'],
-                'telefono': pedido['telefono']
-            },
-            'total': pedido['total'],
-            'estado': pedido['estado'],
-            'metodo_pago': pedido['metodo_pago'],
-            'direccion': pedido['direccion'],
-            'notas': pedido['notas'],
-            'fecha_pedido': pedido['fecha_pedido'],
-            'items': items_list
-        }
-        
-        conn.close()
-        
-        return jsonify({
-            'status': 'success',
-            'pedido': pedido_data,
-            'timestamp': datetime.now().isoformat()
-        }), 200
-        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            if request.method == 'GET':
+                # Obtener negocio específico
+                cursor.execute('''
+                    SELECT id, nombre, descripcion, direccion, telefono, email, activo, fecha_creacion
+                    FROM negocios WHERE id = ?
+                ''', (negocio_id,))
+                row = cursor.fetchone()
+                
+                if not row:
+                    return jsonify({'error': 'Negocio no encontrado'}), 404
+                
+                negocio = {
+                    'id': row[0], 'nombre': row[1], 'descripcion': row[2], 'direccion': row[3],
+                    'telefono': row[4], 'email': row[5], 'activo': bool(row[6]), 'fecha_creacion': row[7]
+                }
+                
+                return jsonify({'status': 'success', 'data': negocio})
+            
+            elif request.method == 'PUT':
+                # Actualizar negocio
+                data = request.get_json()
+                fields, values = [], []
+                
+                for field in ['nombre', 'descripcion', 'direccion', 'telefono', 'email', 'activo']:
+                    if field in data:
+                        fields.append(f"{field} = ?")
+                        values.append(data[field])
+                
+                if not fields:
+                    return jsonify({'error': 'No fields to update'}), 400
+                
+                values.append(negocio_id)
+                query = f"UPDATE negocios SET {', '.join(fields)}, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id = ?"
+                cursor.execute(query, values)
+                conn.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({'error': 'Negocio no encontrado'}), 404
+                
+                return jsonify({'status': 'success', 'message': 'Negocio actualizado exitosamente'})
+            
+            elif request.method == 'DELETE':
+                # Eliminar negocio
+                cursor.execute('DELETE FROM negocios WHERE id = ?', (negocio_id,))
+                conn.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({'error': 'Negocio no encontrado'}), 404
+                
+                return jsonify({'status': 'success', 'message': 'Negocio eliminado exitosamente'})
+    
     except Exception as e:
-        logger.error(f"Error obteniendo pedido {numero_pedido}: {e}")
-        return jsonify({
-            'status': 'error',
-            'error': 'Error interno del servidor',
-            'timestamp': datetime.now().isoformat()
-        }), 500
+        logger.error(f"Error in api_negocio_detail: {e}")
+        return jsonify({'error': str(e)}), 500
 
-@api_bp.route('/pedidos/<numero_pedido>/estado', methods=['PUT'])
+# =============================
+# ENDPOINTS DE SUCURSALES
+# =============================
+
+@api_bp.route('/sucursales', methods=['GET', 'POST'])
 @require_api_key
-def actualizar_estado_pedido(numero_pedido):
-    """Actualizar estado de un pedido"""
+def api_sucursales():
+    """CRUD de sucursales"""
     try:
-        data = request.get_json()
-        nuevo_estado = data.get('estado')
+        if request.method == 'GET':
+            # Listar sucursales
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT s.id, s.nombre, s.direccion, s.telefono, s.email, 
+                           s.activo, s.horario_apertura, s.horario_cierre
+                    FROM sucursales s
+                    ORDER BY s.nombre
+                ''')
+                rows = cursor.fetchall()
+                
+                sucursales = []
+                for row in rows:
+                    sucursales.append({
+                        'id': row[0],
+                        'nombre': row[1],
+                        'direccion': row[2],
+                        'telefono': row[3],
+                        'email': row[4],
+                        'activo': bool(row[5]),
+                        'horario_apertura': row[6],
+                        'horario_cierre': row[7]
+                    })
+                
+                return jsonify({
+                    'status': 'success',
+                    'data': sucursales,
+                    'total': len(sucursales)
+                })
         
-        if not nuevo_estado:
-            return jsonify({
-                'status': 'error',
-                'error': 'Estado requerido'
-            }), 400
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Actualizar estado
-        cursor.execute("""
-            UPDATE pedidos 
-            SET estado = ?, fecha_actualizacion = ?
-            WHERE numero_pedido = ?
-        """, (nuevo_estado, datetime.now().isoformat(), numero_pedido))
-        
-        if cursor.rowcount == 0:
-            conn.close()
-            return jsonify({
-                'status': 'error',
-                'error': 'Pedido no encontrado'
-            }), 404
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({
-            'status': 'success',
-            'message': f'Estado actualizado a {nuevo_estado}',
-            'numero_pedido': numero_pedido,
-            'estado': nuevo_estado,
-            'timestamp': datetime.now().isoformat()
-        }), 200
-        
+        elif request.method == 'POST':
+            # Crear sucursal
+            data = request.get_json()
+            required_fields = ['nombre', 'negocio_id']
+            
+            for field in required_fields:
+                if field not in data:
+                    return jsonify({'error': f'Missing required field: {field}'}), 400
+            
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO sucursales (nombre, direccion, telefono, email, negocio_id, activo)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (
+                    data['nombre'],
+                    data.get('direccion', ''),
+                    data.get('telefono', ''),
+                    data.get('email', ''),
+                    data['negocio_id'],
+                    data.get('activo', True)
+                ))
+                
+                sucursal_id = cursor.lastrowid
+                conn.commit()
+                
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Sucursal creada exitosamente',
+                    'data': {'id': sucursal_id}
+                }), 201
+    
     except Exception as e:
-        logger.error(f"Error actualizando estado del pedido {numero_pedido}: {e}")
-        return jsonify({
-            'status': 'error',
-            'error': 'Error interno del servidor',
-            'timestamp': datetime.now().isoformat()
-        }), 500
+        logger.error(f"Error in api_sucursales: {e}")
+        return jsonify({'error': str(e)}), 500
 
-# ==========================================
-# ENDPOINTS DE USUARIOS
-# ==========================================
-
-@api_bp.route('/usuarios/<int:usuario_id>', methods=['GET'])
+@api_bp.route('/sucursales/<int:sucursal_id>', methods=['GET', 'PUT', 'DELETE'])
 @require_api_key
-def get_usuario(usuario_id):
-    """Obtener información de un usuario"""
+def api_sucursal_detail(sucursal_id):
+    """CRUD individual de sucursal"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        query = """
-        SELECT id, nombre, email, telefono, direccion, fecha_registro, activo
-        FROM usuarios
-        WHERE id = ?
-        """
-        
-        cursor.execute(query, (usuario_id,))
-        usuario = cursor.fetchone()
-        
-        if not usuario:
-            return jsonify({
-                'status': 'error',
-                'error': 'Usuario no encontrado'
-            }), 404
-        
-        usuario_data = {
-            'id': usuario['id'],
-            'nombre': usuario['nombre'],
-            'email': usuario['email'],
-            'telefono': usuario['telefono'],
-            'direccion': usuario['direccion'],
-            'fecha_registro': usuario['fecha_registro'],
-            'activo': bool(usuario['activo'])
-        }
-        
-        conn.close()
-        
-        return jsonify({
-            'status': 'success',
-            'usuario': usuario_data,
-            'timestamp': datetime.now().isoformat()
-        }), 200
-        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            if request.method == 'GET':
+                cursor.execute('''
+                    SELECT s.id, s.nombre, s.direccion, s.telefono, s.email, s.negocio_id, s.activo, n.nombre
+                    FROM sucursales s LEFT JOIN negocios n ON s.negocio_id = n.id WHERE s.id = ?
+                ''', (sucursal_id,))
+                row = cursor.fetchone()
+                
+                if not row:
+                    return jsonify({'error': 'Sucursal no encontrada'}), 404
+                
+                sucursal = {
+                    'id': row[0], 'nombre': row[1], 'direccion': row[2], 'telefono': row[3], 'email': row[4],
+                    'negocio_id': row[5], 'activo': bool(row[6]), 'negocio_nombre': row[7]
+                }
+                
+                return jsonify({'status': 'success', 'data': sucursal})
+            
+            elif request.method == 'PUT':
+                data = request.get_json()
+                fields, values = [], []
+                
+                for field in ['nombre', 'direccion', 'telefono', 'email', 'negocio_id', 'activo']:
+                    if field in data:
+                        fields.append(f"{field} = ?")
+                        values.append(data[field])
+                
+                if not fields:
+                    return jsonify({'error': 'No fields to update'}), 400
+                
+                values.append(sucursal_id)
+                query = f"UPDATE sucursales SET {', '.join(fields)}, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id = ?"
+                cursor.execute(query, values)
+                conn.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({'error': 'Sucursal no encontrada'}), 404
+                
+                return jsonify({'status': 'success', 'message': 'Sucursal actualizada exitosamente'})
+            
+            elif request.method == 'DELETE':
+                cursor.execute('DELETE FROM sucursales WHERE id = ?', (sucursal_id,))
+                conn.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({'error': 'Sucursal no encontrada'}), 404
+                
+                return jsonify({'status': 'success', 'message': 'Sucursal eliminada exitosamente'})
+    
     except Exception as e:
-        logger.error(f"Error obteniendo usuario {usuario_id}: {e}")
-        return jsonify({
-            'status': 'error',
-            'error': 'Error interno del servidor',
-            'timestamp': datetime.now().isoformat()
-        }), 500
+        logger.error(f"Error in api_sucursal_detail: {e}")
+        return jsonify({'error': str(e)}), 500
 
-# ==========================================
-# ENDPOINTS DE ESTADÍSTICAS
-# ==========================================
+# =============================
+# ENDPOINTS DE PRODUCTOS
+# =============================
 
-@api_bp.route('/stats', methods=['GET'])
+@api_bp.route('/productos', methods=['GET', 'POST'])
 @require_api_key
-def get_stats():
-    """Obtener estadísticas generales"""
+def api_productos():
+    """CRUD de productos"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        if request.method == 'GET':
+            # Listar productos
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT p.id, p.nombre, p.store, p.precio, p.categoria, 
+                           p.stock, p.activo, p.negocio_id, p.imagen
+                    FROM productos p
+                    ORDER BY p.nombre
+                ''')
+                rows = cursor.fetchall()
+                
+                productos = []
+                for row in rows:
+                    productos.append({
+                        'id': row[0],
+                        'nombre': row[1],
+                        'store': row[2],
+                        'precio': row[3],
+                        'categoria': row[4],
+                        'stock': row[5],
+                        'activo': bool(row[6]),
+                        'negocio_id': row[7],
+                        'imagen': row[8]
+                    })
+                
+                return jsonify({
+                    'status': 'success',
+                    'data': productos,
+                    'total': len(productos)
+                })
         
-        # Contar usuarios
-        cursor.execute("SELECT COUNT(*) as total FROM usuarios WHERE activo = 1")
-        total_usuarios = cursor.fetchone()['total']
-        
-        # Contar productos
-        cursor.execute("SELECT COUNT(*) as total FROM productos WHERE activo = 1")
-        total_productos = cursor.fetchone()['total']
-        
-        # Contar pedidos
-        cursor.execute("SELECT COUNT(*) as total FROM pedidos")
-        total_pedidos = cursor.fetchone()['total']
-        
-        # Pedidos por estado
-        cursor.execute("""
-            SELECT estado, COUNT(*) as total
-            FROM pedidos
-            GROUP BY estado
-        """)
-        pedidos_por_estado = {row['estado']: row['total'] for row in cursor.fetchall()}
-        
-        # Total de ventas
-        cursor.execute("SELECT SUM(total) as total_ventas FROM pedidos WHERE estado = 'completado'")
-        total_ventas = cursor.fetchone()['total_ventas'] or 0
-        
-        conn.close()
-        
-        return jsonify({
-            'status': 'success',
-            'stats': {
-                'total_usuarios': total_usuarios,
-                'total_productos': total_productos,
-                'total_pedidos': total_pedidos,
-                'pedidos_por_estado': pedidos_por_estado,
-                'total_ventas': total_ventas
-            },
-            'timestamp': datetime.now().isoformat()
-        }), 200
-        
+        elif request.method == 'POST':
+            # Crear producto
+            data = request.get_json()
+            required_fields = ['nombre', 'precio']
+            
+            for field in required_fields:
+                if field not in data:
+                    return jsonify({'error': f'Missing required field: {field}'}), 400
+            
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO productos (nombre, descripcion, precio, categoria, stock, negocio_id, activo)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    data['nombre'],
+                    data.get('descripcion', ''),
+                    data['precio'],
+                    data.get('categoria', ''),
+                    data.get('stock', 0),
+                    data.get('negocio_id'),
+                    data.get('activo', True)
+                ))
+                
+                producto_id = cursor.lastrowid
+                conn.commit()
+                
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Producto creado exitosamente',
+                    'data': {'id': producto_id}
+                }), 201
+    
     except Exception as e:
-        logger.error(f"Error obteniendo estadísticas: {e}")
-        return jsonify({
-            'status': 'error',
-            'error': 'Error interno del servidor',
-            'timestamp': datetime.now().isoformat()
-        }), 500
+        logger.error(f"Error in api_productos: {e}")
+        return jsonify({'error': str(e)}), 500
 
-# ==========================================
-# ENDPOINTS DE HEALTH CHECK
-# ==========================================
+@api_bp.route('/productos/<int:producto_id>', methods=['GET', 'PUT', 'DELETE'])
+@require_api_key
+def api_producto_detail(producto_id):
+    """CRUD individual de producto"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            if request.method == 'GET':
+                # Obtener producto específico
+                cursor.execute('''
+                    SELECT p.id, p.nombre, p.descripcion, p.precio, p.categoria, 
+                           p.stock, p.activo, p.negocio_id, n.nombre as negocio_nombre
+                    FROM productos p
+                    LEFT JOIN negocios n ON p.negocio_id = n.id
+                    WHERE p.id = ?
+                ''', (producto_id,))
+                row = cursor.fetchone()
+                
+                if not row:
+                    return jsonify({'error': 'Producto no encontrado'}), 404
+                
+                producto = {
+                    'id': row[0],
+                    'nombre': row[1],
+                    'descripcion': row[2],
+                    'precio': row[3],
+                    'categoria': row[4],
+                    'stock': row[5],
+                    'activo': bool(row[6]),
+                    'negocio_id': row[7],
+                    'negocio_nombre': row[8]
+                }
+                
+                return jsonify({'status': 'success', 'data': producto})
+            
+            elif request.method == 'PUT':
+                # Actualizar producto
+                data = request.get_json()
+                fields, values = [], []
+                
+                for field in ['nombre', 'descripcion', 'precio', 'categoria', 'stock', 'negocio_id', 'activo']:
+                    if field in data:
+                        fields.append(f"{field} = ?")
+                        values.append(data[field])
+                
+                if not fields:
+                    return jsonify({'error': 'No fields to update'}), 400
+                
+                values.append(producto_id)
+                query = f"UPDATE productos SET {', '.join(fields)}, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id = ?"
+                cursor.execute(query, values)
+                conn.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({'error': 'Producto no encontrado'}), 404
+                
+                return jsonify({'status': 'success', 'message': 'Producto actualizado exitosamente'})
+            
+            elif request.method == 'DELETE':
+                # Eliminar producto
+                cursor.execute('DELETE FROM productos WHERE id = ?', (producto_id,))
+                conn.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({'error': 'Producto no encontrado'}), 404
+                
+                return jsonify({'status': 'success', 'message': 'Producto eliminado exitosamente'})
+    
+    except Exception as e:
+        logger.error(f"Error in api_producto_detail: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# =============================
+# ENDPOINTS DE OFERTAS
+# =============================
+
+@api_bp.route('/ofertas', methods=['GET', 'POST'])
+@require_api_key
+def api_ofertas():
+    """CRUD de ofertas"""
+    try:
+        if request.method == 'GET':
+            # Listar ofertas
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT id, titulo, descripcion, descuento_porcentaje, descuento_fijo, activa, fecha_creacion
+                    FROM ofertas
+                    ORDER BY fecha_creacion DESC
+                ''')
+                rows = cursor.fetchall()
+                
+                ofertas = []
+                for row in rows:
+                    ofertas.append({
+                        'id': row[0],
+                        'titulo': row[1],
+                        'descripcion': row[2],
+                        'descuento_porcentaje': float(row[3]) if row[3] is not None else 0.0,
+                        'descuento_fijo': float(row[4]) if row[4] is not None else 0.0,
+                        'activa': bool(row[5]),
+                        'fecha_creacion': row[6]
+                    })
+                
+                return jsonify({
+                    'status': 'success',
+                    'data': ofertas,
+                    'total': len(ofertas)
+                })
+        
+        elif request.method == 'POST':
+            # Crear oferta
+            data = request.get_json()
+            
+            if 'titulo' not in data:
+                return jsonify({'error': 'Missing required field: titulo'}), 400
+            
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO ofertas (titulo, descripcion, descuento_porcentaje, descuento_fijo, activa)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (
+                    data['titulo'],
+                    data.get('descripcion', ''),
+                    data.get('descuento_porcentaje', 0.0),
+                    data.get('descuento_fijo', 0.0),
+                    data.get('activa', True)
+                ))
+                
+                oferta_id = cursor.lastrowid
+                conn.commit()
+                
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Oferta creada exitosamente',
+                    'data': {'id': oferta_id}
+                }), 201
+    
+    except Exception as e:
+        logger.error(f"Error in api_ofertas: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/ofertas/<int:oferta_id>', methods=['GET', 'PUT', 'DELETE'])
+@require_api_key
+def api_oferta_detail(oferta_id):
+    """CRUD individual de oferta"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            if request.method == 'GET':
+                cursor.execute('''
+                    SELECT id, titulo, descripcion, descuento_porcentaje, descuento_fijo, activa, fecha_creacion
+                    FROM ofertas WHERE id = ?
+                ''', (oferta_id,))
+                row = cursor.fetchone()
+                
+                if not row:
+                    return jsonify({'error': 'Oferta no encontrada'}), 404
+                
+                oferta = {
+                    'id': row[0], 'titulo': row[1], 'descripcion': row[2], 
+                    'descuento_porcentaje': float(row[3]) if row[3] is not None else 0.0,
+                    'descuento_fijo': float(row[4]) if row[4] is not None else 0.0,
+                    'activa': bool(row[5]), 'fecha_creacion': row[6]
+                }
+                
+                return jsonify({'status': 'success', 'data': oferta})
+            
+            elif request.method == 'PUT':
+                data = request.get_json()
+                fields, values = [], []
+                
+                for field in ['titulo', 'descripcion', 'descuento_porcentaje', 'descuento_fijo', 'activa']:
+                    if field in data:
+                        fields.append(f"{field} = ?")
+                        values.append(data[field])
+                
+                if not fields:
+                    return jsonify({'error': 'No fields to update'}), 400
+                
+                values.append(oferta_id)
+                query = f"UPDATE ofertas SET {', '.join(fields)}, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id = ?"
+                cursor.execute(query, values)
+                conn.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({'error': 'Oferta no encontrada'}), 404
+                
+                return jsonify({'status': 'success', 'message': 'Oferta actualizada exitosamente'})
+            
+            elif request.method == 'DELETE':
+                cursor.execute('DELETE FROM ofertas WHERE id = ?', (oferta_id,))
+                conn.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({'error': 'Oferta no encontrada'}), 404
+                
+                return jsonify({'status': 'success', 'message': 'Oferta eliminada exitosamente'})
+    
+    except Exception as e:
+        logger.error(f"Error in api_oferta_detail: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# =============================
+# ENDPOINTS DE PRECIOS
+# =============================
+
+@api_bp.route('/precios', methods=['GET'])
+@require_api_key
+def api_precios_list():
+    """Listar precios y historial"""
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT p.id, p.nombre, p.precio,
+                       (SELECT ph.precio_nuevo FROM precios_historial ph WHERE ph.producto_id = p.id ORDER BY ph.fecha_cambio DESC LIMIT 1) AS ultimo_precio,
+                       (SELECT ph.fecha_cambio FROM precios_historial ph WHERE ph.producto_id = p.id ORDER BY ph.fecha_cambio DESC LIMIT 1) AS fecha_ultimo
+                FROM productos p ORDER BY p.fecha_actualizacion DESC
+            ''')
+            rows = cursor.fetchall()
+            data = []
+            for r in rows:
+                data.append({
+                    'producto_id': r[0], 'nombre': r[1], 'precio': r[2], 
+                    'ultimo_precio': r[3] if r[3] is not None else r[2], 
+                    'fecha_ultimo': r[4]
+                })
+            return jsonify({'status': 'success', 'data': data, 'total': len(data)})
+    except Exception as e:
+        logger.error(f"Error in api_precios_list: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/precios/<int:producto_id>', methods=['PUT'])
+@require_api_key
+def api_precios_update(producto_id):
+    """Actualizar precio de un producto y registrar historial"""
+    try:
+        data = request.get_json() or {}
+        if 'precio' not in data:
+            return jsonify({'error': 'Missing field: precio'}), 400
+        
+        motivo = data.get('motivo', 'Actualización vía API DevOps')
+        
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT precio FROM productos WHERE id = ?', (producto_id,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return jsonify({'error': 'Producto no encontrado'}), 404
+            
+            precio_anterior = float(row[0])
+            nuevo_precio = float(data['precio'])
+            
+            cursor.execute('UPDATE productos SET precio = ?, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id = ?', (nuevo_precio, producto_id))
+            cursor.execute('INSERT INTO precios_historial (producto_id, precio_anterior, precio_nuevo, motivo) VALUES (?, ?, ?, ?)', (producto_id, precio_anterior, nuevo_precio, motivo))
+            conn.commit()
+            
+            return jsonify({'status': 'success', 'message': 'Precio actualizado exitosamente'})
+    
+    except Exception as e:
+        logger.error(f"Error in api_precios_update: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# =============================
+# ALIAS EN INGLÉS (SIN ROMPER RUTAS EXISTENTES)
+# =============================
+
+# Negocios
+api_bp.add_url_rule('/businesses', view_func=api_negocios, methods=['GET', 'POST'])
+api_bp.add_url_rule('/businesses/<int:negocio_id>', view_func=api_negocio_detail, methods=['GET', 'PUT', 'DELETE'])
+
+# Sucursales
+api_bp.add_url_rule('/branches', view_func=api_sucursales, methods=['GET', 'POST'])
+api_bp.add_url_rule('/branches/<int:sucursal_id>', view_func=api_sucursal_detail, methods=['GET', 'PUT', 'DELETE'])
+
+# Productos
+api_bp.add_url_rule('/products', view_func=api_productos, methods=['GET', 'POST'])
+api_bp.add_url_rule('/products/<int:producto_id>', view_func=api_producto_detail, methods=['GET', 'PUT', 'DELETE'])
+
+# Ofertas
+api_bp.add_url_rule('/offers', view_func=api_ofertas, methods=['GET', 'POST'])
+api_bp.add_url_rule('/offers/<int:oferta_id>', view_func=api_oferta_detail, methods=['GET', 'PUT', 'DELETE'])
+
+# Precios
+api_bp.add_url_rule('/prices', view_func=api_precios_list, methods=['GET'])
+api_bp.add_url_rule('/prices/<int:producto_id>', view_func=api_precios_update, methods=['PUT'])
+
+# =============================
+# ENDPOINTS DE UTILIDAD
+# =============================
 
 @api_bp.route('/health', methods=['GET'])
-def health_check():
-    """Health check para la API"""
+def api_health():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'success',
+        'message': 'Belgrano Ahorro API is running',
+        'timestamp': datetime.now().isoformat()
+    })
+
+@api_bp.route('/status', methods=['GET'])
+def api_status():
+    """Status detallado de la API"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Verificar conexión a BD
-        cursor.execute("SELECT 1")
-        db_status = "connected"
+        # Contar registros en tablas principales
+        cursor.execute("SELECT COUNT(*) FROM productos")
+        productos_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM negocios")
+        negocios_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM sucursales")
+        sucursales_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM ofertas")
+        ofertas_count = cursor.fetchone()[0]
+        
         conn.close()
         
         return jsonify({
-            'status': 'healthy',
-            'service': 'Belgrano Ahorro API',
-            'version': '1.0.0',
-            'database': db_status,
-            'timestamp': datetime.now().isoformat()
-        }), 200
-        
+            'status': 'operational',
+            'timestamp': datetime.now().isoformat(),
+            'service': 'belgrano_ahorro_api',
+            'version': '2.0.0',
+            'database': {
+                'productos': productos_count,
+                'negocios': negocios_count,
+                'sucursales': sucursales_count,
+                'ofertas': ofertas_count
+            }
+        })
     except Exception as e:
-        logger.error(f"Error en health check: {e}")
-        return jsonify({
-            'status': 'unhealthy',
-            'service': 'Belgrano Ahorro API',
-            'error': str(e),
-            'timestamp': datetime.now().isoformat()
-        }), 500
-
-# ==========================================
-# ENDPOINTS DE SINCRONIZACIÓN
-# ==========================================
-
-@api_bp.route('/sync/tickets', methods=['POST'])
-@require_api_key
-def sync_tickets():
-    """Sincronizar tickets desde Belgrano Tickets"""
-    try:
-        data = request.get_json()
-        
-        if not data or 'tickets' not in data:
-            return jsonify({
-                'status': 'error',
-                'error': 'Datos de tickets requeridos'
-            }), 400
-        
-        tickets = data['tickets']
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Crear tabla de tickets si no existe
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tickets_sync (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                numero_pedido TEXT UNIQUE,
-                ticket_id INTEGER,
-                estado TEXT,
-                repartidor TEXT,
-                fecha_creacion TEXT,
-                fecha_actualizacion TEXT,
-                datos_completos TEXT
-            )
-        """)
-        
-        # Sincronizar tickets
-        for ticket in tickets:
-            cursor.execute("""
-                INSERT OR REPLACE INTO tickets_sync 
-                (numero_pedido, ticket_id, estado, repartidor, fecha_creacion, fecha_actualizacion, datos_completos)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                ticket.get('numero_pedido'),
-                ticket.get('ticket_id'),
-                ticket.get('estado'),
-                ticket.get('repartidor'),
-                ticket.get('fecha_creacion'),
-                ticket.get('fecha_actualizacion'),
-                json.dumps(ticket)
-            ))
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({
-            'status': 'success',
-            'message': f'{len(tickets)} tickets sincronizados',
-            'timestamp': datetime.now().isoformat()
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error sincronizando tickets: {e}")
+        logger.error(f"Error en status check: {e}")
         return jsonify({
             'status': 'error',
-            'error': 'Error interno del servidor',
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'error': str(e)
         }), 500
 
-@api_bp.route('/sync/tickets', methods=['GET'])
-@require_api_key
-def get_sync_tickets():
-    """Obtener tickets sincronizados"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT * FROM tickets_sync 
-            ORDER BY fecha_actualizacion DESC
-        """)
-        
-        tickets = cursor.fetchall()
-        tickets_list = []
-        
-        for ticket in tickets:
-            tickets_list.append({
-                'numero_pedido': ticket['numero_pedido'],
-                'ticket_id': ticket['ticket_id'],
-                'estado': ticket['estado'],
-                'repartidor': ticket['repartidor'],
-                'fecha_creacion': ticket['fecha_creacion'],
-                'fecha_actualizacion': ticket['fecha_actualizacion'],
-                'datos_completos': json.loads(ticket['datos_completos']) if ticket['datos_completos'] else {}
-            })
-        
-        conn.close()
-        
-        return jsonify({
-            'status': 'success',
-            'total': len(tickets_list),
-            'tickets': tickets_list,
-            'timestamp': datetime.now().isoformat()
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo tickets sincronizados: {e}")
-        return jsonify({
-            'status': 'error',
-            'error': 'Error interno del servidor',
-            'timestamp': datetime.now().isoformat()
-        }), 500
-
-# ==========================================
-# MANEJO DE ERRORES
-# ==========================================
-
-@api_bp.errorhandler(404)
-def not_found(error):
+@api_bp.route('/ping', methods=['GET'])
+def api_ping():
+    """Ping simple para verificar conectividad"""
     return jsonify({
-        'status': 'error',
-        'error': 'Endpoint no encontrado',
+        'pong': True,
         'timestamp': datetime.now().isoformat()
-    }), 404
-
-@api_bp.errorhandler(500)
-def internal_error(error):
-    return jsonify({
-        'status': 'error',
-        'error': 'Error interno del servidor',
-        'timestamp': datetime.now().isoformat()
-    }), 500
-
-# ==========================================
-# FUNCIÓN PARA REGISTRAR EL BLUEPRINT
-# ==========================================
-
-def register_api_blueprint(app):
-    """Registrar el blueprint de la API en la aplicación Flask"""
-    app.register_blueprint(api_bp)
-    logger.info("API blueprint registrado en /api/v1")
+    })

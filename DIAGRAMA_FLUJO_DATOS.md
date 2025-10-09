@@ -339,4 +339,7 @@ GET    /devops/precios              - Gestión de precios
 - ✅ Notificaciones de estado y errores
 
 **La arquitectura está completa y lista para producción.**
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb

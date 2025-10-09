@@ -1,0 +1,53 @@
+{
+  "timestamp": "2025-10-04T12:28:39.086294",
+  "services": {
+    "devops": false,
+    "belgrano_ahorro": true,
+    "ticketera": false,
+    "gateway": false,
+    "sync": false
+  },
+  "devops_endpoints": {
+    "/devops/login": true,
+    "/devops/logout": true,
+    "/devops/": true,
+    "/devops/health": true,
+    "/devops/status": false,
+    "/devops/info": false,
+    "/devops/negocios": true,
+    "/devops/productos": true,
+    "/devops/ofertas": true,
+    "/devops/sucursales": true,
+    "/devops/precios": true,
+    "/devops/sync": false
+  },
+  "belgrano_connectivity": {
+    "/": true,
+    "/api/negocios": true,
+    "/api/productos": false,
+    "/api/ofertas": true,
+    "/api/sucursales": false,
+    "/api/precios": true
+  },
+  "gateway_endpoints": {
+    "/gateway/health": true,
+    "/gateway/sync/status": false,
+    "/gateway/negocios": false,
+    "/gateway/productos": false,
+    "/gateway/ofertas": false,
+    "/gateway/sucursales": false
+  },
+  "sync_system": {
+    "/sync/status": true,
+    "/sync/force": false,
+    "/sync/differences": false
+  },
+  "crud_operations": true,
+  "authentication": true,
+  "metrics": {
+    "total_checks": 34,
+    "passed_checks": 18,
+    "success_rate": 52.94,
+    "ready_for_deploy": false
+  }
+}

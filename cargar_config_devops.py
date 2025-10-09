@@ -42,4 +42,7 @@ def cargar_config_devops():
 
 if __name__ == "__main__":
     cargar_config_devops()
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4f153f9df9e6f05c23230eeb299bb9ad39dc2deb
