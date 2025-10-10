@@ -448,3 +448,4 @@ def devops_info():
             'message': f'Error interno: {str(e)}',
             'data': {}
         }), 500
+

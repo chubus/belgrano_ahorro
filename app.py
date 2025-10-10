@@ -17,7 +17,7 @@ BELGRANO_AHORRO_URL = os.environ.get('BELGRANO_AHORRO_URL')
 BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY')
 
 if not BELGRANO_AHORRO_URL:
-    os.environ['BELGRANO_AHORRO_URL'] = 'https://belgranoahorro-hp30.onrender.com'
+    os.environ['BELGRANO_AHORRO_URL'] = 'https://belgranoahorro-aliq.onrender.com'
     print("⚠️ BELGRANO_AHORRO_URL no configurada, usando valor por defecto")
 
 if not BELGRANO_AHORRO_API_KEY:

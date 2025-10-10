@@ -67,13 +67,8 @@ class DevOpsBelgranoManagerUnified:
         headers = {
             'Content-Type': 'application/json',
             'User-Agent': 'DevOps-Belgrano-Manager/3.0',
-            'X-API-Key': self.belgrano_api_key
+            'Authorization': f'Bearer {self.belgrano_api_key}'  # Usar API key directamente como Bearer token
         }
-        
-        # Agregar token JWT si está disponible
-        token = self._get_auth_token()
-        if token:
-            headers['Authorization'] = f'Bearer {token}'
         
         return headers
     
@@ -82,22 +77,20 @@ class DevOpsBelgranoManagerUnified:
         if not self.belgrano_url:
             raise ValueError("BELGRANO_AHORRO_URL no configurada")
         
-        # Normalizar endpoint
-        if not endpoint.startswith('/'):
-            endpoint = f'/{endpoint}'
-        
         # Mapear endpoints a las rutas correctas
         endpoint_mapping = {
-            '/v1/productos': '/api/v1/productos',
-            '/v1/sucursales': '/api/v1/sucursales', 
-            '/v1/negocios': '/api/v1/negocios',
-            '/v1/ofertas': '/api/v1/ofertas',
-            '/v1/precios': '/api/v1/precios',
-            '/tickets': '/api/tickets',
-            '/health': '/healthz'
+            'productos': '/api/v1/productos',
+            'sucursales': '/api/v1/sucursales', 
+            'negocios': '/api/v1/negocios',
+            'ofertas': '/api/v1/ofertas',
+            'precios': '/api/v1/precios',
+            'tickets': '/api/tickets',
+            'health': '/healthz'
         }
         
-        mapped_endpoint = endpoint_mapping.get(endpoint, endpoint)
+        # Normalizar endpoint (remover / inicial si existe)
+        clean_endpoint = endpoint.lstrip('/')
+        mapped_endpoint = endpoint_mapping.get(clean_endpoint, endpoint)
         return urljoin(self.belgrano_url, mapped_endpoint)
     
     def _make_request(self, method: str, endpoint: str, data: Optional[Dict] = None) -> Tuple[bool, Any]:
@@ -223,7 +216,11 @@ class DevOpsBelgranoManagerUnified:
     def get_items(self, kind: str) -> List[Dict]:
         """Obtener items por tipo exclusivamente desde API (sin datos simulados)."""
         try:
-            success, data = self._make_request('GET', f'v1/{kind}')
+            if self.fallback_mode:
+                logger.warning(f"⚠️ Modo fallback activo para {kind} - Variables de entorno no configuradas")
+                return []
+            
+            success, data = self._make_request('GET', kind)
             if success and isinstance(data, list):
                 logger.info(f"✅ {kind} obtenidos desde API: {len(data)} items")
                 return data
@@ -237,9 +234,10 @@ class DevOpsBelgranoManagerUnified:
         """Crear item exclusivamente en API (sin creación local)."""
         try:
             if self.fallback_mode:
-                logger.warning("⚠️ Modo fallback activado - API no configurada")
+                logger.warning(f"⚠️ Modo fallback activo para {kind} - Variables de entorno no configuradas")
                 return False, "API no disponible (modo fallback)"
-            success, response = self._make_request('POST', f'v1/{kind}', data)
+            
+            success, response = self._make_request('POST', kind, data)
             if success:
                 logger.info(f"✅ {kind} creado en API: {data.get('nombre', 'Sin nombre')}")
                 return True, "Item creado exitosamente en API"
@@ -253,9 +251,10 @@ class DevOpsBelgranoManagerUnified:
         """Actualizar item exclusivamente en API (sin actualización local)."""
         try:
             if self.fallback_mode:
-                logger.warning("⚠️ Modo fallback activado - API no configurada")
+                logger.warning(f"⚠️ Modo fallback activo para {kind} - Variables de entorno no configuradas")
                 return False, "API no disponible (modo fallback)"
-            success, response = self._make_request('PUT', f'v1/{kind}/{item_id}', data)
+            
+            success, response = self._make_request('PUT', f'{kind}/{item_id}', data)
             if success:
                 logger.info(f"✅ {kind} actualizado en API: ID {item_id}")
                 return True, "Item actualizado exitosamente en API"
@@ -354,89 +353,11 @@ class DevOpsBelgranoManagerUnified:
         return self.delete_item('sucursales', sucursal_id)
     
     # =================================================================
-    # DATOS DE FALLBACK
+    # DATOS DE FALLBACK ELIMINADOS - SOLO DATOS REALES
     # =================================================================
-    
-    def _get_fallback_data(self, data_type: str) -> List[Dict]:
-        """Obtener datos de fallback local"""
-        fallback_data = {
-            'productos': [
-                {
-                    'id': 1,
-                    'nombre': 'Leche Entera 1L',
-                    'descripcion': 'Leche fresca pasteurizada',
-                    'precio': 850.00,
-                    'categoria_id': 1,
-                    'negocio_id': 1,
-                    'activo': True
-                },
-                {
-                    'id': 2,
-                    'nombre': 'Pan Integral',
-                    'descripcion': 'Pan de trigo integral fresco',
-                    'precio': 450.00,
-                    'categoria_id': 2,
-                    'negocio_id': 1,
-                    'activo': True
-                }
-            ],
-            'negocios': [
-                {
-                    'id': 1,
-                    'nombre': 'Supermercado Central',
-                    'descripcion': 'Supermercado con productos frescos',
-                    'direccion': 'Av. Belgrano 1234',
-                    'telefono': '+54 11 1234-5678',
-                    'email': 'info@supercentral.com',
-                    'activo': True
-                },
-                {
-                    'id': 2,
-                    'nombre': 'Farmacia San Martín',
-                    'descripcion': 'Farmacia con medicamentos',
-                    'direccion': 'Calle San Martín 567',
-                    'telefono': '+54 11 9876-5432',
-                    'email': 'contacto@farmaciasanmartin.com',
-                    'activo': True
-                }
-            ],
-            'ofertas': [
-                {
-                    'id': 1,
-                    'titulo': 'Oferta Especial 50%',
-                    'descripcion': 'Descuento del 50% en productos seleccionados',
-                    'descuento': 50,
-                    'fecha_inicio': '2025-01-19',
-                    'fecha_fin': '2025-01-31',
-                    'activa': True,
-                    'negocio_id': 1
-                }
-            ],
-            'sucursales': [
-                {
-                    'id': 1,
-                    'nombre': 'Sucursal Centro',
-                    'direccion': 'Av. Corrientes 1234',
-                    'telefono': '+54 11 1111-1111',
-                    'negocio_id': 1,
-                    'activo': True
-                }
-            ],
-            'precios': [
-                {
-                    'id': 1,
-                    'producto_id': 1,
-                    'producto_nombre': 'Leche Entera 1L',
-                    'precio_actual': 850.00,
-                    'precio_anterior': 800.00,
-                    'negocio_nombre': 'Supermercado Central',
-                    'fecha_actualizacion': '2025-01-19T10:30:00',
-                    'motivo': 'Ajuste de precios'
-                }
-            ]
-        }
-        
-        return fallback_data.get(data_type, [])
+    # NOTA: No hay datos de fallback. Si la API no está disponible,
+    # se retornan listas vacías para garantizar que solo se muestren
+    # datos reales de Belgrano Ahorro.
     
     def get_system_status(self) -> Dict[str, Any]:
         """Obtener estado completo del sistema"""

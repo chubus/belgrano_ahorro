@@ -31,7 +31,7 @@ class EnvConfig:
         
         # Configuración de API
         self.config.update({
-            'BELGRANO_AHORRO_URL': os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-hp30.onrender.com'),
+            'BELGRANO_AHORRO_URL': os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com'),
             'BELGRANO_AHORRO_API_KEY': os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025'),
             'TICKETERA_URL': os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com'),
             'TICKETERA_API_KEY': os.environ.get('TICKETERA_API_KEY', 'ticketera_api_key_2025'),

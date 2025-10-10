@@ -91,7 +91,7 @@ if api_bp:
 if 'FLASK_ENV' not in os.environ:
     os.environ['FLASK_ENV'] = 'development'
 if 'BELGRANO_AHORRO_URL' not in os.environ:
-    os.environ['BELGRANO_AHORRO_URL'] = 'https://belgranoahorro-hp30.onrender.com'
+    os.environ['BELGRANO_AHORRO_URL'] = 'https://belgranoahorro-aliq.onrender.com'
 if 'BELGRANO_AHORRO_API_KEY' not in os.environ:
     os.environ['BELGRANO_AHORRO_API_KEY'] = 'belgrano_ahorro_api_key_2025'
 if 'TICKETERA_URL' not in os.environ:

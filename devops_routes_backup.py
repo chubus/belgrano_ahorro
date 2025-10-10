@@ -43,35 +43,51 @@ if not BELGRANO_AHORRO_API_KEY:
     else:
         logger.warning("⚠️ Variable de entorno BELGRANO_AHORRO_API_KEY no está definida")
 
-# Importar cliente API y gestor DevOps
+# Importar cliente API de forma robusta (soporta ejecución desde raíz o desde ticketera)
+devops_api_client = None
 try:
+    # Intento 1: paquete belgrano_tickets
     from belgrano_tickets.api_client import create_api_client, api_client as global_api_client
-    if BELGRANO_AHORRO_URL and BELGRANO_AHORRO_API_KEY:
+except Exception:
+    try:
+        # Intento 2: módulo local
+        from api_client import create_api_client, api_client as global_api_client  # type: ignore
+    except Exception:
+        try:
+            # Intento 3: gateway alternativo
+            from belgrano_client_gateway import BelgranoClientGateway as create_api_client  # type: ignore
+        except Exception as e:
+            logger.error(f"No se pudo inicializar el cliente API: {e}")
+            create_api_client = None  # type: ignore
+
+if create_api_client and BELGRANO_AHORRO_URL and BELGRANO_AHORRO_API_KEY:
+    try:
         devops_api_client = create_api_client(BELGRANO_AHORRO_URL, BELGRANO_AHORRO_API_KEY)
         logger.info("Cliente API de Belgrano Ahorro inicializado para DevOps")
-    else:
+    except Exception as e:
+        logger.error(f"Error creando cliente API de DevOps: {e}")
         devops_api_client = None
-        if env_status == 'production':
-            logger.warning("Variables de entorno no configuradas para cliente API de DevOps")
-        else:
-            logger.info("Cliente API de DevOps no inicializado (variables no configuradas)")
-except ImportError as e:
-    logger.error(f"No se pudo inicializar el cliente API: {e}")
-    devops_api_client = None
+else:
+    if env_status == 'production':
+        logger.warning("Variables de entorno no configuradas para cliente API de DevOps")
+    else:
+        logger.info("Cliente API de DevOps no inicializado (variables no configuradas)")
 
-# Importar gestor DevOps mejorado
+# Importar gestor DevOps unificado (única fuente)
 try:
-    from devops_belgrano_manager_enhanced import devops_manager
-    logger.info("✅ Gestor DevOps mejorado inicializado")
-except ImportError as e:
-    logger.error(f"❌ No se pudo importar devops_belgrano_manager_enhanced: {e}")
-    # Fallback al gestor original
+    from devops_belgrano_manager_unified import devops_manager_unified as devops_manager
+    logger.info("✅ Gestor DevOps unificado inicializado")
+except Exception as e:
+    # Intento adicional: agregar raíz del proyecto al sys.path y reintentar
     try:
-        from devops_belgrano_manager import DevOpsBelgranoManager
-        devops_manager = DevOpsBelgranoManager()
-        logger.info("✅ Gestor DevOps original inicializado como fallback")
-    except ImportError as e2:
-        logger.error(f"❌ No se pudo importar ningún gestor DevOps: {e2}")
+        import sys, os
+        project_root = os.path.dirname(os.path.abspath(__file__))
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+        from devops_belgrano_manager_unified import devops_manager_unified as devops_manager  # type: ignore
+        logger.info("✅ Gestor DevOps unificado inicializado tras ajustar sys.path")
+    except Exception as e2:
+        logger.error(f"❌ No se pudo importar devops_belgrano_manager_unified: {e2}")
         devops_manager = None
 
 # Crear blueprint con prefijo
@@ -313,35 +329,11 @@ def gestion_ofertas():
                     flash(f'Oferta "{titulo}" creada exitosamente', 'success')
                     logger.info(f"Oferta creada desde DevOps: {titulo}")
                 else:
-                    flash(f'Error al crear oferta: {message}', 'error')
+                    logger.error(f"Error creando oferta en API: {message}")
+                    return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
             else:
-                # Fallback local
-                from app_unificado import cargar_datos_completos, guardar_datos_json
-                import uuid
-                datos = cargar_datos_completos()
-                if not datos:
-                    datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
-                
-                oferta_id = str(uuid.uuid4())
-                nueva_oferta = {
-                    'id': oferta_id,
-                    'titulo': titulo,
-                    'descripcion': descripcion,
-                    'productos': productos,
-                    'hasta_agotar_stock': hasta_agotar_stock,
-                    'activa': activa,
-                    'fecha_creacion': datetime.now().isoformat()
-                }
-                
-                if 'ofertas' not in datos:
-                    datos['ofertas'] = []
-                datos['ofertas'].append(nueva_oferta)
-                
-                if guardar_datos_json(datos):
-                    flash(f'Oferta "{titulo}" creada exitosamente (local)', 'success')
-                    logger.info(f"Oferta creada localmente: {titulo}")
-                else:
-                    flash('Error al guardar la oferta', 'error')
+                logger.error("Gestor DevOps no disponible para crear oferta")
+                return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
                 
         except Exception as e:
             logger.error(f"Error creando oferta desde DevOps: {e}")
@@ -358,22 +350,15 @@ def gestion_ofertas():
         try:
             # Obtener datos reales usando el gestor DevOps
             if devops_manager:
+                if getattr(devops_manager, 'fallback_mode', False):
+                    return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible', 'data': []}), 503
                 ofertas = devops_manager.get_ofertas()
             else:
-                # Fallback con datos simulados
-                ofertas = [
-                    {
-                        'id': 1,
-                        'titulo': 'Oferta Especial 50%',
-                        'descripcion': 'Descuento del 50% en productos seleccionados',
-                        'descuento': 50,
-                        'producto_id': 1,
-                        'producto_nombre': 'Producto Ejemplo',
-                        'fecha_inicio': '2025-01-19',
-                        'fecha_fin': '2025-01-31',
-                        'activa': True
-                    }
-                ]
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Servicio DevOps temporalmente no disponible',
+                    'data': []
+                }), 503
             
             return jsonify({
                 'status': 'success',
@@ -383,7 +368,7 @@ def gestion_ofertas():
                     'total': len(ofertas),
                     'timestamp': datetime.now().isoformat()
                 },
-                'source': 'simulated'
+                'source': 'api'
             })
             
         except Exception as e:
@@ -394,22 +379,15 @@ def gestion_ofertas():
                 'data': []
             }), 500
     
-    # Si no es AJAX, devolver template HTML con datos reales
+    # Si no es AJAX, devolver template HTML con datos de API únicamente
     try:
-        from app_unificado import cargar_datos_completos
-        datos = cargar_datos_completos()
-        if not datos:
-            datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
-        
-        ofertas = datos.get('ofertas', [])
-        
-        # Devolver template con datos reales
+        if not devops_manager:
+            return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
+        ofertas = devops_manager.get_ofertas()
         return render_template('devops/ofertas.html', ofertas=ofertas)
-        
     except Exception as e:
         logger.error(f"Error cargando datos para ofertas: {e}")
-        # Fallback con datos vacíos
-        return render_template('devops/ofertas.html', ofertas=[])
+        return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
 
 @devops_bp.route('/negocios', methods=['GET', 'POST'])
 @devops_login_required
@@ -444,41 +422,23 @@ def gestion_negocios():
                     flash(f'Negocio "{nombre}" creado exitosamente', 'success')
                     logger.info(f"Negocio creado desde DevOps: {nombre}")
                 else:
-                    flash(f'Error al crear negocio: {message}', 'error')
+                    logger.error(f"Error al crear negocio en API: {message}")
+                    return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
             else:
-                # Fallback local
-                from app_unificado import cargar_datos_completos, guardar_datos_json
-                import uuid
-                datos = cargar_datos_completos()
-                if not datos:
-                    datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
-                
-                negocio_id = str(uuid.uuid4())
-                nuevo_negocio = {
-                    'id': negocio_id,
-                    'nombre': nombre,
-                    'descripcion': descripcion,
-                    'logo': request.form.get('logo', ''),
-                    'telefono': request.form.get('telefono', ''),
-                    'direccion': request.form.get('direccion', ''),
-                    'email': request.form.get('email', ''),
-                    'activo': True,
-                    'fecha_creacion': datetime.now().isoformat()
-                }
-                
-                if 'negocios' not in datos:
-                    datos['negocios'] = {}
-                datos['negocios'][negocio_id] = nuevo_negocio
-                
-                if guardar_datos_json(datos):
-                    flash(f'Negocio "{nombre}" creado exitosamente (local)', 'success')
-                    logger.info(f"Negocio creado localmente: {nombre}")
-                else:
-                    flash('Error al guardar el negocio', 'error')
+                logger.error("Gestor DevOps no disponible para crear negocio")
+                return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
                 
         except Exception as e:
             logger.error(f"Error creando negocio desde DevOps: {e}")
-            flash('Error interno al crear el negocio', 'error')
+            # Proporcionar mensaje de error más específico
+            if "API no disponible" in str(e) or "modo fallback" in str(e):
+                flash('Error: API no configurada. Verifique las variables de entorno BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY', 'error')
+            elif "Timeout" in str(e):
+                flash('Error: Timeout de conexión. La API no responde en el tiempo esperado', 'error')
+            elif "ConnectionError" in str(e):
+                flash('Error: No se puede conectar a la API. Verifique la URL y conectividad', 'error')
+            else:
+                flash(f'Error interno al crear el negocio: {str(e)}', 'error')
         
         return redirect(url_for('devops.gestion_negocios'))
     
@@ -493,20 +453,15 @@ def gestion_negocios():
             
             # Obtener datos reales usando el gestor DevOps
             if devops_manager:
+                if getattr(devops_manager, 'fallback_mode', False):
+                    return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible', 'data': []}), 503
                 negocios = devops_manager.get_negocios()
             else:
-                # Fallback con datos simulados
-                negocios = [
-                    {
-                        'id': 1,
-                        'nombre': 'Supermercado Central',
-                        'descripcion': 'Supermercado con productos frescos y ofertas diarias',
-                        'direccion': 'Av. Belgrano 1234',
-                        'telefono': '+54 11 1234-5678',
-                        'email': 'info@supercentral.com',
-                        'activo': True
-                    }
-                ]
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Servicio DevOps temporalmente no disponible',
+                    'data': []
+                }), 503
             
             return jsonify({
                 'status': 'success',
@@ -515,7 +470,7 @@ def gestion_negocios():
                     'total': len(negocios),
                     'timestamp': datetime.now().isoformat()
                 },
-                'source': 'simulated',
+                'source': 'api',
                 'message': f'Negocios obtenidos correctamente ({len(negocios)} encontrados)'
             })
         except Exception as e:
@@ -526,17 +481,16 @@ def gestion_negocios():
                 'source': 'error'
             }), 500
     
-    # Si no es AJAX, devolver template HTML
+    # Si no es AJAX, devolver template HTML con datos de API únicamente
     try:
-        # Cargar datos de negocios para el template
-        from app_unificado import cargar_datos_completos
-        datos = cargar_datos_completos()
-        negocios = list(datos.get('negocios', {}).values()) if datos else []
-        
-        return render_template('devops/negocios.html', negocios=negocios)
+        if not devops_manager:
+            return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
+        negocios = devops_manager.get_negocios()
+        config_ok = bool(os.environ.get('BELGRANO_AHORRO_URL') and os.environ.get('BELGRANO_AHORRO_API_KEY'))
+        return render_template('devops/negocios.html', negocios=negocios, config_ok=config_ok)
     except Exception as e:
         logger.error(f"Error cargando datos para negocios: {e}")
-        return render_template('devops/negocios.html', negocios=[])
+        return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
 
 @devops_bp.route('/productos', methods=['GET', 'POST'])
 @devops_login_required
@@ -579,37 +533,11 @@ def gestion_productos():
                     flash(f'Producto "{nombre}" creado exitosamente', 'success')
                     logger.info(f"Producto creado desde DevOps: {nombre}")
                 else:
-                    flash(f'Error al crear producto: {message}', 'error')
+                    logger.error(f"Error al crear producto en API: {message}")
+                    return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
             else:
-                # Fallback local
-                from app_unificado import cargar_datos_completos, guardar_datos_json
-                import uuid
-                datos = cargar_datos_completos()
-                if not datos:
-                    datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
-                
-                producto_id = str(uuid.uuid4())
-                nuevo_producto = {
-                    'id': producto_id,
-                    'nombre': nombre,
-                    'precio': precio_float,
-                    'categoria': categoria,
-                    'negocio': negocio,
-                    'descripcion': request.form.get('descripcion', ''),
-                    'imagen': request.form.get('imagen', ''),
-                    'activo': True,
-                    'fecha_creacion': datetime.now().isoformat()
-                }
-                
-                if 'productos' not in datos:
-                    datos['productos'] = []
-                datos['productos'].append(nuevo_producto)
-                
-                if guardar_datos_json(datos):
-                    flash(f'Producto "{nombre}" creado exitosamente (local)', 'success')
-                    logger.info(f"Producto creado localmente: {nombre}")
-                else:
-                    flash('Error al guardar el producto', 'error')
+                logger.error("Gestor DevOps no disponible para crear producto")
+                return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
                 
         except Exception as e:
             logger.error(f"Error creando producto desde DevOps: {e}")
@@ -628,20 +556,15 @@ def gestion_productos():
             
             # Obtener datos reales usando el gestor DevOps
             if devops_manager:
+                if getattr(devops_manager, 'fallback_mode', False):
+                    return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible', 'data': []}), 503
                 productos = devops_manager.get_productos()
             else:
-                # Fallback con datos simulados
-                productos = [
-                    {
-                        'id': 1,
-                        'nombre': 'Leche Entera 1L',
-                        'descripcion': 'Leche fresca pasteurizada',
-                        'precio': 850.00,
-                        'categoria_id': 1,
-                        'negocio_id': 1,
-                        'activo': True
-                    }
-                ]
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Servicio DevOps temporalmente no disponible',
+                    'data': []
+                }), 503
             
             return jsonify({
                 'status': 'success',
@@ -650,7 +573,7 @@ def gestion_productos():
                     'total': len(productos),
                     'timestamp': datetime.now().isoformat()
                 },
-                'source': 'simulated',
+                'source': 'api',
                 'message': f'Productos obtenidos correctamente ({len(productos)} encontrados)'
             })
         except Exception as e:
@@ -661,19 +584,121 @@ def gestion_productos():
                 'source': 'error'
             }), 500
     
-    # Si no es AJAX, devolver template HTML con datos
+    # Si no es AJAX, devolver template HTML con datos de API únicamente
     try:
-        # Cargar datos de productos para el template
-        from app_unificado import cargar_datos_completos
-        datos = cargar_datos_completos()
-        productos = datos.get('productos', []) if datos else []
-        negocios = list(datos.get('negocios', {}).values()) if datos else []
-        categorias = list(datos.get('categorias', {}).values()) if datos else []
-        
+        if not devops_manager:
+            return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
+        productos = devops_manager.get_productos()
+        # Para combos, también desde API real
+        negocios = devops_manager.get_negocios() if devops_manager else []
+        categorias = []  # Si hay endpoint específico, integrarlo; de lo contrario, vacío
         return render_template('devops/productos.html', productos=productos, negocios=negocios, categorias=categorias)
     except Exception as e:
         logger.error(f"Error cargando datos para productos: {e}")
-        return render_template('devops/productos.html', productos=[], negocios=[], categorias=[])
+        return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
+
+# =================================================================
+# GESTIÓN DE PRECIOS
+# =================================================================
+
+@devops_bp.route('/precios', methods=['GET', 'POST'])
+@devops_login_required
+def gestion_precios():
+    """Gestión completa de precios"""
+    from flask import request, make_response, render_template, flash, redirect, url_for
+    
+    # Manejar POST requests (actualizar precio)
+    if request.method == 'POST':
+        try:
+            producto_id = request.form.get('producto_id', '').strip()
+            nuevo_precio = request.form.get('nuevo_precio', '').strip()
+            motivo = request.form.get('motivo', '').strip()
+            
+            if not all([producto_id, nuevo_precio]):
+                flash('Producto y nuevo precio son requeridos', 'error')
+                return redirect(url_for('devops.gestion_precios'))
+            
+            try:
+                precio_float = float(nuevo_precio)
+            except ValueError:
+                flash('El precio debe ser un número válido', 'error')
+                return redirect(url_for('devops.gestion_precios'))
+            
+            # Actualizar precio usando el gestor DevOps
+            precio_data = {
+                'producto_id': int(producto_id),
+                'nuevo_precio': precio_float,
+                'motivo': motivo or 'Actualización desde DevOps'
+            }
+            
+            if devops_manager:
+                # Usar método genérico para actualizar precio
+                success, message = devops_manager.update_item('precios', producto_id, precio_data)
+                if success:
+                    flash(f'Precio actualizado exitosamente', 'success')
+                    logger.info(f"Precio actualizado desde DevOps: Producto {producto_id}")
+                else:
+                    logger.error(f"Error al actualizar precio en API: {message}")
+                    return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
+            else:
+                logger.error("Gestor DevOps no disponible para actualizar precio")
+                return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
+                
+        except Exception as e:
+            logger.error(f"Error actualizando precio desde DevOps: {e}")
+            flash('Error interno al actualizar el precio', 'error')
+        
+        return redirect(url_for('devops.gestion_precios'))
+    
+    # Solo devolver JSON si se solicita explícitamente con todos los parámetros
+    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
+        request.args.get('ajax') == 'true' and 
+        request.args.get('format') == 'json' and 
+        request.args.get('api') == 'true' and
+        request.args.get('json') == 'true'):
+        try:
+            from datetime import datetime
+            
+            # Obtener datos reales usando el gestor DevOps
+            if devops_manager:
+                if getattr(devops_manager, 'fallback_mode', False):
+                    return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible', 'data': []}), 503
+                precios = devops_manager.get_items('precios')
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Servicio DevOps temporalmente no disponible',
+                    'data': []
+                }), 503
+            
+            return jsonify({
+                'status': 'success',
+                'data': {
+                    'precios': precios,
+                    'total': len(precios),
+                    'timestamp': datetime.now().isoformat()
+                },
+                'source': 'api',
+                'message': f'Precios obtenidos correctamente ({len(precios)} encontrados)'
+            })
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Error obteniendo precios: {str(e)}',
+                'data': [],
+                'source': 'error'
+            }), 500
+    
+    # Si no es AJAX, devolver template HTML solo con datos de API
+    try:
+        if not devops_manager:
+            return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
+        precios = devops_manager.get_items('precios')
+        productos = devops_manager.get_productos()
+        return render_template('devops/precios.html', precios=precios, productos=productos)
+    except Exception as e:
+        logger.error(f"Error cargando datos para precios: {e}")
+        return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible'}), 503
 
 # =================================================================
 # SINCRONIZACIÓN Y UTILIDADES
@@ -769,6 +794,48 @@ def system_status():
         return jsonify({
             'status': 'error',
             'message': f'Error interno: {str(e)}'
+        }), 500
+
+@devops_bp.route('/conectar-belgrano')
+@devops_login_required
+def conectar_belgrano():
+    """Verificar y establecer conexión con Belgrano Ahorro"""
+    try:
+        if not devops_manager:
+            return jsonify({
+                'status': 'error',
+                'message': 'Gestor DevOps no disponible',
+                'data': {}
+            }), 503
+        
+        # Probar conectividad
+        connectivity = devops_manager.test_connectivity()
+        
+        if connectivity['overall_status'] == 'success':
+            return jsonify({
+                'status': 'success',
+                'message': 'Conexión exitosa con Belgrano Ahorro',
+                'data': connectivity
+            })
+        elif connectivity['overall_status'] == 'partial':
+            return jsonify({
+                'status': 'warning',
+                'message': 'Conexión parcial con Belgrano Ahorro',
+                'data': connectivity
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'No se pudo conectar con Belgrano Ahorro',
+                'data': connectivity
+            }), 503
+            
+    except Exception as e:
+        logger.error(f"Error verificando conexión con Belgrano Ahorro: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error interno: {str(e)}',
+            'data': {}
         }), 500
 
 # =================================================================

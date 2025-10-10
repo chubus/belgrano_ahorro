@@ -1,0 +1,52 @@
+{
+  "timestamp": "2025-10-10T17:40:00.258982",
+  "belgrano_api": {
+    "/api/v1/negocios": {
+      "status": "error",
+      "message": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/v1/negocios (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001440F6E6900>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))"
+    },
+    "/api/v1/productos": {
+      "status": "error",
+      "message": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/v1/productos (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001440F6B74D0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))"
+    },
+    "/api/v1/ofertas": {
+      "status": "error",
+      "message": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/v1/ofertas (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001440F6B7D90>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))"
+    },
+    "/api/v1/precios": {
+      "status": "error",
+      "message": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/v1/precios (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001440F6BF360>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))"
+    },
+    "/api/v1/sucursales": {
+      "status": "error",
+      "message": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/v1/sucursales (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001440F6BEB10>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))"
+    }
+  },
+  "devops_manager": {
+    "overall_status": "error",
+    "message": "'message'"
+  },
+  "devops_endpoints": {
+    "/devops/negocios": {
+      "status": "error",
+      "message": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /devops/negocios (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001440F75ECF0>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))"
+    },
+    "/devops/productos": {
+      "status": "error",
+      "message": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /devops/productos (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001440F75EF10>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))"
+    },
+    "/devops/ofertas": {
+      "status": "error",
+      "message": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /devops/ofertas (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001440F75F130>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))"
+    },
+    "/devops/precios": {
+      "status": "error",
+      "message": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /devops/precios (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001440F75F350>: Failed to establish a new connection: [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión'))"
+    }
+  },
+  "crud_operations": {
+    "negocios": 0,
+    "productos": 0,
+    "ofertas": 0
+  }
+}

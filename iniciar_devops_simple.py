@@ -20,7 +20,7 @@ def configurar_entorno():
         'BELGRANO_AHORRO_URL': 'https://belgranoahorro-aliq.onrender.com',
         'BELGRANO_AHORRO_API_KEY': 'belgrano_ahorro_api_key_2025',
         'GATEWAY_URL': 'http://localhost:5003/gateway',
-        'GATEWAY_API_KEY': 'devops_api_key_2025',
+        'GATEWAY_API_KEY': 'belgrano_ahorro_api_key_2025',
         'TICKETERA_URL': 'http://localhost:5001',
         'TICKETERA_API_KEY': 'ticketera_api_key_2025',
         'SECRET_KEY': 'devops_secret_key_2025',
