@@ -11,10 +11,20 @@ import sys
 # Configurar variables de entorno por defecto para producción
 if 'FLASK_ENV' not in os.environ:
     os.environ['FLASK_ENV'] = 'production'
-if 'BELGRANO_AHORRO_URL' not in os.environ:
+
+# Variables de entorno con validación y warnings
+BELGRANO_AHORRO_URL = os.environ.get('BELGRANO_AHORRO_URL')
+BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY')
+
+if not BELGRANO_AHORRO_URL:
     os.environ['BELGRANO_AHORRO_URL'] = 'https://belgranoahorro-hp30.onrender.com'
-if 'BELGRANO_AHORRO_API_KEY' not in os.environ:
+    print("⚠️ BELGRANO_AHORRO_URL no configurada, usando valor por defecto")
+
+if not BELGRANO_AHORRO_API_KEY:
     os.environ['BELGRANO_AHORRO_API_KEY'] = 'belgrano_ahorro_api_key_2025'
+    print("⚠️ BELGRANO_AHORRO_API_KEY no configurada, usando valor por defecto")
+
+# Otras variables de entorno
 if 'TICKETERA_URL' not in os.environ:
     os.environ['TICKETERA_URL'] = 'https://ticketerabelgrano.onrender.com'
 if 'TICKETERA_API_KEY' not in os.environ:
@@ -38,6 +48,11 @@ except ImportError as e:
     @app.route('/health')
     def health():
         return "OK"
+    
+    @app.route('/healthz')
+    def healthz():
+        """Endpoint de salud para Render"""
+        return "ok", 200
 
 # Configurar para producción
 if __name__ == '__main__':
