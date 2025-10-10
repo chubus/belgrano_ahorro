@@ -155,3 +155,4 @@ if __name__ == "__main__":
     
     print("\n✅ Pruebas completadas")
     print("📝 Para más detalles, revisar los logs del sistema")
+

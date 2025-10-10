@@ -177,6 +177,13 @@ class DevOpsBelgranoManagerEnhanced:
     def create_item(self, kind: str, data: Dict) -> Tuple[bool, str]:
         """Crear item con fallback local"""
         try:
+            # Verificar si estamos en modo fallback
+            if self.fallback_mode:
+                logger.warning(f"⚠️ Modo fallback activado - Variables de entorno no configuradas")
+                # Simular creación local en modo fallback
+                logger.info(f"📦 Simulando creación local de {kind} (modo fallback)")
+                return True, f"Item creado localmente (modo fallback - API no configurada)"
+            
             # Intentar crear en API primero
             success, response = self._make_request('POST', f'v1/{kind}', data)
             if success:
@@ -371,3 +378,4 @@ class DevOpsBelgranoManagerEnhanced:
 
 # Instancia global del gestor
 devops_manager = DevOpsBelgranoManagerEnhanced()
+

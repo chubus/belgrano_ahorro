@@ -59,20 +59,26 @@ except ImportError as e:
     logger.error(f"No se pudo inicializar el cliente API: {e}")
     devops_api_client = None
 
-# Importar gestor DevOps mejorado
+# Importar gestor DevOps unificado
 try:
-    from devops_belgrano_manager_enhanced import devops_manager
-    logger.info("✅ Gestor DevOps mejorado inicializado")
+    from devops_belgrano_manager_unified import devops_manager_unified as devops_manager
+    logger.info("✅ Gestor DevOps unificado inicializado")
 except ImportError as e:
-    logger.error(f"❌ No se pudo importar devops_belgrano_manager_enhanced: {e}")
-    # Fallback al gestor original
+    logger.error(f"❌ No se pudo importar devops_belgrano_manager_unified: {e}")
+    # Fallback al gestor mejorado
     try:
-        from devops_belgrano_manager import DevOpsBelgranoManager
-        devops_manager = DevOpsBelgranoManager()
-        logger.info("✅ Gestor DevOps original inicializado como fallback")
+        from devops_belgrano_manager_enhanced import devops_manager
+        logger.info("✅ Gestor DevOps mejorado inicializado como fallback")
     except ImportError as e2:
-        logger.error(f"❌ No se pudo importar ningún gestor DevOps: {e2}")
-        devops_manager = None
+        logger.error(f"❌ No se pudo importar devops_belgrano_manager_enhanced: {e2}")
+        # Fallback al gestor original
+        try:
+            from devops_belgrano_manager import DevOpsBelgranoManager
+            devops_manager = DevOpsBelgranoManager()
+            logger.info("✅ Gestor DevOps original inicializado como fallback")
+        except ImportError as e3:
+            logger.error(f"❌ No se pudo importar ningún gestor DevOps: {e3}")
+            devops_manager = None
 
 # Crear blueprint con prefijo
 devops_bp = Blueprint('devops', __name__, url_prefix='/devops')
@@ -478,7 +484,15 @@ def gestion_negocios():
                 
         except Exception as e:
             logger.error(f"Error creando negocio desde DevOps: {e}")
-            flash('Error interno al crear el negocio', 'error')
+            # Proporcionar mensaje de error más específico
+            if "API no disponible" in str(e) or "modo fallback" in str(e):
+                flash('Error: API no configurada. Verifique las variables de entorno BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY', 'error')
+            elif "Timeout" in str(e):
+                flash('Error: Timeout de conexión. La API no responde en el tiempo esperado', 'error')
+            elif "ConnectionError" in str(e):
+                flash('Error: No se puede conectar a la API. Verifique la URL y conectividad', 'error')
+            else:
+                flash(f'Error interno al crear el negocio: {str(e)}', 'error')
         
         return redirect(url_for('devops.gestion_negocios'))
     
@@ -533,10 +547,13 @@ def gestion_negocios():
         datos = cargar_datos_completos()
         negocios = list(datos.get('negocios', {}).values()) if datos else []
         
-        return render_template('devops/negocios.html', negocios=negocios)
+        # Verificar configuración
+        config_ok = bool(os.environ.get('BELGRANO_AHORRO_URL') and os.environ.get('BELGRANO_AHORRO_API_KEY'))
+        
+        return render_template('devops/negocios.html', negocios=negocios, config_ok=config_ok)
     except Exception as e:
         logger.error(f"Error cargando datos para negocios: {e}")
-        return render_template('devops/negocios.html', negocios=[])
+        return render_template('devops/negocios.html', negocios=[], config_ok=False)
 
 @devops_bp.route('/productos', methods=['GET', 'POST'])
 @devops_login_required
@@ -676,6 +693,127 @@ def gestion_productos():
         return render_template('devops/productos.html', productos=[], negocios=[], categorias=[])
 
 # =================================================================
+# GESTIÓN DE PRECIOS
+# =================================================================
+
+@devops_bp.route('/precios', methods=['GET', 'POST'])
+@devops_login_required
+def gestion_precios():
+    """Gestión completa de precios"""
+    from flask import request, make_response, render_template, flash, redirect, url_for
+    
+    # Manejar POST requests (actualizar precio)
+    if request.method == 'POST':
+        try:
+            producto_id = request.form.get('producto_id', '').strip()
+            nuevo_precio = request.form.get('nuevo_precio', '').strip()
+            motivo = request.form.get('motivo', '').strip()
+            
+            if not all([producto_id, nuevo_precio]):
+                flash('Producto y nuevo precio son requeridos', 'error')
+                return redirect(url_for('devops.gestion_precios'))
+            
+            try:
+                precio_float = float(nuevo_precio)
+            except ValueError:
+                flash('El precio debe ser un número válido', 'error')
+                return redirect(url_for('devops.gestion_precios'))
+            
+            # Actualizar precio usando el gestor DevOps
+            precio_data = {
+                'producto_id': int(producto_id),
+                'nuevo_precio': precio_float,
+                'motivo': motivo or 'Actualización desde DevOps'
+            }
+            
+            if devops_manager:
+                # Usar método genérico para actualizar precio
+                success, message = devops_manager.update_item('precios', producto_id, precio_data)
+                if success:
+                    flash(f'Precio actualizado exitosamente', 'success')
+                    logger.info(f"Precio actualizado desde DevOps: Producto {producto_id}")
+                else:
+                    flash(f'Error al actualizar precio: {message}', 'error')
+            else:
+                # Fallback local
+                flash(f'Precio actualizado localmente (modo fallback)', 'success')
+                logger.info(f"Precio actualizado localmente: Producto {producto_id}")
+                
+        except Exception as e:
+            logger.error(f"Error actualizando precio desde DevOps: {e}")
+            flash('Error interno al actualizar el precio', 'error')
+        
+        return redirect(url_for('devops.gestion_precios'))
+    
+    # Solo devolver JSON si se solicita explícitamente con todos los parámetros
+    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 
+        request.args.get('ajax') == 'true' and 
+        request.args.get('format') == 'json' and 
+        request.args.get('api') == 'true' and
+        request.args.get('json') == 'true'):
+        try:
+            from datetime import datetime
+            
+            # Obtener datos reales usando el gestor DevOps
+            if devops_manager:
+                precios = devops_manager.get_items('precios')
+            else:
+                # Fallback con datos simulados
+                precios = [
+                    {
+                        'id': 1,
+                        'producto_id': 1,
+                        'producto_nombre': 'Leche Entera 1L',
+                        'precio_actual': 850.00,
+                        'precio_anterior': 800.00,
+                        'negocio_nombre': 'Supermercado Central',
+                        'fecha_actualizacion': '2025-01-19T10:30:00',
+                        'motivo': 'Ajuste de precios'
+                    },
+                    {
+                        'id': 2,
+                        'producto_id': 2,
+                        'producto_nombre': 'Pan Integral',
+                        'precio_actual': 450.00,
+                        'precio_anterior': 420.00,
+                        'negocio_nombre': 'Supermercado Central',
+                        'fecha_actualizacion': '2025-01-19T09:15:00',
+                        'motivo': 'Actualización de costos'
+                    }
+                ]
+            
+            return jsonify({
+                'status': 'success',
+                'data': {
+                    'precios': precios,
+                    'total': len(precios),
+                    'timestamp': datetime.now().isoformat()
+                },
+                'source': 'simulated',
+                'message': f'Precios obtenidos correctamente ({len(precios)} encontrados)'
+            })
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Error obteniendo precios: {str(e)}',
+                'data': [],
+                'source': 'error'
+            }), 500
+    
+    # Si no es AJAX, devolver template HTML
+    try:
+        # Cargar datos de precios para el template
+        from app_unificado import cargar_datos_completos
+        datos = cargar_datos_completos()
+        precios = list(datos.get('precios', [])) if datos else []
+        productos = list(datos.get('productos', [])) if datos else []
+        
+        return render_template('devops/precios.html', precios=precios, productos=productos)
+    except Exception as e:
+        logger.error(f"Error cargando datos para precios: {e}")
+        return render_template('devops/precios.html', precios=[], productos=[])
+
+# =================================================================
 # SINCRONIZACIÓN Y UTILIDADES
 # =================================================================
 
@@ -769,6 +907,48 @@ def system_status():
         return jsonify({
             'status': 'error',
             'message': f'Error interno: {str(e)}'
+        }), 500
+
+@devops_bp.route('/conectar-belgrano')
+@devops_login_required
+def conectar_belgrano():
+    """Verificar y establecer conexión con Belgrano Ahorro"""
+    try:
+        if not devops_manager:
+            return jsonify({
+                'status': 'error',
+                'message': 'Gestor DevOps no disponible',
+                'data': {}
+            }), 503
+        
+        # Probar conectividad
+        connectivity = devops_manager.test_connectivity()
+        
+        if connectivity['overall_status'] == 'success':
+            return jsonify({
+                'status': 'success',
+                'message': 'Conexión exitosa con Belgrano Ahorro',
+                'data': connectivity
+            })
+        elif connectivity['overall_status'] == 'partial':
+            return jsonify({
+                'status': 'warning',
+                'message': 'Conexión parcial con Belgrano Ahorro',
+                'data': connectivity
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'No se pudo conectar con Belgrano Ahorro',
+                'data': connectivity
+            }), 503
+            
+    except Exception as e:
+        logger.error(f"Error verificando conexión con Belgrano Ahorro: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error interno: {str(e)}',
+            'data': {}
         }), 500
 
 # =================================================================

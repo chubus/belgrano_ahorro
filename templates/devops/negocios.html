@@ -4,6 +4,17 @@
 {% block page_title %}Gestión de Negocios{% endblock %}
 
 {% block content %}
+<!-- Alerta de configuración si es necesario -->
+{% if not config_ok %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <strong>Configuración requerida:</strong> Para crear negocios, configure las variables de entorno 
+    <code>BELGRANO_AHORRO_URL</code> y <code>BELGRANO_AHORRO_API_KEY</code>. 
+    <a href="#" class="alert-link" onclick="showConfigHelp()">Ver ayuda de configuración</a>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
 <div class="row mb-4">
     <div class="col-md-6">
         <h4 class="mb-0">
@@ -199,6 +210,22 @@ function editarNegocio(id, nombre, descripcion, direccion, telefono, email, acti
     // Mostrar el modal
     const modal = new bootstrap.Modal(document.getElementById('editarNegocioModal'));
     modal.show();
+}
+
+function showConfigHelp() {
+    alert(`CONFIGURACIÓN REQUERIDA:
+
+Para que la creación de negocios funcione correctamente, configure estas variables de entorno:
+
+1. BELGRANO_AHORRO_URL
+   Ejemplo: http://localhost:5000
+
+2. BELGRANO_AHORRO_API_KEY
+   Ejemplo: your_api_key_here
+
+Puede usar el archivo config_devops_negocios.env como plantilla.
+
+Después de configurar las variables, reinicie la aplicación.`);
 }
 </script>
 {% endblock %}

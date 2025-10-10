@@ -19,3 +19,4 @@ FLASK_ENV=development
 
 # Base de datos (opcional)
 BELGRANO_AHORRO_DB_PATH=belgrano_ahorro.db
+
