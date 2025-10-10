@@ -221,86 +221,62 @@ class DevOpsBelgranoManagerUnified:
     # =================================================================
     
     def get_items(self, kind: str) -> List[Dict]:
-        """Obtener items por tipo con fallback local"""
+        """Obtener items por tipo exclusivamente desde API (sin datos simulados)."""
         try:
-            # Intentar obtener de API primero
             success, data = self._make_request('GET', f'v1/{kind}')
-            if success:
+            if success and isinstance(data, list):
                 logger.info(f"✅ {kind} obtenidos desde API: {len(data)} items")
                 return data
-            else:
-                logger.warning(f"⚠️ No se pudo obtener {kind} desde API: {data}")
-                return self._get_fallback_data(kind)
-                
+            logger.warning(f"⚠️ No se pudo obtener {kind} desde API: {data}")
+            return []
         except Exception as e:
             logger.error(f"❌ Error obteniendo {kind}: {e}")
-            return self._get_fallback_data(kind)
+            return []
     
     def create_item(self, kind: str, data: Dict) -> Tuple[bool, str]:
-        """Crear item con fallback local"""
+        """Crear item exclusivamente en API (sin creación local)."""
         try:
-            # Verificar si estamos en modo fallback
             if self.fallback_mode:
-                logger.warning(f"⚠️ Modo fallback activado - Variables de entorno no configuradas")
-                return True, f"Item creado localmente (modo fallback - API no configurada)"
-            
-            # Intentar crear en API primero
+                logger.warning("⚠️ Modo fallback activado - API no configurada")
+                return False, "API no disponible (modo fallback)"
             success, response = self._make_request('POST', f'v1/{kind}', data)
             if success:
                 logger.info(f"✅ {kind} creado en API: {data.get('nombre', 'Sin nombre')}")
                 return True, "Item creado exitosamente en API"
-            else:
-                logger.warning(f"⚠️ No se pudo crear {kind} en API: {response}")
-                # Fallback: simular creación local
-                logger.info(f"📦 Simulando creación local de {kind}")
-                return True, f"Item creado localmente (API no disponible: {response})"
-                
+            logger.warning(f"⚠️ No se pudo crear {kind} en API: {response}")
+            return False, f"Error al crear item en API: {response}"
         except Exception as e:
             logger.error(f"❌ Error creando {kind}: {e}")
             return False, f"Error interno: {str(e)}"
     
     def update_item(self, kind: str, item_id: Any, data: Dict) -> Tuple[bool, str]:
-        """Actualizar item con fallback local"""
+        """Actualizar item exclusivamente en API (sin actualización local)."""
         try:
-            # Verificar si estamos en modo fallback
             if self.fallback_mode:
-                logger.warning(f"⚠️ Modo fallback activado - Variables de entorno no configuradas")
-                return True, f"Item actualizado localmente (modo fallback - API no configurada)"
-            
-            # Intentar actualizar en API primero
+                logger.warning("⚠️ Modo fallback activado - API no configurada")
+                return False, "API no disponible (modo fallback)"
             success, response = self._make_request('PUT', f'v1/{kind}/{item_id}', data)
             if success:
                 logger.info(f"✅ {kind} actualizado en API: ID {item_id}")
                 return True, "Item actualizado exitosamente en API"
-            else:
-                logger.warning(f"⚠️ No se pudo actualizar {kind} en API: {response}")
-                # Fallback: simular actualización local
-                logger.info(f"📦 Simulando actualización local de {kind} ID {item_id}")
-                return True, f"Item actualizado localmente (API no disponible: {response})"
-                
+            logger.warning(f"⚠️ No se pudo actualizar {kind} en API: {response}")
+            return False, f"Error al actualizar item en API: {response}"
         except Exception as e:
             logger.error(f"❌ Error actualizando {kind}: {e}")
             return False, f"Error interno: {str(e)}"
     
     def delete_item(self, kind: str, item_id: Any) -> Tuple[bool, str]:
-        """Eliminar item con fallback local"""
+        """Eliminar item exclusivamente en API (sin eliminación local)."""
         try:
-            # Verificar si estamos en modo fallback
             if self.fallback_mode:
-                logger.warning(f"⚠️ Modo fallback activado - Variables de entorno no configuradas")
-                return True, f"Item eliminado localmente (modo fallback - API no configurada)"
-            
-            # Intentar eliminar en API primero
+                logger.warning("⚠️ Modo fallback activado - API no configurada")
+                return False, "API no disponible (modo fallback)"
             success, response = self._make_request('DELETE', f'v1/{kind}/{item_id}')
             if success:
                 logger.info(f"✅ {kind} eliminado en API: ID {item_id}")
                 return True, "Item eliminado exitosamente en API"
-            else:
-                logger.warning(f"⚠️ No se pudo eliminar {kind} en API: {response}")
-                # Fallback: simular eliminación local
-                logger.info(f"📦 Simulando eliminación local de {kind} ID {item_id}")
-                return True, f"Item eliminado localmente (API no disponible: {response})"
-                
+            logger.warning(f"⚠️ No se pudo eliminar {kind} en API: {response}")
+            return False, f"Error al eliminar item en API: {response}"
         except Exception as e:
             logger.error(f"❌ Error eliminando {kind}: {e}")
             return False, f"Error interno: {str(e)}"

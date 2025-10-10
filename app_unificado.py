@@ -2670,6 +2670,82 @@ def api_get_sucursales():
         logger.error(f"Error obteniendo sucursales: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
 
+@app.route('/api/v1/sucursales', methods=['POST'])
+@require_api_key
+def api_create_sucursal():
+    """API endpoint para crear una sucursal"""
+    try:
+        data = request.get_json()
+        required_fields = ['nombre']
+        for field in required_fields:
+            if field not in data or data[field] in (None, ''):
+                return jsonify({'error': f'Campo requerido faltante: {field}'}), 400
+        datos = cargar_datos_completos()
+        if not datos:
+            datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+        sucursal_id = str(uuid.uuid4())
+        nueva_sucursal = {
+            'id': sucursal_id,
+            'nombre': data['nombre'],
+            'direccion': data.get('direccion', ''),
+            'telefono': data.get('telefono', ''),
+            'negocio_id': data.get('negocio_id', ''),
+            'activo': bool(data.get('activo', True)),
+            'fecha_creacion': datetime.now().isoformat(),
+            'creado_desde': data.get('creado_desde', 'api')
+        }
+        if 'sucursales' not in datos:
+            datos['sucursales'] = {}
+        datos['sucursales'][sucursal_id] = nueva_sucursal
+        if guardar_datos_json(datos):
+            logger.info(f"Sucursal creada via API: {nueva_sucursal['nombre']}")
+            return jsonify(nueva_sucursal), 201
+        return jsonify({'error': 'Error al guardar la sucursal'}), 500
+    except Exception as e:
+        logger.error(f"Error creando sucursal via API: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/sucursales/<sucursal_id>', methods=['PUT'])
+@require_api_key
+def api_update_sucursal(sucursal_id):
+    """API endpoint para actualizar una sucursal"""
+    try:
+        data = request.get_json()
+        datos = cargar_datos_completos()
+        if not datos or 'sucursales' not in datos or sucursal_id not in datos['sucursales']:
+            return jsonify({'error': 'Sucursal no encontrada'}), 404
+        sucursal = datos['sucursales'][sucursal_id]
+        for key, value in data.items():
+            if key != 'id':
+                sucursal[key] = value
+        sucursal['fecha_modificacion'] = datetime.now().isoformat()
+        sucursal['modificado_desde'] = data.get('modificado_desde', 'api')
+        if guardar_datos_json(datos):
+            logger.info(f"Sucursal actualizada via API: {sucursal.get('nombre','')}")
+            return jsonify(sucursal), 200
+        return jsonify({'error': 'Error al guardar los cambios'}), 500
+    except Exception as e:
+        logger.error(f"Error actualizando sucursal via API: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/sucursales/<sucursal_id>', methods=['DELETE'])
+@require_api_key
+def api_delete_sucursal(sucursal_id):
+    """API endpoint para eliminar una sucursal"""
+    try:
+        datos = cargar_datos_completos()
+        if not datos or 'sucursales' not in datos or sucursal_id not in datos['sucursales']:
+            return jsonify({'error': 'Sucursal no encontrada'}), 404
+        sucursal_nombre = datos['sucursales'][sucursal_id].get('nombre', '')
+        del datos['sucursales'][sucursal_id]
+        if guardar_datos_json(datos):
+            logger.info(f"Sucursal eliminada via API: {sucursal_nombre}")
+            return jsonify({'message': 'Sucursal eliminada exitosamente'}), 200
+        return jsonify({'error': 'Error al guardar los cambios'}), 500
+    except Exception as e:
+        logger.error(f"Error eliminando sucursal via API: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
 @app.route('/api/v1/pedidos', methods=['GET'])
 def api_get_pedidos():
     """API endpoint para obtener pedidos del usuario"""
@@ -2833,6 +2909,42 @@ def api_get_productos():
         logger.error(f"Error obteniendo productos: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
 
+@app.route('/api/v1/productos', methods=['POST'])
+@require_api_key
+def api_create_producto():
+    """API endpoint para crear un nuevo producto"""
+    try:
+        data = request.get_json()
+        required_fields = ['nombre', 'precio']
+        for field in required_fields:
+            if field not in data or data[field] in (None, ''):
+                return jsonify({'error': f'Campo requerido faltante: {field}'}), 400
+        datos = cargar_datos_completos()
+        if not datos:
+            datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}}
+        nuevo_producto = {
+            'id': str(uuid.uuid4()),
+            'nombre': data['nombre'],
+            'precio': float(data['precio']),
+            'categoria': data.get('categoria', ''),
+            'negocio': data.get('negocio', ''),
+            'descripcion': data.get('descripcion', ''),
+            'imagen': data.get('imagen', ''),
+            'activo': bool(data.get('activo', True)),
+            'fecha_creacion': datetime.now().isoformat(),
+            'creado_desde': data.get('creado_desde', 'api')
+        }
+        if 'productos' not in datos:
+            datos['productos'] = []
+        datos['productos'].append(nuevo_producto)
+        if guardar_datos_json(datos):
+            logger.info(f"Producto creado via API: {nuevo_producto['nombre']}")
+            return jsonify(nuevo_producto), 201
+        return jsonify({'error': 'Error al guardar el producto'}), 500
+    except Exception as e:
+        logger.error(f"Error creando producto via API: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
 @app.route('/api/v1/productos/<producto_id>', methods=['PUT'])
 @require_api_key
 def api_update_producto(producto_id):
@@ -2873,6 +2985,113 @@ def api_update_producto(producto_id):
     except Exception as e:
         logger.error(f"Error actualizando producto via API: {e}")
         return jsonify({'error': 'Servicio DevOps temporalmente no disponible'}), 503
+
+@app.route('/api/v1/productos/<producto_id>', methods=['DELETE'])
+@require_api_key
+def api_delete_producto(producto_id):
+    """API endpoint para eliminar un producto"""
+    try:
+        datos = cargar_datos_completos()
+        if not datos or 'productos' not in datos:
+            return jsonify({'error': 'Productos no encontrados'}), 404
+        indice = None
+        for i, producto in enumerate(datos['productos']):
+            if str(producto.get('id', '')) == str(producto_id):
+                indice = i
+                break
+        if indice is None:
+            return jsonify({'error': 'Producto no encontrado'}), 404
+        producto_nombre = datos['productos'][indice].get('nombre', '')
+        del datos['productos'][indice]
+        if guardar_datos_json(datos):
+            logger.info(f"Producto eliminado via API: {producto_nombre}")
+            return jsonify({'message': 'Producto eliminado exitosamente'}), 200
+        return jsonify({'error': 'Error al guardar los cambios'}), 500
+    except Exception as e:
+        logger.error(f"Error eliminando producto via API: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/precios', methods=['GET'])
+@require_api_key
+def api_get_precios():
+    """API endpoint para obtener historial/estado de precios"""
+    try:
+        datos = cargar_datos_completos()
+        precios = datos.get('precios', []) if datos else []
+        return jsonify(precios), 200
+    except Exception as e:
+        logger.error(f"Error obteniendo precios: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/precios', methods=['POST'])
+@require_api_key
+def api_create_precio():
+    """Crear registro de actualización de precio"""
+    try:
+        data = request.get_json()
+        required_fields = ['producto_id', 'nuevo_precio']
+        for field in required_fields:
+            if field not in data or data[field] in (None, ''):
+                return jsonify({'error': f'Campo requerido faltante: {field}'}), 400
+        datos = cargar_datos_completos()
+        if not datos:
+            datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}, 'precios': []}
+        registro = {
+            'id': str(uuid.uuid4()),
+            'producto_id': data['producto_id'],
+            'precio_anterior': data.get('precio_anterior'),
+            'precio_actual': float(data['nuevo_precio']),
+            'motivo': data.get('motivo', ''),
+            'fecha_actualizacion': datetime.now().isoformat()
+        }
+        if 'precios' not in datos:
+            datos['precios'] = []
+        datos['precios'].append(registro)
+        if guardar_datos_json(datos):
+            logger.info(f"Precio creado via API: prod {registro['producto_id']}")
+            return jsonify(registro), 201
+        return jsonify({'error': 'Error al guardar el precio'}), 500
+    except Exception as e:
+        logger.error(f"Error creando precio via API: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+@app.route('/api/v1/precios/<producto_id>', methods=['PUT'])
+@require_api_key
+def api_update_precio(producto_id):
+    """Actualizar precio actual de un producto (crea registro y, opcionalmente, actualiza producto)"""
+    try:
+        data = request.get_json()
+        if 'nuevo_precio' not in data:
+            return jsonify({'error': 'Campo requerido faltante: nuevo_precio'}), 400
+        datos = cargar_datos_completos()
+        if not datos:
+            datos = {'productos': [], 'sucursales': [], 'ofertas': [], 'negocios': {}, 'categorias': {}, 'precios': []}
+        precio_anterior = None
+        if 'productos' in datos:
+            for p in datos['productos']:
+                if str(p.get('id', '')) == str(producto_id):
+                    precio_anterior = p.get('precio')
+                    p['precio'] = float(data['nuevo_precio'])
+                    p['fecha_modificacion'] = datetime.now().isoformat()
+                    break
+        if 'precios' not in datos:
+            datos['precios'] = []
+        registro = {
+            'id': str(uuid.uuid4()),
+            'producto_id': producto_id,
+            'precio_anterior': precio_anterior,
+            'precio_actual': float(data['nuevo_precio']),
+            'motivo': data.get('motivo', ''),
+            'fecha_actualizacion': datetime.now().isoformat()
+        }
+        datos['precios'].append(registro)
+        if guardar_datos_json(datos):
+            logger.info(f"Precio actualizado via API: prod {producto_id}")
+            return jsonify({'message': 'Precio actualizado', 'registro': registro}), 200
+        return jsonify({'error': 'Error al guardar el precio'}), 500
+    except Exception as e:
+        logger.error(f"Error actualizando precio via API: {e}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 # ==========================================
 # INICIO DE LA APLICACIÓN
