@@ -340,6 +340,8 @@ def gestion_ofertas():
         try:
             # Obtener datos reales usando el gestor DevOps
             if devops_manager:
+                if getattr(devops_manager, 'fallback_mode', False):
+                    return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible', 'data': []}), 503
                 ofertas = devops_manager.get_ofertas()
             else:
                 return jsonify({
@@ -441,6 +443,8 @@ def gestion_negocios():
             
             # Obtener datos reales usando el gestor DevOps
             if devops_manager:
+                if getattr(devops_manager, 'fallback_mode', False):
+                    return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible', 'data': []}), 503
                 negocios = devops_manager.get_negocios()
             else:
                 return jsonify({
@@ -542,6 +546,8 @@ def gestion_productos():
             
             # Obtener datos reales usando el gestor DevOps
             if devops_manager:
+                if getattr(devops_manager, 'fallback_mode', False):
+                    return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible', 'data': []}), 503
                 productos = devops_manager.get_productos()
             else:
                 return jsonify({
@@ -645,6 +651,8 @@ def gestion_precios():
             
             # Obtener datos reales usando el gestor DevOps
             if devops_manager:
+                if getattr(devops_manager, 'fallback_mode', False):
+                    return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible', 'data': []}), 503
                 precios = devops_manager.get_items('precios')
             else:
                 return jsonify({

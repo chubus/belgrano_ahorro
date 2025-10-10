@@ -1374,9 +1374,9 @@ def healthz():
 def actualizar_base_datos_produccion():
     """Endpoint para actualizar la base de datos en producción"""
     try:
-        # Verificar API key para seguridad
+        # Verificar API key para seguridad (usar la variable de entorno configurada)
         api_key = request.headers.get('X-API-Key')
-        if api_key != 'belgrano_ahorro_api_key_2025':
+        if api_key != BELGRANO_AHORRO_API_KEY:
             return jsonify({'error': 'API key inválida'}), 401
         
         conn = get_db_connection()

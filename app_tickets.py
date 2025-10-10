@@ -407,7 +407,7 @@ try:
                             'total': len(ofertas),
                             'timestamp': datetime.now().isoformat()
                         },
-                        'source': 'simulated',
+                        'source': 'api',
                         'message': f'Ofertas obtenidas correctamente ({len(ofertas)} encontradas)'
                     })
                 except Exception as e:
@@ -470,7 +470,7 @@ try:
                             'total': len(negocios),
                             'timestamp': datetime.now().isoformat()
                         },
-                        'source': 'simulated',
+                        'source': 'api',
                         'message': f'Negocios obtenidos correctamente ({len(negocios)} encontrados)'
                     })
                 except Exception as e:
@@ -534,7 +534,7 @@ try:
                             'total': len(productos),
                             'timestamp': datetime.now().isoformat()
                         },
-                        'source': 'simulated',
+                        'source': 'api',
                         'message': f'Productos obtenidos correctamente ({len(productos)} encontrados)'
                     })
                 except Exception as e:
@@ -589,7 +589,7 @@ try:
                             'total': len(precios),
                             'timestamp': datetime.now().isoformat()
                         },
-                        'source': 'simulated',
+                        'source': 'api',
                         'message': f'Precios obtenidos correctamente ({len(precios)} encontrados)'
                     })
                 except Exception as e:
@@ -715,22 +715,7 @@ try:
                 import time
                 time.sleep(1)  # Simular tiempo de procesamiento
                 
-                return jsonify({
-                    'status': 'success',
-                    'message': 'Sincronización completada exitosamente',
-                    'data': {
-                        'productos_sync': 25,
-                        'ofertas_sync': 8,
-                        'negocios_sync': 12,
-                        'usuarios_sync': 45,
-                        'pedidos_sync': 156,
-                        'categorias_sync': 6,
-                        'imagenes_sync': 89
-                    },
-                    'source': 'simulated',
-                    'timestamp': datetime.now().isoformat(),
-                    'duration': '1.2s'
-                })
+                return jsonify({'status': 'error', 'message': 'Servicio DevOps temporalmente no disponible', 'data': []}), 503
             except Exception as e:
                 return jsonify({
                     'status': 'error',

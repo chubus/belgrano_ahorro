@@ -25,7 +25,7 @@ class DevOpsBelgranoManagerUnified:
     def __init__(self):
         """Inicializar el gestor DevOps unificado"""
         self.belgrano_url = os.environ.get('BELGRANO_AHORRO_URL', 'http://localhost:5000')
-        self.belgrano_api_key = os.environ.get('BELGRANO_AHORRO_API_KEY', 'devops_api_key_2025')
+        self.belgrano_api_key = os.environ.get('BELGRANO_AHORRO_API_KEY')
         self.api_timeout = int(os.environ.get('API_TIMEOUT_SECS', '30'))
         self.jwt_secret = os.environ.get('JWT_SECRET', 'devops_jwt_secret_2025')
         self.fallback_mode = not (self.belgrano_url and self.belgrano_api_key)
