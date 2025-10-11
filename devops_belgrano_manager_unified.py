@@ -214,21 +214,23 @@ class DevOpsBelgranoManagerUnified:
     # =================================================================
     
     def get_items(self, kind: str) -> List[Dict]:
-        """Obtener items por tipo exclusivamente desde API (sin datos simulados)."""
+        """Obtener items por tipo con fallback a datos locales si API no disponible."""
         try:
             if self.fallback_mode:
                 logger.warning(f"⚠️ Modo fallback activo para {kind} - Variables de entorno no configuradas")
-                return []
+                return self._get_local_data(kind)
             
             success, data = self._make_request('GET', kind)
             if success and isinstance(data, list):
                 logger.info(f"✅ {kind} obtenidos desde API: {len(data)} items")
                 return data
             logger.warning(f"⚠️ No se pudo obtener {kind} desde API: {data}")
-            return []
+            logger.info(f"📋 Usando datos locales para {kind}")
+            return self._get_local_data(kind)
         except Exception as e:
             logger.error(f"❌ Error obteniendo {kind}: {e}")
-            return []
+            logger.info(f"📋 Usando datos locales para {kind}")
+            return self._get_local_data(kind)
     
     def create_item(self, kind: str, data: Dict) -> Tuple[bool, str]:
         """Crear item exclusivamente en API (sin creación local)."""
@@ -355,10 +357,43 @@ class DevOpsBelgranoManagerUnified:
     # =================================================================
     # DATOS DE FALLBACK ELIMINADOS - SOLO DATOS REALES
     # =================================================================
-    # NOTA: No hay datos de fallback. Si la API no está disponible,
-    # se retornan listas vacías para garantizar que solo se muestren
-    # datos reales de Belgrano Ahorro.
-    
+    def _get_local_data(self, kind: str) -> List[Dict]:
+        """Obtener datos locales desde productos.json como fallback"""
+        try:
+            import json
+            with open('productos.json', 'r', encoding='utf-8') as f:
+                datos = json.load(f)
+            
+            if kind == 'negocios':
+                # Convertir diccionario de negocios a lista
+                negocios = datos.get('negocios', {})
+                return [{'id': k, **v} for k, v in negocios.items()]
+            elif kind == 'productos':
+                return datos.get('productos', [])
+            elif kind == 'sucursales':
+                # Convertir diccionario de sucursales a lista
+                sucursales = datos.get('sucursales', {})
+                lista_sucursales = []
+                for negocio_id, sucursales_negocio in sucursales.items():
+                    for sucursal in sucursales_negocio:
+                        sucursal['negocio_id'] = negocio_id
+                        lista_sucursales.append(sucursal)
+                return lista_sucursales
+            elif kind == 'ofertas':
+                # Convertir diccionario de ofertas a lista
+                ofertas = datos.get('ofertas', {})
+                return [{'id': k, **v} for k, v in ofertas.items()]
+            elif kind == 'categorias':
+                # Convertir diccionario de categorías a lista
+                categorias = datos.get('categorias', {})
+                return [{'id': k, **v} for k, v in categorias.items()]
+            else:
+                return []
+                
+        except Exception as e:
+            logger.error(f"❌ Error cargando datos locales para {kind}: {e}")
+            return []
+
     def get_system_status(self) -> Dict[str, Any]:
         """Obtener estado completo del sistema"""
         return {

@@ -2847,6 +2847,7 @@ def api_get_categorias():
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 @app.route('/api/v1/sucursales', methods=['GET'])
+@require_api_key
 def api_get_sucursales():
     """API endpoint para obtener todas las sucursales"""
     try:
