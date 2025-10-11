@@ -219,10 +219,26 @@ def cargar_datos_completos():
     try:
         with open('productos.json', 'r', encoding='utf-8') as file:
             datos = json.load(file)
+        logger.info(f"✅ Datos locales cargados correctamente")
         return datos
+    except FileNotFoundError:
+        logger.warning("⚠️ Archivo productos.json no encontrado, usando datos vacíos")
+        return {
+            'negocios': {},
+            'categorias': {},
+            'ofertas': {},
+            'productos': [],
+            'sucursales': {}
+        }
     except Exception as e:
-        logger.error(f"Error al cargar datos completos: {e}")
-        return {}
+        logger.error(f"❌ Error al cargar datos completos: {e}")
+        return {
+            'negocios': {},
+            'categorias': {},
+            'ofertas': {},
+            'productos': [],
+            'sucursales': {}
+        }
 
 def obtener_negocios():
     """
@@ -332,26 +348,112 @@ def obtener_productos_destacados():
     return [p for p in productos if p.get('destacado', False) and p.get('activo', True)]
 
 def obtener_ofertas_activas():
-    """Obtener ofertas activas con información de productos"""
-    datos = cargar_datos_completos()
-    ofertas = datos.get('ofertas', {})
-    productos = datos.get('productos', [])
-    
-    ofertas_activas = {}
-    for negocio, ofertas_negocio in ofertas.items():
-        ofertas_activas[negocio] = []
-        for oferta in ofertas_negocio:
-            # Agregar información de productos a la oferta
-            productos_oferta = []
-            for producto_id in oferta.get('productos', []):
-                producto = next((p for p in productos if p['id'] == producto_id), None)
-                if producto:
-                    productos_oferta.append(producto)
+    """Obtener ofertas activas con información de productos desde APIs reales"""
+    try:
+        # Intentar obtener datos desde APIs reales primero
+        ofertas_activas = {}
+        
+        # Variables de entorno para APIs
+        ticketera_url = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com')
+        belgrano_url = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com')
+        api_key = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
+        
+        logger.info(f"🔍 Obteniendo ofertas desde APIs: Ticketera={ticketera_url}, Belgrano={belgrano_url}")
+        
+        # Intentar obtener ofertas desde Ticketera
+        try:
+            import requests
+            headers = {
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json'
+            }
             
-            oferta['productos_info'] = productos_oferta
-            ofertas_activas[negocio].append(oferta)
-    
-    return ofertas_activas
+            # Obtener ofertas desde Ticketera
+            ticketera_response = requests.get(f"{ticketera_url}/api/ofertas", headers=headers, timeout=10)
+            if ticketera_response.status_code == 200:
+                ticketera_ofertas = ticketera_response.json()
+                logger.info(f"✅ Ofertas obtenidas desde Ticketera: {len(ticketera_ofertas) if isinstance(ticketera_ofertas, list) else 'N/A'}")
+                
+                # Procesar ofertas de Ticketera
+                if isinstance(ticketera_ofertas, list):
+                    for oferta in ticketera_ofertas:
+                        negocio = oferta.get('negocio', 'Sin negocio')
+                        if negocio not in ofertas_activas:
+                            ofertas_activas[negocio] = []
+                        ofertas_activas[negocio].append(oferta)
+                elif isinstance(ticketera_ofertas, dict):
+                    ofertas_activas.update(ticketera_ofertas)
+                    
+        except Exception as e:
+            logger.warning(f"⚠️ Error obteniendo ofertas desde Ticketera: {e}")
+        
+        # Intentar obtener ofertas desde Belgrano Ahorro
+        try:
+            belgrano_response = requests.get(f"{belgrano_url}/api/v1/ofertas", headers=headers, timeout=10)
+            if belgrano_response.status_code == 200:
+                belgrano_ofertas = belgrano_response.json()
+                logger.info(f"✅ Ofertas obtenidas desde Belgrano Ahorro: {len(belgrano_ofertas) if isinstance(belgrano_ofertas, list) else 'N/A'}")
+                
+                # Procesar ofertas de Belgrano Ahorro
+                if isinstance(belgrano_ofertas, list):
+                    for oferta in belgrano_ofertas:
+                        negocio = oferta.get('negocio', 'Sin negocio')
+                        if negocio not in ofertas_activas:
+                            ofertas_activas[negocio] = []
+                        ofertas_activas[negocio].append(oferta)
+                elif isinstance(belgrano_ofertas, dict):
+                    ofertas_activas.update(belgrano_ofertas)
+                    
+        except Exception as e:
+            logger.warning(f"⚠️ Error obteniendo ofertas desde Belgrano Ahorro: {e}")
+        
+        # Si no se obtuvieron ofertas de las APIs, intentar desde datos locales
+        if not ofertas_activas:
+            logger.info("📋 No se obtuvieron ofertas de APIs, intentando datos locales...")
+            datos = cargar_datos_completos()
+            ofertas = datos.get('ofertas', {})
+            
+            # Manejar tanto listas como diccionarios
+            if isinstance(ofertas, list):
+                logger.info(f"📋 Ofertas locales como lista: {len(ofertas)} items")
+                # Convertir lista a diccionario por negocio
+                for oferta in ofertas:
+                    negocio = oferta.get('negocio', 'Sin negocio')
+                    if negocio not in ofertas_activas:
+                        ofertas_activas[negocio] = []
+                    ofertas_activas[negocio].append(oferta)
+                    
+            elif isinstance(ofertas, dict):
+                logger.info(f"📋 Ofertas locales como diccionario: {len(ofertas)} negocios")
+                ofertas_activas = ofertas.copy()
+            else:
+                logger.warning("⚠️ Ofertas locales en formato no reconocido")
+        
+        # Agregar información de productos a las ofertas
+        productos = []
+        try:
+            datos = cargar_datos_completos()
+            productos = datos.get('productos', [])
+        except:
+            pass
+        
+        for negocio, ofertas_negocio in ofertas_activas.items():
+            for oferta in ofertas_negocio:
+                # Agregar información de productos a la oferta
+                productos_oferta = []
+                for producto_id in oferta.get('productos', []):
+                    producto = next((p for p in productos if p.get('id') == producto_id), None)
+                    if producto:
+                        productos_oferta.append(producto)
+                
+                oferta['productos_info'] = productos_oferta
+        
+        logger.info(f"✅ Ofertas activas procesadas: {len(ofertas_activas)} negocios")
+        return ofertas_activas
+        
+    except Exception as e:
+        logger.error(f"❌ Error en obtener_ofertas_activas: {e}")
+        return {}
 
 # ==========================================
 # BASE DE DATOS SIMPLE (USUARIOS Y PEDIDOS)
