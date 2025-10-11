@@ -30,7 +30,7 @@ import json
 import logging
 import os
 import requests
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from datetime import datetime, timedelta
@@ -40,20 +40,25 @@ import secrets
 import hashlib
 import time
 
+# Configurar logging PRIMERO
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Importar base de datos con manejo de errores
 try:
     import db as database
-    print("✅ Módulo db importado correctamente")
+    logger.info("✅ Módulo db importado correctamente")
 except Exception as e:
-    print(f"❌ Error importando db: {e}")
+    logger.error(f"❌ Error importando db: {e}")
     raise  # Detén la app si el import falla
 
 # Importar API RESTful
 try:
     from api_belgrano_ahorro import api_bp
-    print("✅ API RESTful importada correctamente")
+    logger.info("✅ API RESTful importada correctamente")
 except Exception as e:
-    print(f"❌ Error importando API: {e}")
+    logger.error(f"❌ Error importando API: {e}")
     api_bp = None
 
 # Función para obtener conexión a la base de datos
@@ -68,14 +73,12 @@ def get_db_connection():
 try:
     from auth_middleware import login_required, admin_required, flota_required, validate_input_data, production_only, rate_limit
     from error_handlers import register_error_handlers, ValidationError, AuthenticationError, AuthorizationError
-    print("✅ Middleware de autenticación importado correctamente")
+    logger.info("✅ Middleware de autenticación importado correctamente")
 except Exception as e:
-    print(f"❌ Error importando middleware: {e}")
+    logger.error(f"❌ Error importando middleware: {e}")
     raise
 
-# Configurar logging para ver mensajes de debug
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Logger ya configurado arriba
 
 # Crear la instancia de Flask
 app = Flask(__name__)
@@ -83,8 +86,14 @@ app.secret_key = 'belgrano_ahorro_secret_key_2025'  # Clave secreta para sesione
 
 # Registrar API RESTful
 if api_bp:
-    app.register_blueprint(api_bp)
-    print("✅ API RESTful registrada en /api/*")
+    try:
+        app.register_blueprint(api_bp)
+        logger.info("✅ API RESTful registrada en /api/*")
+    except Exception as e:
+        if "already registered" in str(e).lower():
+            logger.info("✅ API RESTful ya estaba registrada")
+        else:
+            logger.warning(f"⚠️ Error registrando API RESTful: {e}")
 
 # Configurar entorno
 # Configurar variables de entorno por defecto
@@ -113,15 +122,21 @@ try:
     try:
         from devops_routes import devops_bp
     except ImportError:
-        print("⚠️ Módulo devops_routes no encontrado, continuando sin DevOps")
+        logger.warning("⚠️ Módulo devops_routes no encontrado, continuando sin DevOps")
         devops_bp = None
     if devops_bp:
-        app.register_blueprint(devops_bp)
-        print("✅ Blueprint de DevOps registrado correctamente")
+        try:
+            app.register_blueprint(devops_bp)
+            logger.info("✅ Blueprint de DevOps registrado correctamente")
+        except Exception as e:
+            if "already registered" in str(e).lower():
+                logger.info("✅ Blueprint de DevOps ya estaba registrado")
+            else:
+                logger.warning(f"⚠️ Error registrando Blueprint de DevOps: {e}")
     else:
-        print("⚠️ Blueprint de DevOps no disponible")
+        logger.warning("⚠️ Blueprint de DevOps no disponible")
 except Exception as e:
-    print(f"❌ Error importando devops_routes: {e}")
+    logger.error(f"❌ Error importando devops_routes: {e}")
     # No es crítico, continúa sin las rutas de DevOps
 
 # ==========================================
@@ -134,17 +149,17 @@ BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY')
 
 # Verificar que las variables de entorno estén definidas
 if not BELGRANO_AHORRO_URL:
-    print("⚠️ Variable de entorno BELGRANO_AHORRO_URL no está definida")
+    logger.warning("⚠️ Variable de entorno BELGRANO_AHORRO_URL no está definida")
 if not BELGRANO_AHORRO_API_KEY:
-    print("⚠️ Variable de entorno BELGRANO_AHORRO_API_KEY no está definida")
+    logger.warning("⚠️ Variable de entorno BELGRANO_AHORRO_API_KEY no está definida")
 
-print(f"🔗 Configuración API:")
-print(f"   TICKETERA_URL: {TICKETERA_URL}")
-print(f"   BELGRANO_AHORRO_URL: {BELGRANO_AHORRO_URL}")
+logger.info(f"🔗 Configuración API:")
+logger.info(f"   TICKETERA_URL: {TICKETERA_URL}")
+logger.info(f"   BELGRANO_AHORRO_URL: {BELGRANO_AHORRO_URL}")
 if BELGRANO_AHORRO_API_KEY:
-    print(f"   API_KEY: {BELGRANO_AHORRO_API_KEY[:10]}...")
+    logger.info(f"   API_KEY: {BELGRANO_AHORRO_API_KEY[:10]}...")
 else:
-    print("   API_KEY: No definida")
+    logger.warning("   API_KEY: No definida")
 
 # =================================================================
 # FUNCIONES DE BÚSQUEDA Y FILTRADO DE PRODUCTOS
@@ -368,8 +383,8 @@ def obtener_ofertas_activas():
                 'Content-Type': 'application/json'
             }
             
-            # Obtener ofertas desde Ticketera
-            ticketera_response = requests.get(f"{ticketera_url}/api/ofertas", headers=headers, timeout=10)
+            # Obtener ofertas desde Ticketera con timeout más largo
+            ticketera_response = requests.get(f"{ticketera_url}/api/ofertas", headers=headers, timeout=30)
             if ticketera_response.status_code == 200:
                 ticketera_ofertas = ticketera_response.json()
                 logger.info(f"✅ Ofertas obtenidas desde Ticketera: {len(ticketera_ofertas) if isinstance(ticketera_ofertas, list) else 'N/A'}")
@@ -377,19 +392,22 @@ def obtener_ofertas_activas():
                 # Procesar ofertas de Ticketera
                 if isinstance(ticketera_ofertas, list):
                     for oferta in ticketera_ofertas:
-                        negocio = oferta.get('negocio', 'Sin negocio')
-                        if negocio not in ofertas_activas:
-                            ofertas_activas[negocio] = []
-                        ofertas_activas[negocio].append(oferta)
+                        if isinstance(oferta, dict):
+                            negocio = oferta.get('negocio', 'Sin negocio')
+                            if negocio not in ofertas_activas:
+                                ofertas_activas[negocio] = []
+                            ofertas_activas[negocio].append(oferta)
                 elif isinstance(ticketera_ofertas, dict):
                     ofertas_activas.update(ticketera_ofertas)
                     
+        except requests.exceptions.Timeout:
+            logger.warning(f"⚠️ Timeout obteniendo ofertas desde Ticketera (30s)")
         except Exception as e:
             logger.warning(f"⚠️ Error obteniendo ofertas desde Ticketera: {e}")
         
         # Intentar obtener ofertas desde Belgrano Ahorro
         try:
-            belgrano_response = requests.get(f"{belgrano_url}/api/v1/ofertas", headers=headers, timeout=10)
+            belgrano_response = requests.get(f"{belgrano_url}/api/v1/ofertas", headers=headers, timeout=30)
             if belgrano_response.status_code == 200:
                 belgrano_ofertas = belgrano_response.json()
                 logger.info(f"✅ Ofertas obtenidas desde Belgrano Ahorro: {len(belgrano_ofertas) if isinstance(belgrano_ofertas, list) else 'N/A'}")
@@ -397,56 +415,71 @@ def obtener_ofertas_activas():
                 # Procesar ofertas de Belgrano Ahorro
                 if isinstance(belgrano_ofertas, list):
                     for oferta in belgrano_ofertas:
-                        negocio = oferta.get('negocio', 'Sin negocio')
-                        if negocio not in ofertas_activas:
-                            ofertas_activas[negocio] = []
-                        ofertas_activas[negocio].append(oferta)
+                        if isinstance(oferta, dict):
+                            negocio = oferta.get('negocio', 'Sin negocio')
+                            if negocio not in ofertas_activas:
+                                ofertas_activas[negocio] = []
+                            ofertas_activas[negocio].append(oferta)
                 elif isinstance(belgrano_ofertas, dict):
                     ofertas_activas.update(belgrano_ofertas)
                     
+        except requests.exceptions.Timeout:
+            logger.warning(f"⚠️ Timeout obteniendo ofertas desde Belgrano Ahorro (30s)")
         except Exception as e:
             logger.warning(f"⚠️ Error obteniendo ofertas desde Belgrano Ahorro: {e}")
         
         # Si no se obtuvieron ofertas de las APIs, intentar desde datos locales
         if not ofertas_activas:
             logger.info("📋 No se obtuvieron ofertas de APIs, intentando datos locales...")
-            datos = cargar_datos_completos()
-            ofertas = datos.get('ofertas', {})
-            
-            # Manejar tanto listas como diccionarios
-            if isinstance(ofertas, list):
-                logger.info(f"📋 Ofertas locales como lista: {len(ofertas)} items")
-                # Convertir lista a diccionario por negocio
-                for oferta in ofertas:
-                    negocio = oferta.get('negocio', 'Sin negocio')
-                    if negocio not in ofertas_activas:
-                        ofertas_activas[negocio] = []
-                    ofertas_activas[negocio].append(oferta)
-                    
-            elif isinstance(ofertas, dict):
-                logger.info(f"📋 Ofertas locales como diccionario: {len(ofertas)} negocios")
-                ofertas_activas = ofertas.copy()
-            else:
-                logger.warning("⚠️ Ofertas locales en formato no reconocido")
+            try:
+                datos = cargar_datos_completos()
+                ofertas = datos.get('ofertas', {})
+                
+                logger.info(f"📋 Tipo de ofertas locales: {type(ofertas)}")
+                
+                # Manejar tanto listas como diccionarios
+                if isinstance(ofertas, list):
+                    logger.info(f"📋 Ofertas locales como lista: {len(ofertas)} items")
+                    # Convertir lista a diccionario por negocio
+                    for oferta in ofertas:
+                        if isinstance(oferta, dict):
+                            negocio = oferta.get('negocio', 'Sin negocio')
+                            if negocio not in ofertas_activas:
+                                ofertas_activas[negocio] = []
+                            ofertas_activas[negocio].append(oferta)
+                        else:
+                            logger.warning(f"⚠️ Oferta no es diccionario: {type(oferta)} - {oferta}")
+                            
+                elif isinstance(ofertas, dict):
+                    logger.info(f"📋 Ofertas locales como diccionario: {len(ofertas)} negocios")
+                    ofertas_activas = ofertas.copy()
+                else:
+                    logger.warning(f"⚠️ Ofertas locales en formato no reconocido: {type(ofertas)}")
+            except Exception as e:
+                logger.error(f"❌ Error cargando ofertas locales: {e}")
+                ofertas_activas = {}
         
         # Agregar información de productos a las ofertas
         productos = []
         try:
             datos = cargar_datos_completos()
             productos = datos.get('productos', [])
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Error cargando datos completos: {e}")
+            productos = []
         
         for negocio, ofertas_negocio in ofertas_activas.items():
-            for oferta in ofertas_negocio:
-                # Agregar información de productos a la oferta
-                productos_oferta = []
-                for producto_id in oferta.get('productos', []):
-                    producto = next((p for p in productos if p.get('id') == producto_id), None)
-                    if producto:
-                        productos_oferta.append(producto)
-                
-                oferta['productos_info'] = productos_oferta
+            if isinstance(ofertas_negocio, list):
+                for oferta in ofertas_negocio:
+                    if isinstance(oferta, dict):
+                        # Agregar información de productos a la oferta
+                        productos_oferta = []
+                        for producto_id in oferta.get('productos', []):
+                            producto = next((p for p in productos if p.get('id') == producto_id), None)
+                            if producto:
+                                productos_oferta.append(producto)
+                        
+                        oferta['productos_info'] = productos_oferta
         
         logger.info(f"✅ Ofertas activas procesadas: {len(ofertas_activas)} negocios")
         return ofertas_activas
@@ -1028,7 +1061,7 @@ def contacto_soporte():
 # RUTAS DE LA APLICACIÓN
 # ==========================================
 
-@app.route("/")
+@app.route("/", methods=['GET', 'HEAD'])
 def index():
     """
     RUTA PRINCIPAL - Página de inicio con productos organizados por negocios
@@ -1104,6 +1137,12 @@ def index():
             p for p in todos_productos 
             if busqueda.lower() in p['nombre'].lower() and p.get('activo', True)
         ]
+    
+    # Para requests HEAD, devolver solo headers sin contenido
+    if request.method == 'HEAD':
+        response = make_response('', 200)
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        return response
     
     return render_template("index.html", 
                          negocios=negocios,
@@ -1991,10 +2030,10 @@ def actualizar_pedido_con_ticket(numero_pedido, ticket_response):
         conn.commit()
         conn.close()
         
-        print(f"✅ Pedido {numero_pedido} actualizado con información del ticket")
+        logger.info(f"✅ Pedido {numero_pedido} actualizado con información del ticket")
         
     except Exception as e:
-        print(f"⚠️ Error actualizando pedido con ticket: {e}")
+        logger.warning(f"⚠️ Error actualizando pedido con ticket: {e}")
 
 def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, total, metodo_pago, direccion, notas=None):
     """
@@ -2074,20 +2113,20 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
         
         # Validar datos antes de enviar
         if not ticket_data["cliente_nombre"] or not ticket_data["cliente_email"]:
-            print("❌ Datos de cliente incompletos")
+            logger.error("❌ Datos de cliente incompletos")
             return None
         
         if not productos_lista:
-            print("❌ No hay productos en el carrito")
+            logger.error("❌ No hay productos en el carrito")
             return None
         
         # Log de datos que se van a enviar
-        print(f"📤 Enviando pedido a Ticketera:")
-        print(f"   URL: {api_url}")
-        print(f"   Pedido: {numero_pedido}")
-        print(f"   Cliente: {nombre_completo}")
-        print(f"   Total: ${total}")
-        print(f"   Productos: {len(productos_lista)} items")
+        logger.info(f"📤 Enviando pedido a Ticketera:")
+        logger.info(f"   URL: {api_url}")
+        logger.info(f"   Pedido: {numero_pedido}")
+        logger.info(f"   Cliente: {nombre_completo}")
+        logger.info(f"   Total: ${total}")
+        logger.info(f"   Productos: {len(productos_lista)} items")
         
         # Headers mejorados
         headers = {
@@ -2106,16 +2145,16 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
         
         for attempt in range(max_retries):
             try:
-                print(f"🔄 Intento {attempt + 1}/{max_retries} enviando a Ticketera...")
+                logger.info(f"🔄 Intento {attempt + 1}/{max_retries} enviando a Ticketera...")
                 
                 # Verificar conectividad antes de enviar
                 if attempt > 0:
                     try:
                         health_check = requests.get(f"{api_url.replace('/api/tickets', '/healthz')}", timeout=5)
                         if health_check.status_code != 200:
-                            print(f"⚠️ Health check falló en intento {attempt + 1}")
-                    except:
-                        print(f"⚠️ No se pudo verificar health check en intento {attempt + 1}")
+                            logger.warning(f"⚠️ Health check falló en intento {attempt + 1}")
+                    except Exception as e:
+                        logger.warning(f"⚠️ No se pudo verificar health check en intento {attempt + 1}: {e}")
                 
                 response = requests.post(
                     api_url,
@@ -2126,58 +2165,58 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
                 last_response = response
                 
                 if response.status_code in (200, 201):
-                    print(f"✅ Petición exitosa en intento {attempt + 1}")
+                    logger.info(f"✅ Petición exitosa en intento {attempt + 1}")
                     break
                 elif response.status_code == 401:
-                    print(f"❌ Error de autenticación (API Key inválida)")
+                    logger.error(f"❌ Error de autenticación (API Key inválida)")
                     return None
                 elif response.status_code == 400:
-                    print(f"❌ Error en datos enviados: {response.text}")
+                    logger.error(f"❌ Error en datos enviados: {response.text}")
                     return None
                 else:
-                    print(f"⚠️ Status {response.status_code} en intento {attempt + 1}")
-                    print(f"   Response: {response.text[:200]}...")
+                    logger.warning(f"⚠️ Status {response.status_code} en intento {attempt + 1}")
+                    logger.error(f"   Response: {response.text[:200]}...")
                     
             except requests.exceptions.Timeout:
                 last_error = f"Timeout en intento {attempt + 1}"
-                print(f"⏰ {last_error}")
+                logger.warning(f"⏰ {last_error}")
             except requests.exceptions.ConnectionError:
                 last_error = f"Error de conexión en intento {attempt + 1}"
-                print(f"🔌 {last_error}")
+                logger.warning(f"🔌 {last_error}")
             except requests.exceptions.RequestException as e:
                 last_error = f"Error de request en intento {attempt + 1}: {str(e)}"
-                print(f"🌐 {last_error}")
+                logger.warning(f"🌐 {last_error}")
             except Exception as e:
                 last_error = f"Error inesperado en intento {attempt + 1}: {str(e)}"
-                print(f"❌ {last_error}")
+                logger.error(f"❌ {last_error}")
             
             # Backoff exponencial
             if attempt < max_retries - 1:
                 wait_time = backoff_seconds[attempt]
-                print(f"⏳ Esperando {wait_time}s antes del siguiente intento...")
+                logger.info(f"⏳ Esperando {wait_time}s antes del siguiente intento...")
                 time.sleep(wait_time)
         
         # Procesar resultado final
         if last_response is not None and last_response.status_code in (200, 201):
             try:
                 ticket_response = last_response.json()
-                print(f"🎉 Pedido enviado exitosamente a Ticketera!")
-                print(f"   Ticket ID: {ticket_response.get('ticket_id', 'N/A')}")
-                print(f"   Número: {ticket_response.get('numero', 'N/A')}")
-                print(f"   Estado: {ticket_response.get('estado', 'N/A')}")
-                print(f"   Repartidor: {ticket_response.get('repartidor_asignado', 'N/A')}")
+                logger.info(f"🎉 Pedido enviado exitosamente a Ticketera!")
+                logger.error(f"   Ticket ID: {ticket_response.get('ticket_id', 'N/A')}")
+                logger.error(f"   Número: {ticket_response.get('numero', 'N/A')}")
+                logger.error(f"   Estado: {ticket_response.get('estado', 'N/A')}")
+                logger.error(f"   Repartidor: {ticket_response.get('repartidor_asignado', 'N/A')}")
                 
                 # Actualizar base de datos de Ahorro con información del ticket
                 actualizar_pedido_con_ticket(numero_pedido, ticket_response)
                 
                 # Log de éxito
-                print(f"✅ Comunicación completada: Pedido {numero_pedido} → Ticket {ticket_response.get('ticket_id')}")
+                logger.info(f"✅ Comunicación completada: Pedido {numero_pedido} → Ticket {ticket_response.get('ticket_id')}")
                 
                 return ticket_response
                 
             except json.JSONDecodeError as e:
-                print(f"⚠️ Error parseando respuesta JSON: {e}")
-                print(f"   Respuesta recibida: {last_response.text}")
+                logger.warning(f"⚠️ Error parseando respuesta JSON: {e}")
+                logger.error(f"   Respuesta recibida: {last_response.text}")
                 return None
         else:
             # Error final después de todos los reintentos
@@ -2185,11 +2224,11 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
             body = last_response.text if last_response is not None else 'no_body'
             error_msg = last_error if last_error else f"Status {status}"
             
-            print(f"💥 Error final enviando pedido a Ticketera después de {max_retries} intentos")
-            print(f"   Error: {error_msg}")
+            logger.error(f"💥 Error final enviando pedido a Ticketera después de {max_retries} intentos")
+            logger.error(f"   Error: {error_msg}")
             if last_response:
-                print(f"   Status: {status}")
-                print(f"   Respuesta: {body[:500]}...")
+                logger.error(f"   Status: {status}")
+                logger.error(f"   Respuesta: {body[:500]}...")
             
             # Guardar pedido pendiente para reintento posterior
             guardar_pedido_pendiente(numero_pedido, ticket_data, error_msg)
@@ -2197,9 +2236,9 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
             return None
             
     except Exception as e:
-        print(f"💥 Error crítico enviando pedido a Ticketera: {e}")
+        logger.error(f"💥 Error crítico enviando pedido a Ticketera: {e}")
         import traceback
-        print(f"   Traceback: {traceback.format_exc()}")
+        logger.error(f"   Traceback: {traceback.format_exc()}")
         return None
 
 def guardar_pedido_pendiente(numero_pedido, ticket_data, error_msg):
@@ -2232,10 +2271,10 @@ def guardar_pedido_pendiente(numero_pedido, ticket_data, error_msg):
         conn.commit()
         conn.close()
         
-        print(f"💾 Pedido {numero_pedido} guardado para reintento posterior")
+        logger.info(f"💾 Pedido {numero_pedido} guardado para reintento posterior")
         
     except Exception as e:
-        print(f"⚠️ Error guardando pedido pendiente: {e}")
+        logger.warning(f"⚠️ Error guardando pedido pendiente: {e}")
 
 # ==========================================
 # REGISTRAR API BLUEPRINT
@@ -2245,9 +2284,9 @@ def guardar_pedido_pendiente(numero_pedido, ticket_data, error_msg):
 try:
     from api_belgrano_ahorro import register_api_blueprint
     register_api_blueprint(app)
-    print("✅ API de Belgrano Ahorro registrada en /api/v1")
+    logger.info("✅ API de Belgrano Ahorro registrada en /api/v1")
 except ImportError as e:
-    print(f"⚠️ No se pudo registrar la API: {e}")
+    logger.warning(f"⚠️ No se pudo registrar la API: {e}")
 
 # ==========================================
 # API ENDPOINTS PARA INTEGRACIÓN (LEGACY)
@@ -2305,17 +2344,17 @@ def api_crear_ticket():
         ticket_id = guardar_ticket(ticket_data)
         
         if ticket_id:
-            print(f"✅ Ticket recibido y guardado: {data['numero_pedido']}")
-            print(f"   Cliente: {data['cliente']}")
-            print(f"   Total: ${data['total']}")
-            print(f"   Productos: {len(data['productos'])} items")
+            logger.info(f"✅ Ticket recibido y guardado: {data['numero_pedido']}")
+            logger.error(f"   Cliente: {data['cliente']}")
+            logger.error(f"   Total: ${data['total']}")
+            logger.error(f"   Productos: {len(data['productos'])} items")
             
             return jsonify({'msg': 'ticket registrado', 'ticket_id': ticket_id}), 201
         else:
             return jsonify({'error': 'Error guardando ticket'}), 500
             
     except Exception as e:
-        print(f"Error en API crear ticket: {e}")
+        logger.error(f"Error en API crear ticket: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 @app.route('/api/tickets', methods=['GET'])
@@ -2382,7 +2421,7 @@ def gestion_flota_corregida():
                              tickets_asignados=tickets_asignados,
                              stats_repartidores=stats_repartidores)
     except Exception as e:
-        print(f"Error en gestion_flota: {e}")
+        logger.error(f"Error en gestion_flota: {e}")
         # Fallback con datos mínimos
         repartidores = ['Repartidor1', 'Repartidor2', 'Repartidor3', 'Repartidor4', 'Repartidor5']
         return render_template('gestion_flota.html', 
@@ -3297,7 +3336,7 @@ if __name__ == "__main__":
     Inicia el servidor Flask en modo debug
     """
     logger.info("Iniciando aplicación Flask...")
-    print("🚀 Iniciando Belgrano Ahorro...")
-    print("📱 Abre tu navegador en: http://localhost:5000")
-    print("⏹️  Presiona Ctrl+C para detener")
+    logger.info("🚀 Iniciando Belgrano Ahorro...")
+    logger.info("📱 Abre tu navegador en: http://localhost:5000")
+    logger.info("⏹️  Presiona Ctrl+C para detener")
     app.run(debug=True, host="0.0.0.0", port=5000)
