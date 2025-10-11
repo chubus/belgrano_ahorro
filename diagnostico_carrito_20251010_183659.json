@@ -1,0 +1,13 @@
+{
+  "timestamp": "2025-10-10T18:36:59.187226",
+  "tests_pasados": 5,
+  "total_tests": 5,
+  "resultados": {
+    "Carga de productos.json": true,
+    "Función obtener_producto_por_id": true,
+    "Simulación de carrito": true,
+    "Template carrito.html": true,
+    "Imports en app_unificado.py": true
+  },
+  "status": "success"
+}

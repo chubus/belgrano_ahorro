@@ -1130,15 +1130,21 @@ def actualizar_cantidad():
     if nueva_cantidad <= 0:
         # Eliminar producto del carrito
         if 'carrito' in session and producto_id in session['carrito']:
+            # Obtener nombre del producto para el mensaje
+            producto = obtener_producto_por_id(producto_id)
+            nombre_producto = producto['nombre'] if producto else f'Producto {producto_id}'
             del session['carrito'][producto_id]
             session.modified = True
-            flash(f'{producto_id} eliminado del carrito', 'info')
+            flash(f'{nombre_producto} eliminado del carrito', 'info')
     else:
         # Actualizar cantidad
         if 'carrito' in session:
+            # Obtener nombre del producto para el mensaje
+            producto = obtener_producto_por_id(producto_id)
+            nombre_producto = producto['nombre'] if producto else f'Producto {producto_id}'
             session['carrito'][producto_id] = nueva_cantidad
             session.modified = True
-            flash(f'Cantidad de {producto_id} actualizada', 'success')
+            flash(f'Cantidad de {nombre_producto} actualizada', 'success')
     
     return redirect(url_for('carrito'))
 

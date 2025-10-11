@@ -25,7 +25,7 @@
                                 </div>
                                 <div class="col-md-4">
                                     <form action="{{ url_for('actualizar_cantidad') }}" method="POST" class="d-flex align-items-center">
-                                        <input type="hidden" name="producto_id" value="{{ item.producto.nombre }}">
+                                        <input type="hidden" name="producto_id" value="{{ item.producto.id }}">
                                         <label class="me-2">Cantidad:</label>
                                         <input type="number" name="cantidad" value="{{ item.cantidad }}" min="0" max="10" class="form-control" style="width: 80px;">
                                         <button type="submit" class="btn btn-sm btn-outline-primary ms-2">Actualizar</button>
