@@ -494,10 +494,18 @@ def obtener_producto_por_id(producto_id):
     """
     Busca un producto por su ID en la lista de productos
     """
-    for producto in productos['productos']:
-        if str(producto['id']) == str(producto_id):
-            return producto
-    return None
+    try:
+        # Cargar productos dinámicamente para evitar problemas con variable global
+        datos = cargar_datos_completos()
+        productos_lista = datos.get('productos', [])
+        
+        for producto in productos_lista:
+            if str(producto.get('id', '')) == str(producto_id):
+                return producto
+        return None
+    except Exception as e:
+        logger.error(f"Error obteniendo producto {producto_id}: {e}")
+        return None
 
 def calcular_total_carrito():
     """
@@ -1030,11 +1038,58 @@ def index():
     
     # Cargar datos completos
     datos = cargar_datos_completos()
-    negocios = datos.get('negocios', {})
-    categorias = datos.get('categorias', {})
-    sucursales = datos.get('sucursales', {})
+    negocios_raw = datos.get('negocios', {})
+    categorias_raw = datos.get('categorias', {})
+    sucursales_raw = datos.get('sucursales', {})
     ofertas_activas = obtener_ofertas_activas()
     productos_destacados = obtener_productos_destacados()
+    
+    # Manejar negocios - puede ser lista o diccionario
+    negocios = {}
+    if isinstance(negocios_raw, list):
+        logger.info(f"📋 Negocios como lista: {len(negocios_raw)} items")
+        # Convertir lista a diccionario
+        for negocio in negocios_raw:
+            negocio_id = negocio.get('id', negocio.get('nombre', 'sin_id'))
+            negocios[negocio_id] = negocio
+    elif isinstance(negocios_raw, dict):
+        logger.info(f"📋 Negocios como diccionario: {len(negocios_raw)} items")
+        negocios = negocios_raw
+    else:
+        logger.warning("⚠️ Negocios en formato no reconocido, usando diccionario vacío")
+        negocios = {}
+    
+    # Manejar categorías - puede ser lista o diccionario
+    categorias = {}
+    if isinstance(categorias_raw, list):
+        logger.info(f"📋 Categorías como lista: {len(categorias_raw)} items")
+        # Convertir lista a diccionario
+        for categoria in categorias_raw:
+            categoria_id = categoria.get('id', categoria.get('nombre', 'sin_id'))
+            categorias[categoria_id] = categoria
+    elif isinstance(categorias_raw, dict):
+        logger.info(f"📋 Categorías como diccionario: {len(categorias_raw)} items")
+        categorias = categorias_raw
+    else:
+        logger.warning("⚠️ Categorías en formato no reconocido, usando diccionario vacío")
+        categorias = {}
+    
+    # Manejar sucursales - puede ser lista o diccionario
+    sucursales = {}
+    if isinstance(sucursales_raw, list):
+        logger.info(f"📋 Sucursales como lista: {len(sucursales_raw)} items")
+        # Convertir lista a diccionario por negocio
+        for sucursal in sucursales_raw:
+            negocio_id = sucursal.get('negocio_id', 'sin_negocio')
+            if negocio_id not in sucursales:
+                sucursales[negocio_id] = []
+            sucursales[negocio_id].append(sucursal)
+    elif isinstance(sucursales_raw, dict):
+        logger.info(f"📋 Sucursales como diccionario: {len(sucursales_raw)} negocios")
+        sucursales = sucursales_raw
+    else:
+        logger.warning("⚠️ Sucursales en formato no reconocido, usando diccionario vacío")
+        sucursales = {}
     
     # Obtener productos por negocio
     productos_por_negocio = {}
@@ -1208,20 +1263,38 @@ def carrito():
         carrito_items = []
         total = 0
         
-        if 'carrito' in session:
+        # Verificar que la sesión existe y tiene carrito
+        if not session:
+            session['carrito'] = {}
+        
+        if 'carrito' in session and session['carrito']:
             for producto_id, cantidad in session['carrito'].items():
                 try:
+                    # Validar que cantidad sea un número válido
+                    cantidad = int(cantidad) if cantidad else 0
+                    if cantidad <= 0:
+                        continue
+                        
                     producto = obtener_producto_por_id(producto_id)
-                    if producto:
-                        subtotal = producto['precio'] * cantidad
-                        carrito_items.append({
-                            'producto': producto,
-                            'cantidad': cantidad,
-                            'subtotal': subtotal
-                        })
-                        total += subtotal
+                    if producto and producto.get('activo', True):
+                        # Validar que el producto tenga precio
+                        precio = float(producto.get('precio', 0))
+                        if precio > 0:
+                            subtotal = precio * cantidad
+                            carrito_items.append({
+                                'producto': producto,
+                                'cantidad': cantidad,
+                                'subtotal': subtotal
+                            })
+                            total += subtotal
+                        else:
+                            logger.warning(f"Producto {producto_id} sin precio válido")
                     else:
-                        logger.warning(f"Producto ID {producto_id} no encontrado en carrito")
+                        logger.warning(f"Producto ID {producto_id} no encontrado o inactivo")
+                        # Remover producto del carrito si no existe
+                        if producto_id in session['carrito']:
+                            del session['carrito'][producto_id]
+                            session.modified = True
                 except Exception as e:
                     logger.error(f"Error procesando producto {producto_id}: {e}")
                     continue
