@@ -1102,22 +1102,35 @@ def carrito():
     RUTA PARA VER EL CARRITO DE COMPRAS
     Muestra todos los productos en el carrito con sus cantidades
     """
-    carrito_items = []
-    total = 0
-    
-    if 'carrito' in session:
-        for producto_id, cantidad in session['carrito'].items():
-            producto = obtener_producto_por_id(producto_id)
-            if producto:
-                subtotal = producto['precio'] * cantidad
-                carrito_items.append({
-                    'producto': producto,
-                    'cantidad': cantidad,
-                    'subtotal': subtotal
-                })
-                total += subtotal
-    
-    return render_template("carrito.html", carrito_items=carrito_items, total=total)
+    try:
+        carrito_items = []
+        total = 0
+        
+        if 'carrito' in session:
+            for producto_id, cantidad in session['carrito'].items():
+                try:
+                    producto = obtener_producto_por_id(producto_id)
+                    if producto:
+                        subtotal = producto['precio'] * cantidad
+                        carrito_items.append({
+                            'producto': producto,
+                            'cantidad': cantidad,
+                            'subtotal': subtotal
+                        })
+                        total += subtotal
+                    else:
+                        logger.warning(f"Producto ID {producto_id} no encontrado en carrito")
+                except Exception as e:
+                    logger.error(f"Error procesando producto {producto_id}: {e}")
+                    continue
+        
+        logger.info(f"Carrito cargado: {len(carrito_items)} items, total: ${total}")
+        return render_template("carrito.html", carrito_items=carrito_items, total=total)
+        
+    except Exception as e:
+        logger.error(f"Error en función carrito: {e}")
+        flash('Error al cargar el carrito. Intente nuevamente.', 'error')
+        return render_template("carrito.html", carrito_items=[], total=0)
 
 @app.route("/actualizar_cantidad", methods=['POST'])
 def actualizar_cantidad():
