@@ -180,8 +180,10 @@ def crear_base_datos():
         conn.commit()
         conn.close()
         print("✅ Base de datos inicializada correctamente")
+        return True
     except Exception as e:
         print(f"❌ Error al crear base de datos: {e}")
+        return False
 
 # ========== USUARIOS ==========
 def hash_password(password):
@@ -196,7 +198,8 @@ def verificar_password(password, hashed):
         salt, stored_hash = hashed.split('$', 1)
         password_hash = hashlib.sha256((password + salt).encode('utf-8')).hexdigest()
         return password_hash == stored_hash
-    except:
+    except Exception as e:
+        logger.warning(f"Error verificando contraseña: {e}")
         return False
 
 def crear_usuario(nombre, apellido, email, password, telefono=None, direccion=None, rol='cliente'):
@@ -800,17 +803,20 @@ def crear_tabla_tickets():
         # Agregar columnas si no existen (para compatibilidad con bases de datos existentes)
         try:
             cursor.execute('ALTER TABLE tickets ADD COLUMN total DECIMAL(10,2) DEFAULT 0.00')
-        except:
+        except Exception as e:
+            logger.debug(f"Columna total ya existe: {e}")
             pass  # La columna ya existe
             
         try:
             cursor.execute('ALTER TABLE tickets ADD COLUMN estado_envio VARCHAR(20) DEFAULT "pendiente"')
-        except:
+        except Exception as e:
+            logger.debug(f"Columna estado_envio ya existe: {e}")
             pass  # La columna ya existe
             
         try:
             cursor.execute('ALTER TABLE tickets ADD COLUMN fecha_envio DATETIME')
-        except:
+        except Exception as e:
+            logger.debug(f"Columna fecha_envio ya existe: {e}")
             pass  # La columna ya existe
             
         try:

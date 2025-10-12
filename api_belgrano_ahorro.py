@@ -159,8 +159,10 @@ def ensure_tables():
             
             conn.commit()
             logger.info("Tablas verificadas/creadas correctamente con datos de ejemplo")
+            return True
     except Exception as e:
         logger.error(f"Error asegurando tablas: {e}")
+        return False
 
 # Garantizar tablas al importar el módulo
 ensure_tables()
