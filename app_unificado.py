@@ -45,6 +45,11 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Cache simple en memoria para evitar recargas
+_data_cache = {}
+_cache_timestamp = None
+CACHE_DURATION = 300  # 5 minutos
+
 # Importar base de datos con manejo de errores
 try:
     import db as database
@@ -223,6 +228,7 @@ def cargar_productos():
 def cargar_datos_completos():
     """
     Cargar todos los datos del JSON incluyendo negocios, categorías y ofertas
+    CON CACHE para evitar recargas innecesarias
     
     RETORNA:
     - Diccionario completo con todos los datos del sistema
@@ -231,29 +237,46 @@ def cargar_datos_completos():
     - Para agregar nuevas secciones: agregar en productos.json
     - Para cambiar estructura: modificar el acceso a los datos
     """
+    global _data_cache, _cache_timestamp
+    
+    # Verificar si el cache es válido
+    current_time = time.time()
+    if (_cache_timestamp is None or 
+        current_time - _cache_timestamp > CACHE_DURATION or 
+        not _data_cache):
+        
     try:
         with open('productos.json', 'r', encoding='utf-8') as file:
             datos = json.load(file)
-        logger.info(f"✅ Datos locales cargados correctamente")
+            _data_cache = datos
+            _cache_timestamp = current_time
+            logger.info(f"✅ Datos locales cargados correctamente (cache actualizado)")
         return datos
-    except FileNotFoundError:
-        logger.warning("⚠️ Archivo productos.json no encontrado, usando datos vacíos")
-        return {
-            'negocios': {},
-            'categorias': {},
-            'ofertas': {},
-            'productos': [],
-            'sucursales': {}
-        }
+        except FileNotFoundError:
+            logger.warning("⚠️ Archivo productos.json no encontrado, usando datos vacíos")
+            _data_cache = {
+                'negocios': {},
+                'categorias': {},
+                'ofertas': {},
+                'productos': [],
+                'sucursales': {}
+            }
+            _cache_timestamp = current_time
+            return _data_cache
     except Exception as e:
-        logger.error(f"❌ Error al cargar datos completos: {e}")
-        return {
-            'negocios': {},
-            'categorias': {},
-            'ofertas': {},
-            'productos': [],
-            'sucursales': {}
-        }
+            logger.error(f"❌ Error al cargar datos completos: {e}")
+            _data_cache = {
+                'negocios': {},
+                'categorias': {},
+                'ofertas': {},
+                'productos': [],
+                'sucursales': {}
+            }
+            _cache_timestamp = current_time
+            return _data_cache
+    else:
+        logger.info(f"📋 Usando datos desde cache (válido por {CACHE_DURATION - (current_time - _cache_timestamp):.0f}s más)")
+        return _data_cache
 
 def obtener_negocios():
     """
@@ -383,22 +406,32 @@ def obtener_ofertas_activas():
                 'Content-Type': 'application/json'
             }
             
-            # Obtener ofertas desde Ticketera con timeout más largo
-            ticketera_response = requests.get(f"{ticketera_url}/api/ofertas", headers=headers, timeout=30)
+            # Obtener ofertas desde Ticketera con timeout reducido
+            ticketera_response = requests.get(f"{ticketera_url}/api/ofertas", headers=headers, timeout=5)
             if ticketera_response.status_code == 200:
-                ticketera_ofertas = ticketera_response.json()
-                logger.info(f"✅ Ofertas obtenidas desde Ticketera: {len(ticketera_ofertas) if isinstance(ticketera_ofertas, list) else 'N/A'}")
-                
-                # Procesar ofertas de Ticketera
-                if isinstance(ticketera_ofertas, list):
-                    for oferta in ticketera_ofertas:
-                        if isinstance(oferta, dict):
-                            negocio = oferta.get('negocio', 'Sin negocio')
-                            if negocio not in ofertas_activas:
-                                ofertas_activas[negocio] = []
-                            ofertas_activas[negocio].append(oferta)
-                elif isinstance(ticketera_ofertas, dict):
-                    ofertas_activas.update(ticketera_ofertas)
+                try:
+                    ticketera_ofertas = ticketera_response.json()
+                    logger.info(f"✅ Ofertas obtenidas desde Ticketera: {len(ticketera_ofertas) if isinstance(ticketera_ofertas, list) else 'N/A'}")
+                    
+                    # Procesar ofertas de Ticketera - VALIDAR ESTRUCTURA
+                    if isinstance(ticketera_ofertas, list):
+                        for oferta in ticketera_ofertas:
+                            if isinstance(oferta, dict):
+                                negocio = oferta.get('negocio', 'Sin negocio')
+                                if negocio not in ofertas_activas:
+                                    ofertas_activas[negocio] = []
+                                ofertas_activas[negocio].append(oferta)
+                    elif isinstance(ticketera_ofertas, dict):
+                        # Asegurar estructura consistente
+                        for negocio, ofertas_negocio in ticketera_ofertas.items():
+                            if isinstance(ofertas_negocio, list):
+                                ofertas_activas[negocio] = ofertas_negocio
+                            else:
+                                ofertas_activas[negocio] = [ofertas_negocio]
+                except Exception as e:
+                    logger.warning(f"⚠️ Error procesando respuesta de Ticketera: {e}")
+            else:
+                logger.warning(f"⚠️ Ticketera respondió con código {ticketera_response.status_code}")
                     
         except requests.exceptions.Timeout:
             logger.warning(f"⚠️ Timeout obteniendo ofertas desde Ticketera (30s)")
@@ -407,37 +440,47 @@ def obtener_ofertas_activas():
         
         # Intentar obtener ofertas desde Belgrano Ahorro
         try:
-            belgrano_response = requests.get(f"{belgrano_url}/api/v1/ofertas", headers=headers, timeout=30)
+            belgrano_response = requests.get(f"{belgrano_url}/api/v1/ofertas", headers=headers, timeout=5)
             if belgrano_response.status_code == 200:
-                belgrano_ofertas = belgrano_response.json()
-                logger.info(f"✅ Ofertas obtenidas desde Belgrano Ahorro: {len(belgrano_ofertas) if isinstance(belgrano_ofertas, list) else 'N/A'}")
-                
-                # Procesar ofertas de Belgrano Ahorro
-                if isinstance(belgrano_ofertas, list):
-                    for oferta in belgrano_ofertas:
-                        if isinstance(oferta, dict):
-                            negocio = oferta.get('negocio', 'Sin negocio')
-                            if negocio not in ofertas_activas:
-                                ofertas_activas[negocio] = []
-                            ofertas_activas[negocio].append(oferta)
-                elif isinstance(belgrano_ofertas, dict):
-                    ofertas_activas.update(belgrano_ofertas)
+                try:
+                    belgrano_ofertas = belgrano_response.json()
+                    logger.info(f"✅ Ofertas obtenidas desde Belgrano Ahorro: {len(belgrano_ofertas) if isinstance(belgrano_ofertas, list) else 'N/A'}")
+                    
+                    # Procesar ofertas de Belgrano Ahorro - VALIDAR ESTRUCTURA
+                    if isinstance(belgrano_ofertas, list):
+                        for oferta in belgrano_ofertas:
+                            if isinstance(oferta, dict):
+                                negocio = oferta.get('negocio', 'Sin negocio')
+                                if negocio not in ofertas_activas:
+                                    ofertas_activas[negocio] = []
+                                ofertas_activas[negocio].append(oferta)
+                    elif isinstance(belgrano_ofertas, dict):
+                        # Asegurar estructura consistente
+                        for negocio, ofertas_negocio in belgrano_ofertas.items():
+                            if isinstance(ofertas_negocio, list):
+                                ofertas_activas[negocio] = ofertas_negocio
+                            else:
+                                ofertas_activas[negocio] = [ofertas_negocio]
+                except Exception as e:
+                    logger.warning(f"⚠️ Error procesando respuesta de Belgrano Ahorro: {e}")
+            else:
+                logger.warning(f"⚠️ Belgrano Ahorro respondió con código {belgrano_response.status_code}")
                     
         except requests.exceptions.Timeout:
             logger.warning(f"⚠️ Timeout obteniendo ofertas desde Belgrano Ahorro (30s)")
         except Exception as e:
             logger.warning(f"⚠️ Error obteniendo ofertas desde Belgrano Ahorro: {e}")
         
-        # Si no se obtuvieron ofertas de las APIs, intentar desde datos locales
+        # Si no se obtuvieron ofertas de las APIs, intentar desde datos locales UNA SOLA VEZ
         if not ofertas_activas:
-            logger.info("📋 No se obtuvieron ofertas de APIs, intentando datos locales...")
+            logger.info("📋 No se obtuvieron ofertas de APIs, cargando datos locales...")
             try:
-                datos = cargar_datos_completos()
-                ofertas = datos.get('ofertas', {})
+    datos = cargar_datos_completos()
+    ofertas = datos.get('ofertas', {})
                 
                 logger.info(f"📋 Tipo de ofertas locales: {type(ofertas)}")
                 
-                # Manejar tanto listas como diccionarios
+                # Manejar tanto listas como diccionarios - SIEMPRE convertir a diccionario
                 if isinstance(ofertas, list):
                     logger.info(f"📋 Ofertas locales como lista: {len(ofertas)} items")
                     # Convertir lista a diccionario por negocio
@@ -452,9 +495,17 @@ def obtener_ofertas_activas():
                             
                 elif isinstance(ofertas, dict):
                     logger.info(f"📋 Ofertas locales como diccionario: {len(ofertas)} negocios")
-                    ofertas_activas = ofertas.copy()
+                    # Asegurar que cada negocio tenga lista de ofertas
+    for negocio, ofertas_negocio in ofertas.items():
+                        if isinstance(ofertas_negocio, list):
+                            ofertas_activas[negocio] = ofertas_negocio
+                        elif isinstance(ofertas_negocio, dict):
+                            ofertas_activas[negocio] = [ofertas_negocio]
+                        else:
+        ofertas_activas[negocio] = []
                 else:
                     logger.warning(f"⚠️ Ofertas locales en formato no reconocido: {type(ofertas)}")
+                    ofertas_activas = {}
             except Exception as e:
                 logger.error(f"❌ Error cargando ofertas locales: {e}")
                 ofertas_activas = {}
@@ -470,19 +521,19 @@ def obtener_ofertas_activas():
         
         for negocio, ofertas_negocio in ofertas_activas.items():
             if isinstance(ofertas_negocio, list):
-                for oferta in ofertas_negocio:
+        for oferta in ofertas_negocio:
                     if isinstance(oferta, dict):
-                        # Agregar información de productos a la oferta
-                        productos_oferta = []
-                        for producto_id in oferta.get('productos', []):
+            # Agregar información de productos a la oferta
+            productos_oferta = []
+            for producto_id in oferta.get('productos', []):
                             producto = next((p for p in productos if p.get('id') == producto_id), None)
-                            if producto:
-                                productos_oferta.append(producto)
-                        
-                        oferta['productos_info'] = productos_oferta
-        
+                if producto:
+                    productos_oferta.append(producto)
+            
+            oferta['productos_info'] = productos_oferta
+    
         logger.info(f"✅ Ofertas activas procesadas: {len(ofertas_activas)} negocios")
-        return ofertas_activas
+    return ofertas_activas
         
     except Exception as e:
         logger.error(f"❌ Error en obtener_ofertas_activas: {e}")
@@ -534,11 +585,11 @@ def obtener_producto_por_id(producto_id):
         
         for producto in productos_lista:
             if str(producto.get('id', '')) == str(producto_id):
-                return producto
-        return None
+            return producto
+    return None
     except Exception as e:
         logger.error(f"Error obteniendo producto {producto_id}: {e}")
-        return None
+    return None
 
 def calcular_total_carrito():
     """
@@ -1107,19 +1158,29 @@ def index():
         logger.warning("⚠️ Categorías en formato no reconocido, usando diccionario vacío")
         categorias = {}
     
-    # Manejar sucursales - puede ser lista o diccionario
+    # Manejar sucursales - SIEMPRE como diccionario con estructura {negocio_id: {sucursal_id: sucursal_data}}
     sucursales = {}
     if isinstance(sucursales_raw, list):
         logger.info(f"📋 Sucursales como lista: {len(sucursales_raw)} items")
-        # Convertir lista a diccionario por negocio
         for sucursal in sucursales_raw:
             negocio_id = sucursal.get('negocio_id', 'sin_negocio')
+            sucursal_id = sucursal.get('id', sucursal.get('nombre', 'sin_id'))
             if negocio_id not in sucursales:
-                sucursales[negocio_id] = []
-            sucursales[negocio_id].append(sucursal)
+                sucursales[negocio_id] = {}
+            sucursales[negocio_id][sucursal_id] = sucursal
     elif isinstance(sucursales_raw, dict):
         logger.info(f"📋 Sucursales como diccionario: {len(sucursales_raw)} negocios")
-        sucursales = sucursales_raw
+        # Asegurar que cada negocio tenga diccionario de sucursales
+        for negocio_id, sucursales_negocio in sucursales_raw.items():
+            if isinstance(sucursales_negocio, list):
+                sucursales[negocio_id] = {}
+                for sucursal in sucursales_negocio:
+                    sucursal_id = sucursal.get('id', sucursal.get('nombre', 'sin_id'))
+                    sucursales[negocio_id][sucursal_id] = sucursal
+            elif isinstance(sucursales_negocio, dict):
+                sucursales[negocio_id] = sucursales_negocio
+            else:
+                sucursales[negocio_id] = {}
     else:
         logger.warning("⚠️ Sucursales en formato no reconocido, usando diccionario vacío")
         sucursales = {}
@@ -1143,6 +1204,29 @@ def index():
         response = make_response('', 200)
         response.headers['Content-Type'] = 'text/html; charset=utf-8'
         return response
+    
+    # Validar que todas las variables sean diccionarios antes del render
+    if not isinstance(negocios, dict):
+        logger.warning("⚠️ Negocios no es diccionario, convirtiendo...")
+        negocios = {}
+    
+    if not isinstance(categorias, dict):
+        logger.warning("⚠️ Categorías no es diccionario, convirtiendo...")
+        categorias = {}
+    
+    if not isinstance(sucursales, dict):
+        logger.warning("⚠️ Sucursales no es diccionario, convirtiendo...")
+        sucursales = {}
+    
+    if not isinstance(ofertas_activas, dict):
+        logger.warning("⚠️ Ofertas no es diccionario, convirtiendo...")
+        ofertas_activas = {}
+    
+    if not isinstance(productos_por_negocio, dict):
+        logger.warning("⚠️ Productos por negocio no es diccionario, convirtiendo...")
+        productos_por_negocio = {}
+    
+    logger.info(f"✅ Datos validados para render: negocios={len(negocios)}, categorias={len(categorias)}, sucursales={len(sucursales)}, ofertas={len(ofertas_activas)}")
     
     return render_template("index.html", 
                          negocios=negocios,
@@ -1299,33 +1383,33 @@ def carrito():
     Muestra todos los productos en el carrito con sus cantidades
     """
     try:
-        carrito_items = []
-        total = 0
-        
+    carrito_items = []
+    total = 0
+    
         # Verificar que la sesión existe y tiene carrito
         if not session:
             session['carrito'] = {}
         
         if 'carrito' in session and session['carrito']:
-            for producto_id, cantidad in session['carrito'].items():
+        for producto_id, cantidad in session['carrito'].items():
                 try:
                     # Validar que cantidad sea un número válido
                     cantidad = int(cantidad) if cantidad else 0
                     if cantidad <= 0:
                         continue
                         
-                    producto = obtener_producto_por_id(producto_id)
+            producto = obtener_producto_por_id(producto_id)
                     if producto and producto.get('activo', True):
                         # Validar que el producto tenga precio
                         precio = float(producto.get('precio', 0))
                         if precio > 0:
                             subtotal = precio * cantidad
-                            carrito_items.append({
-                                'producto': producto,
-                                'cantidad': cantidad,
-                                'subtotal': subtotal
-                            })
-                            total += subtotal
+                carrito_items.append({
+                    'producto': producto,
+                    'cantidad': cantidad,
+                    'subtotal': subtotal
+                })
+                total += subtotal
                         else:
                             logger.warning(f"Producto {producto_id} sin precio válido")
                     else:
@@ -1339,7 +1423,7 @@ def carrito():
                     continue
         
         logger.info(f"Carrito cargado: {len(carrito_items)} items, total: ${total}")
-        return render_template("carrito.html", carrito_items=carrito_items, total=total)
+    return render_template("carrito.html", carrito_items=carrito_items, total=total)
         
     except Exception as e:
         logger.error(f"Error en función carrito: {e}")
