@@ -245,13 +245,13 @@ def cargar_datos_completos():
         current_time - _cache_timestamp > CACHE_DURATION or 
         not _data_cache):
         
-    try:
-        with open('productos.json', 'r', encoding='utf-8') as file:
-            datos = json.load(file)
-            _data_cache = datos
-            _cache_timestamp = current_time
-            logger.info(f"✅ Datos locales cargados correctamente (cache actualizado)")
-        return datos
+        try:
+            with open('productos.json', 'r', encoding='utf-8') as file:
+                datos = json.load(file)
+                _data_cache = datos
+                _cache_timestamp = current_time
+                logger.info(f"✅ Datos locales cargados correctamente (cache actualizado)")
+                return datos
         except FileNotFoundError:
             logger.warning("⚠️ Archivo productos.json no encontrado, usando datos vacíos")
             _data_cache = {
@@ -263,7 +263,7 @@ def cargar_datos_completos():
             }
             _cache_timestamp = current_time
             return _data_cache
-    except Exception as e:
+        except Exception as e:
             logger.error(f"❌ Error al cargar datos completos: {e}")
             _data_cache = {
                 'negocios': {},
@@ -475,8 +475,8 @@ def obtener_ofertas_activas():
         if not ofertas_activas:
             logger.info("📋 No se obtuvieron ofertas de APIs, cargando datos locales...")
             try:
-    datos = cargar_datos_completos()
-    ofertas = datos.get('ofertas', {})
+                datos = cargar_datos_completos()
+                ofertas = datos.get('ofertas', {})
                 
                 logger.info(f"📋 Tipo de ofertas locales: {type(ofertas)}")
                 
@@ -496,13 +496,13 @@ def obtener_ofertas_activas():
                 elif isinstance(ofertas, dict):
                     logger.info(f"📋 Ofertas locales como diccionario: {len(ofertas)} negocios")
                     # Asegurar que cada negocio tenga lista de ofertas
-    for negocio, ofertas_negocio in ofertas.items():
+                    for negocio, ofertas_negocio in ofertas.items():
                         if isinstance(ofertas_negocio, list):
                             ofertas_activas[negocio] = ofertas_negocio
                         elif isinstance(ofertas_negocio, dict):
                             ofertas_activas[negocio] = [ofertas_negocio]
                         else:
-        ofertas_activas[negocio] = []
+                            ofertas_activas[negocio] = []
                 else:
                     logger.warning(f"⚠️ Ofertas locales en formato no reconocido: {type(ofertas)}")
                     ofertas_activas = {}
@@ -521,19 +521,19 @@ def obtener_ofertas_activas():
         
         for negocio, ofertas_negocio in ofertas_activas.items():
             if isinstance(ofertas_negocio, list):
-        for oferta in ofertas_negocio:
+                for oferta in ofertas_negocio:
                     if isinstance(oferta, dict):
-            # Agregar información de productos a la oferta
-            productos_oferta = []
-            for producto_id in oferta.get('productos', []):
+                        # Agregar información de productos a la oferta
+                        productos_oferta = []
+                        for producto_id in oferta.get('productos', []):
                             producto = next((p for p in productos if p.get('id') == producto_id), None)
-                if producto:
-                    productos_oferta.append(producto)
-            
-            oferta['productos_info'] = productos_oferta
-    
+                            if producto:
+                                productos_oferta.append(producto)
+                        
+                        oferta['productos_info'] = productos_oferta
+        
         logger.info(f"✅ Ofertas activas procesadas: {len(ofertas_activas)} negocios")
-    return ofertas_activas
+        return ofertas_activas
         
     except Exception as e:
         logger.error(f"❌ Error en obtener_ofertas_activas: {e}")
@@ -585,11 +585,11 @@ def obtener_producto_por_id(producto_id):
         
         for producto in productos_lista:
             if str(producto.get('id', '')) == str(producto_id):
-            return producto
-    return None
+                return producto
+        return None
     except Exception as e:
         logger.error(f"Error obteniendo producto {producto_id}: {e}")
-    return None
+        return None
 
 def calcular_total_carrito():
     """
@@ -1383,33 +1383,33 @@ def carrito():
     Muestra todos los productos en el carrito con sus cantidades
     """
     try:
-    carrito_items = []
-    total = 0
-    
+        carrito_items = []
+        total = 0
+        
         # Verificar que la sesión existe y tiene carrito
         if not session:
             session['carrito'] = {}
         
         if 'carrito' in session and session['carrito']:
-        for producto_id, cantidad in session['carrito'].items():
+            for producto_id, cantidad in session['carrito'].items():
                 try:
                     # Validar que cantidad sea un número válido
                     cantidad = int(cantidad) if cantidad else 0
                     if cantidad <= 0:
                         continue
                         
-            producto = obtener_producto_por_id(producto_id)
+                    producto = obtener_producto_por_id(producto_id)
                     if producto and producto.get('activo', True):
                         # Validar que el producto tenga precio
                         precio = float(producto.get('precio', 0))
                         if precio > 0:
                             subtotal = precio * cantidad
-                carrito_items.append({
-                    'producto': producto,
-                    'cantidad': cantidad,
-                    'subtotal': subtotal
-                })
-                total += subtotal
+                            carrito_items.append({
+                                'producto': producto,
+                                'cantidad': cantidad,
+                                'subtotal': subtotal
+                            })
+                            total += subtotal
                         else:
                             logger.warning(f"Producto {producto_id} sin precio válido")
                     else:
@@ -1423,7 +1423,7 @@ def carrito():
                     continue
         
         logger.info(f"Carrito cargado: {len(carrito_items)} items, total: ${total}")
-    return render_template("carrito.html", carrito_items=carrito_items, total=total)
+        return render_template("carrito.html", carrito_items=carrito_items, total=total)
         
     except Exception as e:
         logger.error(f"Error en función carrito: {e}")
