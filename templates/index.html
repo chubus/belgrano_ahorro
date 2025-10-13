@@ -611,15 +611,15 @@
                                     </button>
                                     <ul class="dropdown-menu">
                                         {% if sucursales[negocio_id] is mapping %}
-                                            {% for sucursal_id, sucursal in sucursales[negocio_id].items() %}
-                                            {% if sucursal.activo %}
-                                            <li>
-                                                <a class="dropdown-item" href="{{ url_for('ver_negocio', negocio_id=negocio_id) }}#{{ sucursal_id }}">
-                                                    <i class="fas fa-store me-2"></i>{{ sucursal.nombre }}
-                                                </a>
-                                            </li>
-                                            {% endif %}
-                                            {% endfor %}
+                                        {% for sucursal_id, sucursal in sucursales[negocio_id].items() %}
+                                        {% if sucursal.activo %}
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('ver_negocio', negocio_id=negocio_id) }}#{{ sucursal_id }}">
+                                                <i class="fas fa-store me-2"></i>{{ sucursal.nombre }}
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                        {% endfor %}
                                         {% else %}
                                             {% for sucursal in sucursales[negocio_id] %}
                                             {% if sucursal.activo %}

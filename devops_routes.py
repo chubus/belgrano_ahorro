@@ -378,41 +378,76 @@ def conectar_belgrano():
     """Verificar y establecer conexión con Belgrano Ahorro"""
     try:
         if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible',
-                'data': {}
-            }), 503
+            if request.headers.get('Accept') == 'application/json':
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Gestor DevOps no disponible',
+                    'data': {}
+                }), 503
+            else:
+                flash('Gestor DevOps no disponible', 'error')
+                return render_template('devops/status.html', 
+                                     status='error', 
+                                     message='Gestor DevOps no disponible',
+                                     connectivity={})
         
         # Probar conectividad
         connectivity = devops_manager.test_connectivity()
         
         if connectivity['overall_status'] == 'success':
-            return jsonify({
-                'status': 'success',
-                'message': 'Conexión exitosa con Belgrano Ahorro',
-                'data': connectivity
-            })
+            if request.headers.get('Accept') == 'application/json':
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Conexión exitosa con Belgrano Ahorro',
+                    'data': connectivity
+                })
+            else:
+                flash('Conexión exitosa con Belgrano Ahorro', 'success')
+                return render_template('devops/status.html', 
+                                     status='success', 
+                                     message='Conexión exitosa con Belgrano Ahorro',
+                                     connectivity=connectivity)
         elif connectivity['overall_status'] == 'partial':
-            return jsonify({
-                'status': 'warning',
-                'message': 'Conexión parcial con Belgrano Ahorro',
-                'data': connectivity
-            })
+            if request.headers.get('Accept') == 'application/json':
+                return jsonify({
+                    'status': 'warning',
+                    'message': 'Conexión parcial con Belgrano Ahorro',
+                    'data': connectivity
+                })
+            else:
+                flash('Conexión parcial con Belgrano Ahorro', 'warning')
+                return render_template('devops/status.html', 
+                                     status='warning', 
+                                     message='Conexión parcial con Belgrano Ahorro',
+                                     connectivity=connectivity)
         else:
-            return jsonify({
-                'status': 'error',
-                'message': 'No se pudo conectar con Belgrano Ahorro',
-                'data': connectivity
-            }), 503
+            if request.headers.get('Accept') == 'application/json':
+                return jsonify({
+                    'status': 'error',
+                    'message': 'No se pudo conectar con Belgrano Ahorro',
+                    'data': connectivity
+                }), 503
+            else:
+                flash('No se pudo conectar con Belgrano Ahorro', 'error')
+                return render_template('devops/status.html', 
+                                     status='error', 
+                                     message='No se pudo conectar con Belgrano Ahorro',
+                                     connectivity=connectivity)
             
     except Exception as e:
         logger.error(f"Error verificando conexión con Belgrano Ahorro: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error interno: {str(e)}',
-            'data': {}
-        }), 500
+        if request.headers.get('Accept') == 'application/json':
+            return jsonify({
+                'status': 'error',
+                'message': f'Error interno: {str(e)}',
+                'data': {}
+            }), 500
+        else:
+            flash(f'Error interno: {str(e)}', 'error')
+            return render_template('devops/status.html', 
+                                 status='error', 
+                                 message=f'Error interno: {str(e)}',
+                                 connectivity={})
 
 # =================================================================
 # INFORMACIÓN DEL SISTEMA
@@ -424,27 +459,115 @@ def devops_info():
     """Información completa del sistema DevOps"""
     try:
         if not devops_manager:
-            return jsonify({
-                'status': 'error',
-                'message': 'Gestor DevOps no disponible',
-                'data': {
-                    'timestamp': datetime.now().isoformat(),
-                    'fallback_mode': True,
-                    'api_configured': False
-                }
-            }), 503
+            if request.headers.get('Accept') == 'application/json':
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Gestor DevOps no disponible',
+                    'data': {
+                        'timestamp': datetime.now().isoformat(),
+                        'fallback_mode': True,
+                        'api_configured': False
+                    }
+                }), 503
+            else:
+                flash('Gestor DevOps no disponible', 'error')
+                return render_template('devops/info.html', 
+                                     status='error', 
+                                     message='Gestor DevOps no disponible',
+                                     system_status={
+                                         'timestamp': datetime.now().isoformat(),
+                                         'fallback_mode': True,
+                                         'api_configured': False
+                                     })
         
         system_status = devops_manager.get_system_status()
-        return jsonify({
-            'status': 'success',
-            'message': 'Información del sistema DevOps',
-            'data': system_status
-        })
+        if request.headers.get('Accept') == 'application/json':
+            return jsonify({
+                'status': 'success',
+                'message': 'Información del sistema DevOps',
+                'data': system_status
+            })
+        else:
+            flash('Información del sistema cargada correctamente', 'success')
+            return render_template('devops/info.html', 
+                                 status='success', 
+                                 message='Información del sistema DevOps',
+                                 system_status=system_status)
         
     except Exception as e:
         logger.error(f"Error obteniendo información del sistema: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Error interno: {str(e)}',
-            'data': {}
-        }), 500
+        if request.headers.get('Accept') == 'application/json':
+            return jsonify({
+                'status': 'error',
+                'message': f'Error interno: {str(e)}',
+                'data': {}
+            }), 500
+        else:
+            flash(f'Error interno: {str(e)}', 'error')
+            return render_template('devops/info.html', 
+                                 status='error', 
+                                 message=f'Error interno: {str(e)}',
+                                 system_status={})
+
+# =================================================================
+# GESTIÓN DE SUCURSALES
+# =================================================================
+
+@devops_bp.route('/sucursales', methods=['GET', 'POST'])
+@devops_login_required
+def gestion_sucursales():
+    """Gestión completa de sucursales - SOLO DATOS REALES"""
+    
+    # Manejar POST requests (crear sucursal)
+    if request.method == 'POST':
+        try:
+            nombre = request.form.get('nombre', '').strip()
+            direccion = request.form.get('direccion', '').strip()
+            telefono = request.form.get('telefono', '').strip()
+            negocio_id = request.form.get('negocio_id', '').strip()
+            
+            if not all([nombre, direccion, negocio_id]):
+                flash('Nombre, dirección y negocio son requeridos', 'error')
+                return redirect(url_for('devops.gestion_sucursales'))
+            
+            # Verificar que el gestor esté disponible
+            if not devops_manager or getattr(devops_manager, 'fallback_mode', False):
+                flash('Error: API no configurada. Verifique las variables de entorno.', 'error')
+                return redirect(url_for('devops.gestion_sucursales'))
+            
+            # Crear sucursal usando el gestor DevOps
+            sucursal_data = {
+                'nombre': nombre,
+                'direccion': direccion,
+                'telefono': telefono,
+                'negocio_id': negocio_id,
+                'activo': True
+            }
+            
+            success, message = devops_manager.create_sucursal(sucursal_data)
+            if success:
+                flash(f'Sucursal creada exitosamente', 'success')
+                logger.info(f"Sucursal creada desde DevOps: {nombre}")
+            else:
+                flash(f'Error al crear sucursal: {message}', 'error')
+                logger.error(f"Error creando sucursal desde DevOps: {message}")
+                
+        except Exception as e:
+            logger.error(f"Error creando sucursal desde DevOps: {e}")
+            flash('Error interno al crear la sucursal', 'error')
+        
+        return redirect(url_for('devops.gestion_sucursales'))
+    
+    # GET request - mostrar sucursales
+    try:
+        if not devops_manager or getattr(devops_manager, 'fallback_mode', False):
+            flash('Servicio DevOps temporalmente no disponible. Configure las variables de entorno.', 'error')
+            return render_template('devops/sucursales.html', sucursales=[], negocios=[])
+        
+        sucursales = devops_manager.get_sucursales()
+        negocios = devops_manager.get_negocios()
+        return render_template('devops/sucursales.html', sucursales=sucursales, negocios=negocios)
+    except Exception as e:
+        logger.error(f"Error cargando sucursales: {e}")
+        flash('Error interno al cargar sucursales.', 'error')
+        return render_template('devops/sucursales.html', sucursales=[], negocios=[])

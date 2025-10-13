@@ -126,5 +126,31 @@
         "activo": true
       }
     ]
-  }
+  },
+  "precios": [
+    {
+      "producto_id": 1,
+      "nombre": "Leche Entera 1L",
+      "precio": 450.0,
+      "ultimo_precio": 420.0,
+      "fecha_ultimo": "2025-01-08",
+      "motivo": "Aumento de costos"
+    },
+    {
+      "producto_id": 2,
+      "nombre": "Pan Integral",
+      "precio": 180.0,
+      "ultimo_precio": 180.0,
+      "fecha_ultimo": "2025-01-05",
+      "motivo": "Precio estable"
+    },
+    {
+      "producto_id": 3,
+      "nombre": "Manzanas Rojas",
+      "precio": 320.0,
+      "ultimo_precio": 300.0,
+      "fecha_ultimo": "2025-01-07",
+      "motivo": "Aumento estacional"
+    }
+  ]
 }
