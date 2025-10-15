@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 
 # Configurar logging
-logging.basicConfig(level=logging.INFO, jsonify)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Crear blueprint DevOps
@@ -378,8 +378,7 @@ def conectar_belgrano():
     """Verificar y establecer conexión con Belgrano Ahorro"""
     try:
         if not devops_manager:
-            if request.headers.get(\'Accept\') == \'application/json\':
-
+            if request.headers.get('Accept') == 'application/json':
                 return jsonify({
                     'status': 'error',
                     'message': 'Gestor DevOps no disponible',
@@ -396,8 +395,7 @@ def conectar_belgrano():
         connectivity = devops_manager.test_connectivity()
         
         if connectivity['overall_status'] == 'success':
-            if request.headers.get(\'Accept\') == \'application/json\':
-
+            if request.headers.get('Accept') == 'application/json':
                 return jsonify({
                     'status': 'success',
                     'message': 'Conexión exitosa con Belgrano Ahorro',
@@ -410,8 +408,7 @@ def conectar_belgrano():
                                      message='Conexión exitosa con Belgrano Ahorro',
                                      connectivity=connectivity)
         elif connectivity['overall_status'] == 'partial':
-            if request.headers.get(\'Accept\') == \'application/json\':
-
+            if request.headers.get('Accept') == 'application/json':
                 return jsonify({
                     'status': 'warning',
                     'message': 'Conexión parcial con Belgrano Ahorro',
@@ -424,8 +421,7 @@ def conectar_belgrano():
                                      message='Conexión parcial con Belgrano Ahorro',
                                      connectivity=connectivity)
         else:
-            if request.headers.get(\'Accept\') == \'application/json\':
-
+            if request.headers.get('Accept') == 'application/json':
                 return jsonify({
                     'status': 'error',
                     'message': 'No se pudo conectar con Belgrano Ahorro',
@@ -440,8 +436,7 @@ def conectar_belgrano():
             
     except Exception as e:
         logger.error(f"Error verificando conexión con Belgrano Ahorro: {e}")
-        if request.headers.get(\'Accept\') == \'application/json\':
-
+        if request.headers.get('Accept') == 'application/json':
             return jsonify({
                 'status': 'error',
                 'message': f'Error interno: {str(e)}',
@@ -464,8 +459,7 @@ def devops_info():
     """Información completa del sistema DevOps"""
     try:
         if not devops_manager:
-            if request.headers.get(\'Accept\') == \'application/json\':
-
+            if request.headers.get('Accept') == 'application/json':
                 return jsonify({
                     'status': 'error',
                     'message': 'Gestor DevOps no disponible',
@@ -487,8 +481,7 @@ def devops_info():
                                      })
         
         system_status = devops_manager.get_system_status()
-        if request.headers.get(\'Accept\') == \'application/json\':
-
+        if request.headers.get('Accept') == 'application/json':
             return jsonify({
                 'status': 'success',
                 'message': 'Información del sistema DevOps',
@@ -503,8 +496,7 @@ def devops_info():
         
     except Exception as e:
         logger.error(f"Error obteniendo información del sistema: {e}")
-        if request.headers.get(\'Accept\') == \'application/json\':
-
+        if request.headers.get('Accept') == 'application/json':
             return jsonify({
                 'status': 'error',
                 'message': f'Error interno: {str(e)}',

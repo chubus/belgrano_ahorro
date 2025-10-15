@@ -18,11 +18,11 @@ BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY')
 
 if not BELGRANO_AHORRO_URL:
     os.environ['BELGRANO_AHORRO_URL'] = 'https://belgranoahorro-aliq.onrender.com'
-    print("⚠️ BELGRANO_AHORRO_URL no configurada, usando valor por defecto")
+    print("WARNING: BELGRANO_AHORRO_URL no configurada, usando valor por defecto")
 
 if not BELGRANO_AHORRO_API_KEY:
     os.environ['BELGRANO_AHORRO_API_KEY'] = 'belgrano_ahorro_api_key_2025'
-    print("⚠️ BELGRANO_AHORRO_API_KEY no configurada, usando valor por defecto")
+    print("WARNING: BELGRANO_AHORRO_API_KEY no configurada, usando valor por defecto")
 
 # Otras variables de entorno
 if 'TICKETERA_URL' not in os.environ:
@@ -33,9 +33,9 @@ if 'TICKETERA_API_KEY' not in os.environ:
 # Importar la aplicación principal con manejo de errores
 try:
     from app_unificado import app
-    print("✅ Aplicación importada correctamente desde app_unificado.py")
+    print("OK: Aplicación importada correctamente desde app_unificado.py")
 except ImportError as e:
-    print(f"❌ Error importando app_unificado: {e}")
+    print(f"ERROR: Error importando app_unificado: {e}")
     # Crear una aplicación Flask básica como fallback
     from flask import Flask
     app = Flask(__name__)
