@@ -77,7 +77,7 @@ class DevOpsBelgranoManagerUnified:
         if not self.belgrano_url:
             raise ValueError("BELGRANO_AHORRO_URL no configurada")
         
-        # Mapear endpoints a las rutas correctas
+        # Mapear endpoints a las rutas correctas de Belgrano Ahorro
         endpoint_mapping = {
             'productos': '/api/v1/productos',
             'sucursales': '/api/v1/sucursales', 
@@ -85,7 +85,7 @@ class DevOpsBelgranoManagerUnified:
             'ofertas': '/api/v1/ofertas',
             'precios': '/api/v1/precios',
             'tickets': '/api/tickets',
-            'health': '/healthz'
+            'health': '/api/health'
         }
         
         # Normalizar endpoint (remover / inicial si existe)
@@ -154,12 +154,12 @@ class DevOpsBelgranoManagerUnified:
         
         # Endpoints a probar
         endpoints_to_test = [
-            ('/health', 'Health Check'),
-            ('/v1/negocios', 'Negocios'),
-            ('/v1/productos', 'Productos'),
-            ('/v1/sucursales', 'Sucursales'),
-            ('/v1/ofertas', 'Ofertas'),
-            ('/tickets', 'Tickets')
+            ('/api/health', 'Health Check'),
+            ('/api/v1/negocios', 'Negocios'),
+            ('/api/v1/productos', 'Productos'),
+            ('/api/v1/sucursales', 'Sucursales'),
+            ('/api/v1/ofertas', 'Ofertas'),
+            ('/api/tickets', 'Tickets')
         ]
         
         successful_endpoints = 0
@@ -214,26 +214,30 @@ class DevOpsBelgranoManagerUnified:
     # =================================================================
     
     def get_items(self, kind: str) -> List[Dict]:
-        """Obtener items por tipo con fallback a datos locales si API no disponible."""
+        """Obtener items por tipo desde API real de Belgrano Ahorro."""
         try:
             if self.fallback_mode:
                 logger.warning(f"⚠️ Modo fallback activo para {kind} - Variables de entorno no configuradas")
-                return self._get_local_data(kind)
+                return []
             
             success, data = self._make_request('GET', kind)
             if success and isinstance(data, list):
-                logger.info(f"✅ {kind} obtenidos desde API: {len(data)} items")
+                logger.info(f"✅ {kind} obtenidos desde API real: {len(data)} items")
                 return data
-            logger.warning(f"⚠️ No se pudo obtener {kind} desde API: {data}")
-            logger.info(f"📋 Usando datos locales para {kind}")
-            return self._get_local_data(kind)
+            elif success and isinstance(data, dict) and 'data' in data:
+                # Manejar respuesta con estructura {data: [...]}
+                items = data.get('data', [])
+                logger.info(f"✅ {kind} obtenidos desde API real: {len(items)} items")
+                return items
+            else:
+                logger.warning(f"⚠️ No se pudo obtener {kind} desde API: {data}")
+                return []
         except Exception as e:
             logger.error(f"❌ Error obteniendo {kind}: {e}")
-            logger.info(f"📋 Usando datos locales para {kind}")
-            return self._get_local_data(kind)
+            return []
     
     def create_item(self, kind: str, data: Dict) -> Tuple[bool, str]:
-        """Crear item exclusivamente en API (sin creación local)."""
+        """Crear item en API real de Belgrano Ahorro."""
         try:
             if self.fallback_mode:
                 logger.warning(f"⚠️ Modo fallback activo para {kind} - Variables de entorno no configuradas")
@@ -241,16 +245,17 @@ class DevOpsBelgranoManagerUnified:
             
             success, response = self._make_request('POST', kind, data)
             if success:
-                logger.info(f"✅ {kind} creado en API: {data.get('nombre', 'Sin nombre')}")
-                return True, "Item creado exitosamente en API"
+                item_name = data.get('nombre', data.get('titulo', 'Sin nombre'))
+                logger.info(f"✅ {kind} creado en API real: {item_name}")
+                return True, f"{kind.title()} creado exitosamente en Belgrano Ahorro"
             logger.warning(f"⚠️ No se pudo crear {kind} en API: {response}")
-            return False, f"Error al crear item en API: {response}"
+            return False, f"Error al crear {kind} en API: {response}"
         except Exception as e:
             logger.error(f"❌ Error creando {kind}: {e}")
             return False, f"Error interno: {str(e)}"
     
     def update_item(self, kind: str, item_id: Any, data: Dict) -> Tuple[bool, str]:
-        """Actualizar item exclusivamente en API (sin actualización local)."""
+        """Actualizar item en API real de Belgrano Ahorro."""
         try:
             if self.fallback_mode:
                 logger.warning(f"⚠️ Modo fallback activo para {kind} - Variables de entorno no configuradas")
@@ -258,26 +263,26 @@ class DevOpsBelgranoManagerUnified:
             
             success, response = self._make_request('PUT', f'{kind}/{item_id}', data)
             if success:
-                logger.info(f"✅ {kind} actualizado en API: ID {item_id}")
-                return True, "Item actualizado exitosamente en API"
+                logger.info(f"✅ {kind} actualizado en API real: ID {item_id}")
+                return True, f"{kind.title()} actualizado exitosamente en Belgrano Ahorro"
             logger.warning(f"⚠️ No se pudo actualizar {kind} en API: {response}")
-            return False, f"Error al actualizar item en API: {response}"
+            return False, f"Error al actualizar {kind} en API: {response}"
         except Exception as e:
             logger.error(f"❌ Error actualizando {kind}: {e}")
             return False, f"Error interno: {str(e)}"
     
     def delete_item(self, kind: str, item_id: Any) -> Tuple[bool, str]:
-        """Eliminar item exclusivamente en API (sin eliminación local)."""
+        """Eliminar item en API real de Belgrano Ahorro."""
         try:
             if self.fallback_mode:
                 logger.warning("⚠️ Modo fallback activado - API no configurada")
                 return False, "API no disponible (modo fallback)"
-            success, response = self._make_request('DELETE', f'v1/{kind}/{item_id}')
+            success, response = self._make_request('DELETE', f'{kind}/{item_id}')
             if success:
-                logger.info(f"✅ {kind} eliminado en API: ID {item_id}")
-                return True, "Item eliminado exitosamente en API"
+                logger.info(f"✅ {kind} eliminado en API real: ID {item_id}")
+                return True, f"{kind.title()} eliminado exitosamente en Belgrano Ahorro"
             logger.warning(f"⚠️ No se pudo eliminar {kind} en API: {response}")
-            return False, f"Error al eliminar item en API: {response}"
+            return False, f"Error al eliminar {kind} en API: {response}"
         except Exception as e:
             logger.error(f"❌ Error eliminando {kind}: {e}")
             return False, f"Error interno: {str(e)}"
