@@ -1,0 +1,23 @@
+{
+  "timestamp": "2025-10-19T16:49:23.517620",
+  "api_url": "https://belgranoahorro-hp30.onrender.com",
+  "api_key_configured": true,
+  "conectividad": true,
+  "fallbacks_locales": [],
+  "datos_reales": {
+    "negocios": 3,
+    "productos": 137,
+    "ofertas": 0,
+    "sucursales": 0,
+    "precios": 0
+  },
+  "referencias_fallback": [
+    "belgrano_tickets/devops_routes_backup.py: productos.json",
+    "belgrano_tickets/devops_routes_backup.py: fallback",
+    "belgrano_tickets/devops_routes_backup.py: datos locales",
+    "belgrano_tickets/app.py: fallback",
+    "devops_belgrano_manager_unified.py: productos.json",
+    "devops_belgrano_manager_unified.py: fallback",
+    "devops_belgrano_manager_unified.py: datos locales"
+  ]
+}
