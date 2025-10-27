@@ -28,18 +28,16 @@ class DevOpsBelgranoManagerUnified:
         self.belgrano_api_key = os.environ.get('BELGRANO_AHORRO_API_KEY')
         self.api_timeout = int(os.environ.get('API_TIMEOUT_SECS', '30'))
         self.jwt_secret = os.environ.get('JWT_SECRET', 'devops_jwt_secret_2025')
-        self.fallback_mode = not (self.belgrano_url and self.belgrano_api_key)
+        self.fallback_mode = False  # FORZAR SOLO DATOS REALES
         
         # Cache de autenticación
         self._auth_token = None
         self._token_expiry = None
         
-        if self.fallback_mode:
-            logger.warning("⚠️ Modo fallback activado - Variables de entorno no configuradas")
-        else:
-            logger.info("✅ Cliente API configurado correctamente")
-            logger.info(f"   URL: {self.belgrano_url}")
-            logger.info(f"   API Key: {'*' * len(self.belgrano_api_key)}")
+        # if self.fallback_mode: # ELIMINADO - SOLO DATOS REALES
+        logger.info("✅ Cliente API configurado para SOLO datos reales")
+        logger.info(f"   URL: {self.belgrano_url}")
+        logger.info(f"   API Key: {'*' * len(self.belgrano_api_key)}")
     
     def _get_auth_token(self) -> Optional[str]:
         """Obtener token de autenticación simple"""
@@ -96,7 +94,7 @@ class DevOpsBelgranoManagerUnified:
     def _make_request(self, method: str, endpoint: str, data: Optional[Dict] = None) -> Tuple[bool, Any]:
         """Realizar request a la API con manejo de errores unificado"""
         if self.fallback_mode:
-            return False, "API no disponible (modo fallback)"
+            return False, "API no disponible - Configurar variables de entorno"
         
         try:
             url = self._build_url(endpoint)
@@ -217,8 +215,8 @@ class DevOpsBelgranoManagerUnified:
         """Obtener items por tipo desde API real de Belgrano Ahorro."""
         try:
             if self.fallback_mode:
-                logger.warning(f"⚠️ Modo fallback activo para {kind} - Variables de entorno no configuradas")
-                return []
+                logger.error(f"❌ API no configurada para {kind} - Configurar BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY")
+                # return [] # ELIMINADO - SOLO DATOS REALES
             
             success, data = self._make_request('GET', kind)
             if success and isinstance(data, list):
@@ -231,17 +229,17 @@ class DevOpsBelgranoManagerUnified:
                 return items
             else:
                 logger.warning(f"⚠️ No se pudo obtener {kind} desde API: {data}")
-                return []
+                # return [] # ELIMINADO - SOLO DATOS REALES
         except Exception as e:
             logger.error(f"❌ Error obteniendo {kind}: {e}")
-            return []
+            # return [] # ELIMINADO - SOLO DATOS REALES
     
     def create_item(self, kind: str, data: Dict) -> Tuple[bool, str]:
         """Crear item en API real de Belgrano Ahorro."""
         try:
             if self.fallback_mode:
-                logger.warning(f"⚠️ Modo fallback activo para {kind} - Variables de entorno no configuradas")
-                return False, "API no disponible (modo fallback)"
+                logger.error(f"❌ API no configurada para {kind} - Configurar BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY")
+                return False, "API no disponible - Configurar variables de entorno"
             
             success, response = self._make_request('POST', kind, data)
             if success:
@@ -258,8 +256,8 @@ class DevOpsBelgranoManagerUnified:
         """Actualizar item en API real de Belgrano Ahorro."""
         try:
             if self.fallback_mode:
-                logger.warning(f"⚠️ Modo fallback activo para {kind} - Variables de entorno no configuradas")
-                return False, "API no disponible (modo fallback)"
+                logger.error(f"❌ API no configurada para {kind} - Configurar BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY")
+                return False, "API no disponible - Configurar variables de entorno"
             
             success, response = self._make_request('PUT', f'{kind}/{item_id}', data)
             if success:
@@ -276,7 +274,7 @@ class DevOpsBelgranoManagerUnified:
         try:
             if self.fallback_mode:
                 logger.warning("⚠️ Modo fallback activado - API no configurada")
-                return False, "API no disponible (modo fallback)"
+                return False, "API no disponible - Configurar variables de entorno"
             success, response = self._make_request('DELETE', f'{kind}/{item_id}')
             if success:
                 logger.info(f"✅ {kind} eliminado en API real: ID {item_id}")
@@ -362,42 +360,7 @@ class DevOpsBelgranoManagerUnified:
     # =================================================================
     # DATOS DE FALLBACK ELIMINADOS - SOLO DATOS REALES
     # =================================================================
-    def _get_local_data(self, kind: str) -> List[Dict]:
-        """Obtener datos locales desde productos.json como fallback"""
-        try:
-            import json
-            with open('productos.json', 'r', encoding='utf-8') as f:
-                datos = json.load(f)
-            
-            if kind == 'negocios':
-                # Convertir diccionario de negocios a lista
-                negocios = datos.get('negocios', {})
-                return [{'id': k, **v} for k, v in negocios.items()]
-            elif kind == 'productos':
-                return datos.get('productos', [])
-            elif kind == 'sucursales':
-                # Convertir diccionario de sucursales a lista
-                sucursales = datos.get('sucursales', {})
-                lista_sucursales = []
-                for negocio_id, sucursales_negocio in sucursales.items():
-                    for sucursal in sucursales_negocio:
-                        sucursal['negocio_id'] = negocio_id
-                        lista_sucursales.append(sucursal)
-                return lista_sucursales
-            elif kind == 'ofertas':
-                # Convertir diccionario de ofertas a lista
-                ofertas = datos.get('ofertas', {})
-                return [{'id': k, **v} for k, v in ofertas.items()]
-            elif kind == 'categorias':
-                # Convertir diccionario de categorías a lista
-                categorias = datos.get('categorias', {})
-                return [{'id': k, **v} for k, v in categorias.items()]
-            else:
-                return []
-                
-        except Exception as e:
-            logger.error(f"❌ Error cargando datos locales para {kind}: {e}")
-            return []
+    # Función _get_local_data eliminada - Solo datos reales desde API
 
     def get_system_status(self) -> Dict[str, Any]:
         """Obtener estado completo del sistema"""

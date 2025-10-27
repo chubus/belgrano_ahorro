@@ -28,6 +28,7 @@ def make_api_request(method: str, endpoint: str, data: Optional[Dict] = None) ->
     try:
         url = build_api_url(endpoint)
         headers = {
+            'Authorization': f'Bearer {BELGRANO_AHORRO_API_KEY}',
             'X-API-Key': BELGRANO_AHORRO_API_KEY,
             'Content-Type': 'application/json',
             'X-Origin': 'devops_solo_api_real'
@@ -157,6 +158,28 @@ def get_sucursales_from_belgrano():
         logger.error(f"❌ Error obteniendo sucursales: {e}")
         return []
 
+def get_categorias_from_belgrano():
+    """Obtener categorías SOLO desde API real de Belgrano Ahorro - SIN FALLBACK LOCAL"""
+    try:
+        success, data = make_api_request('GET', 'categorias')
+        if success:
+            if isinstance(data, list):
+                logger.info(f"✅ {len(data)} categorías obtenidas desde API real")
+                return data
+            elif isinstance(data, dict) and 'data' in data:
+                categorias = data.get('data', [])
+                logger.info(f"✅ {len(categorias)} categorías obtenidas desde API real")
+                return categorias
+            else:
+                logger.warning("⚠️ Formato inesperado de categorías desde API")
+                return []
+        else:
+            logger.error(f"❌ No se pudieron obtener categorías: {data}")
+            return []
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo categorías: {e}")
+        return []
+
 def get_precios_from_belgrano():
     """Obtener precios SOLO desde API real de Belgrano Ahorro - SIN FALLBACK LOCAL"""
     try:
@@ -190,6 +213,7 @@ def sincronizar_con_belgrano_ahorro():
         sucursales = get_sucursales_from_belgrano()
         ofertas = get_ofertas_from_belgrano()
         precios = get_precios_from_belgrano()
+        categorias = get_categorias_from_belgrano()
         
         logger.info(f"📊 Sincronización completada:")
         logger.info(f"   🏪 Negocios: {len(negocios)}")
@@ -197,6 +221,7 @@ def sincronizar_con_belgrano_ahorro():
         logger.info(f"   🏢 Sucursales: {len(sucursales)}")
         logger.info(f"   🎯 Ofertas: {len(ofertas)}")
         logger.info(f"   💰 Precios: {len(precios)}")
+        logger.info(f"   📂 Categorías: {len(categorias)}")
         
         return {
             'productos': len(productos),
@@ -204,6 +229,7 @@ def sincronizar_con_belgrano_ahorro():
             'sucursales': len(sucursales),
             'ofertas': len(ofertas),
             'precios': len(precios),
+            'categorias': len(categorias),
             'source': 'api_real_only'
         }
         
@@ -228,12 +254,14 @@ if __name__ == "__main__":
     ofertas = get_ofertas_from_belgrano()
     sucursales = get_sucursales_from_belgrano()
     precios = get_precios_from_belgrano()
+    categorias = get_categorias_from_belgrano()
     
     print(f"🏪 Negocios: {len(negocios)} (API real)")
     print(f"📦 Productos: {len(productos)} (API real)")
     print(f"🎯 Ofertas: {len(ofertas)} (API real)")
     print(f"🏢 Sucursales: {len(sucursales)} (API real)")
     print(f"💰 Precios: {len(precios)} (API real)")
+    print(f"📂 Categorías: {len(categorias)} (API real)")
     
     print("\n✅ CONFIRMACIÓN:")
     print("✅ Solo API real de Belgrano Ahorro")

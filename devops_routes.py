@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 
 # Configurar logging
-logging.basicConfig(level=logging.INFO, jsonify)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Crear blueprint DevOps
@@ -79,8 +79,8 @@ def devops_logout():
 def dashboard():
     """Dashboard principal DevOps"""
     try:
-        if not devops_manager or getattr(devops_manager, 'fallback_mode', False):
-            flash('Servicio DevOps temporalmente no disponible. Configure las variables de entorno.', 'error')
+        if not devops_manager:
+            flash('Error: API de Belgrano Ahorro no configurada. Configure BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY.', 'error')
             return render_template('devops/dashboard.html', 
                                  negocios=[], productos=[], ofertas=[], sucursales=[])
         
@@ -119,7 +119,7 @@ def gestion_negocios():
                 return redirect(url_for('devops.gestion_negocios'))
             
             # Verificar que el gestor esté disponible
-            if not devops_manager or getattr(devops_manager, 'fallback_mode', False):
+            if not devops_manager:
                 flash('Error: API no configurada. Verifique las variables de entorno BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY', 'error')
                 return redirect(url_for('devops.gestion_negocios'))
             
@@ -137,7 +137,7 @@ def gestion_negocios():
             success, message = devops_manager.create_item('negocios', negocio_data)
             if success:
                 flash(f'Negocio "{nombre}" creado exitosamente', 'success')
-                logger.info(f"Negocio creado desde DevOps: {nombre}")
+                logger.info(f"Negocio creado desde DevOps y sincronizado con Belgrano Ahorro: {nombre}")
             else:
                 flash(f'Error al crear negocio: {message}', 'error')
                 logger.error(f"Error al crear negocio en API: {message}")
@@ -150,8 +150,8 @@ def gestion_negocios():
     
     # GET request - mostrar negocios
     try:
-        if not devops_manager or getattr(devops_manager, 'fallback_mode', False):
-            flash('Servicio DevOps temporalmente no disponible. Configure las variables de entorno.', 'error')
+        if not devops_manager:
+            flash('Error: API de Belgrano Ahorro no configurada. Configure BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY.', 'error')
             return render_template('devops/negocios.html', negocios=[], config_ok=False)
         
         negocios = devops_manager.get_negocios()
@@ -190,8 +190,8 @@ def gestion_productos():
                 return redirect(url_for('devops.gestion_productos'))
             
             # Verificar que el gestor esté disponible
-            if not devops_manager or getattr(devops_manager, 'fallback_mode', False):
-                flash('Error: API no configurada. Verifique las variables de entorno.', 'error')
+            if not devops_manager:
+                flash('Error: API de Belgrano Ahorro no configurada. Configure las variables de entorno.', 'error')
                 return redirect(url_for('devops.gestion_productos'))
             
             # Crear producto usando el gestor DevOps
@@ -207,7 +207,7 @@ def gestion_productos():
             success, message = devops_manager.create_item('productos', producto_data)
             if success:
                 flash(f'Producto "{nombre}" creado exitosamente', 'success')
-                logger.info(f"Producto creado desde DevOps: {nombre}")
+                logger.info(f"Producto creado desde DevOps y sincronizado con Belgrano Ahorro: {nombre}")
             else:
                 flash(f'Error al crear producto: {message}', 'error')
                 logger.error(f"Error al crear producto en API: {message}")
@@ -220,8 +220,8 @@ def gestion_productos():
     
     # GET request - mostrar productos
     try:
-        if not devops_manager or getattr(devops_manager, 'fallback_mode', False):
-            flash('Servicio DevOps temporalmente no disponible. Configure las variables de entorno.', 'error')
+        if not devops_manager:
+            flash('Error: API de Belgrano Ahorro no configurada. Configure BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY.', 'error')
             return render_template('devops/productos.html', productos=[], negocios=[])
         
         productos = devops_manager.get_productos()
@@ -260,8 +260,8 @@ def gestion_ofertas():
                 return redirect(url_for('devops.gestion_ofertas'))
             
             # Verificar que el gestor esté disponible
-            if not devops_manager or getattr(devops_manager, 'fallback_mode', False):
-                flash('Error: API no configurada. Verifique las variables de entorno.', 'error')
+            if not devops_manager:
+                flash('Error: API de Belgrano Ahorro no configurada. Configure las variables de entorno.', 'error')
                 return redirect(url_for('devops.gestion_ofertas'))
             
             # Crear oferta usando el gestor DevOps
@@ -278,7 +278,7 @@ def gestion_ofertas():
             success, message = devops_manager.create_item('ofertas', oferta_data)
             if success:
                 flash(f'Oferta "{titulo}" creada exitosamente', 'success')
-                logger.info(f"Oferta creada desde DevOps: {titulo}")
+                logger.info(f"Oferta creada desde DevOps y sincronizada con Belgrano Ahorro: {titulo}")
             else:
                 flash(f'Error al crear oferta: {message}', 'error')
                 logger.error(f"Error al crear oferta en API: {message}")
@@ -291,8 +291,8 @@ def gestion_ofertas():
     
     # GET request - mostrar ofertas
     try:
-        if not devops_manager or getattr(devops_manager, 'fallback_mode', False):
-            flash('Servicio DevOps temporalmente no disponible. Configure las variables de entorno.', 'error')
+        if not devops_manager:
+            flash('Error: API de Belgrano Ahorro no configurada. Configure BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY.', 'error')
             return render_template('devops/ofertas.html', ofertas=[])
         
         ofertas = devops_manager.get_ofertas()
@@ -329,8 +329,8 @@ def gestion_precios():
                 return redirect(url_for('devops.gestion_precios'))
             
             # Verificar que el gestor esté disponible
-            if not devops_manager or getattr(devops_manager, 'fallback_mode', False):
-                flash('Error: API no configurada. Verifique las variables de entorno.', 'error')
+            if not devops_manager:
+                flash('Error: API de Belgrano Ahorro no configurada. Configure las variables de entorno.', 'error')
                 return redirect(url_for('devops.gestion_precios'))
             
             # Actualizar precio usando el gestor DevOps
@@ -356,8 +356,8 @@ def gestion_precios():
     
     # GET request - mostrar precios
     try:
-        if not devops_manager or getattr(devops_manager, 'fallback_mode', False):
-            flash('Servicio DevOps temporalmente no disponible. Configure las variables de entorno.', 'error')
+        if not devops_manager:
+            flash('Error: API de Belgrano Ahorro no configurada. Configure BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY.', 'error')
             return render_template('devops/precios.html', precios=[], productos=[])
         
         precios = devops_manager.get_items('precios')
@@ -378,7 +378,7 @@ def conectar_belgrano():
     """Verificar y establecer conexión con Belgrano Ahorro"""
     try:
         if not devops_manager:
-            if request.headers.get(\'Accept\') == \'application/json\':
+            if request.headers.get('Accept') == 'application/json':
 
                 return jsonify({
                     'status': 'error',
@@ -396,7 +396,7 @@ def conectar_belgrano():
         connectivity = devops_manager.test_connectivity()
         
         if connectivity['overall_status'] == 'success':
-            if request.headers.get(\'Accept\') == \'application/json\':
+            if request.headers.get('Accept') == 'application/json':
 
                 return jsonify({
                     'status': 'success',
@@ -410,7 +410,7 @@ def conectar_belgrano():
                                      message='Conexión exitosa con Belgrano Ahorro',
                                      connectivity=connectivity)
         elif connectivity['overall_status'] == 'partial':
-            if request.headers.get(\'Accept\') == \'application/json\':
+            if request.headers.get('Accept') == 'application/json':
 
                 return jsonify({
                     'status': 'warning',
@@ -424,7 +424,7 @@ def conectar_belgrano():
                                      message='Conexión parcial con Belgrano Ahorro',
                                      connectivity=connectivity)
         else:
-            if request.headers.get(\'Accept\') == \'application/json\':
+            if request.headers.get('Accept') == 'application/json':
 
                 return jsonify({
                     'status': 'error',
@@ -440,7 +440,7 @@ def conectar_belgrano():
             
     except Exception as e:
         logger.error(f"Error verificando conexión con Belgrano Ahorro: {e}")
-        if request.headers.get(\'Accept\') == \'application/json\':
+        if request.headers.get('Accept') == 'application/json':
 
             return jsonify({
                 'status': 'error',
@@ -464,7 +464,7 @@ def devops_info():
     """Información completa del sistema DevOps"""
     try:
         if not devops_manager:
-            if request.headers.get(\'Accept\') == \'application/json\':
+            if request.headers.get('Accept') == 'application/json':
 
                 return jsonify({
                     'status': 'error',
@@ -487,7 +487,7 @@ def devops_info():
                                      })
         
         system_status = devops_manager.get_system_status()
-        if request.headers.get(\'Accept\') == \'application/json\':
+        if request.headers.get('Accept') == 'application/json':
 
             return jsonify({
                 'status': 'success',
@@ -503,7 +503,7 @@ def devops_info():
         
     except Exception as e:
         logger.error(f"Error obteniendo información del sistema: {e}")
-        if request.headers.get(\'Accept\') == \'application/json\':
+        if request.headers.get('Accept') == 'application/json':
 
             return jsonify({
                 'status': 'error',
@@ -539,8 +539,8 @@ def gestion_sucursales():
                 return redirect(url_for('devops.gestion_sucursales'))
             
             # Verificar que el gestor esté disponible
-            if not devops_manager or getattr(devops_manager, 'fallback_mode', False):
-                flash('Error: API no configurada. Verifique las variables de entorno.', 'error')
+            if not devops_manager:
+                flash('Error: API de Belgrano Ahorro no configurada. Configure las variables de entorno.', 'error')
                 return redirect(url_for('devops.gestion_sucursales'))
             
             # Crear sucursal usando el gestor DevOps
@@ -568,8 +568,8 @@ def gestion_sucursales():
     
     # GET request - mostrar sucursales
     try:
-        if not devops_manager or getattr(devops_manager, 'fallback_mode', False):
-            flash('Servicio DevOps temporalmente no disponible. Configure las variables de entorno.', 'error')
+        if not devops_manager:
+            flash('Error: API de Belgrano Ahorro no configurada. Configure BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY.', 'error')
             return render_template('devops/sucursales.html', sucursales=[], negocios=[])
         
         sucursales = devops_manager.get_sucursales()

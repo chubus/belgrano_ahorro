@@ -30,6 +30,13 @@ if 'TICKETERA_URL' not in os.environ:
 if 'TICKETERA_API_KEY' not in os.environ:
     os.environ['TICKETERA_API_KEY'] = 'ticketera_api_key_2025'
 
+# Configurar deploy
+try:
+    from config_deploy import configure_deploy
+    configure_deploy()
+except ImportError:
+    print("WARNING: config_deploy.py no encontrado, usando configuración básica")
+
 # Importar la aplicación principal con manejo de errores
 try:
     from app_unificado import app
