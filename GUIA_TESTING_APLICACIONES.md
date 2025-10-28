@@ -115,3 +115,4 @@ curl -H "Authorization: Bearer belgrano_ahorro_api_key_2025" \
 5. **Probar diferentes escenarios** → Verificar robustez del sistema
 
 **¡Las aplicaciones están listas para testing!**
+

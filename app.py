@@ -7,6 +7,7 @@ Importa la aplicación principal desde app_unificado.py
 
 import os
 import sys
+import logging
 
 # Configurar variables de entorno por defecto para producción
 if 'FLASK_ENV' not in os.environ:
@@ -30,12 +31,20 @@ if 'TICKETERA_URL' not in os.environ:
 if 'TICKETERA_API_KEY' not in os.environ:
     os.environ['TICKETERA_API_KEY'] = 'ticketera_api_key_2025'
 
-# Configurar deploy
+# Configuración y variables de entorno seguras (no bloqueantes)
+try:
+    from config import load_env_defaults, validate_env_non_blocking
+    load_env_defaults()
+    validate_env_non_blocking()
+except Exception as e:
+    print(f"WARNING: Config no disponible: {e}")
+
+# Configurar deploy (opcional)
 try:
     from config_deploy import configure_deploy
     configure_deploy()
-except ImportError:
-    print("WARNING: config_deploy.py no encontrado, usando configuración básica")
+except Exception:
+    print("WARNING: config_deploy no disponible; continuando con configuración básica")
 
 # Importar la aplicación principal con manejo de errores
 try:
@@ -60,6 +69,34 @@ except ImportError as e:
     def healthz():
         """Endpoint de salud para Render"""
         return "ok", 200
+
+# Diagnóstico de rutas y health-check de APIs externas
+try:
+    from api_client import check_api_health
+except Exception:
+    def check_api_health():
+        return {"belgrano": {"ok": False}, "devops": {"ok": False}}
+
+def print_registered_routes(flask_app):
+    try:
+        print("\n== RUTAS REGISTRADAS ==")
+        output = []
+        for rule in flask_app.url_map.iter_rules():
+            output.append(f"{rule.endpoint} -> {rule}")
+        for line in sorted(output):
+            print(line)
+        print("== FIN RUTAS ==\n")
+    except Exception as e:
+        print(f"WARNING: No se pudieron listar rutas: {e}")
+
+try:
+    # Solo imprimir cuando corre como script (no en import por gunicorn)
+    if __name__ == '__main__':
+        print_registered_routes(app)
+        print("Chequeando salud de APIs externas...")
+        print(check_api_health())
+except Exception:
+    pass
 
 # Configurar para producción
 if __name__ == '__main__':
