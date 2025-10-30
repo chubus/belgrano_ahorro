@@ -1,0 +1,57 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=tickets
+      - POSTGRES_USER=ticketera
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change_me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ticketera:
+    build:
+      context: ./belgrano_tickets
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY}
+      - BELGRANO_AHORRO_URL=${BELGRANO_AHORRO_URL}
+      - BELGRANO_AHORRO_API_KEY=${BELGRANO_AHORRO_API_KEY}
+      - DATABASE_URL=postgresql+psycopg2://ticketera:${POSTGRES_PASSWORD:-change_me}@postgres:5432/tickets
+      - API_TIMEOUT_SECS=${API_TIMEOUT_SECS:-30}
+      - API_RETRY_TOTAL=${API_RETRY_TOTAL:-3}
+      - API_RETRY_BACKOFF=${API_RETRY_BACKOFF:-0.5}
+    ports:
+      - "5001:5001"
+    restart: unless-stopped
+
+  devops:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - FLASK_ENV=production
+      - BELGRANO_AHORRO_URL=${BELGRANO_AHORRO_URL}
+      - BELGRANO_AHORRO_API_KEY=${BELGRANO_AHORRO_API_KEY}
+      - API_TIMEOUT_SECS=${API_TIMEOUT_SECS:-30}
+      - API_RETRY_TOTAL=${API_RETRY_TOTAL:-3}
+      - API_RETRY_BACKOFF=${API_RETRY_BACKOFF:-0.5}
+    ports:
+      - "5002:5002"
+    command: sh -c "gunicorn --bind 0.0.0.0:5002 --workers 2 --timeout 120 app_unificado:app"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+

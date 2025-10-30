@@ -10,6 +10,8 @@ from datetime import datetime
 from typing import Any, Dict, Tuple
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,6 +22,17 @@ class DevOpsBelgranoManagerUnified:
         self.belgrano_url = os.getenv('BELGRANO_AHORRO_URL', 'https://belgranoahorro-hp30.onrender.com').rstrip('/')
         self.api_key = os.getenv('BELGRANO_AHORRO_API_KEY', '')
         self.timeout = int(os.getenv('API_TIMEOUT_SECS', '15'))
+        # Sesión HTTP con reintentos
+        retry_strategy = Retry(
+            total=int(os.getenv('API_RETRY_TOTAL', '3')),
+            backoff_factor=float(os.getenv('API_RETRY_BACKOFF', '0.5')),
+            status_forcelist=(429, 500, 502, 503, 504),
+            allowed_methods=("GET", "POST", "PUT", "DELETE", "PATCH")
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session = requests.Session()
+        self.session.mount('https://', adapter)
+        self.session.mount('http://', adapter)
         logger.info("✅ Cliente API configurado para SOLO datos reales")
         logger.info(f"   URL: {self.belgrano_url}")
         logger.info(f"   API Key: {'*' * len(self.api_key) if self.api_key else 'no-set'}")
@@ -34,7 +47,7 @@ class DevOpsBelgranoManagerUnified:
     def _req(self, method: str, path: str, **kwargs) -> Tuple[bool, Any]:
         url = f"{self.belgrano_url}/{path.lstrip('/')}"
         try:
-            resp = requests.request(method, url, headers=self._headers(), timeout=self.timeout, **kwargs)
+            resp = self.session.request(method, url, headers=self._headers(), timeout=self.timeout, **kwargs)
             try:
                 data = resp.json()
             except Exception:

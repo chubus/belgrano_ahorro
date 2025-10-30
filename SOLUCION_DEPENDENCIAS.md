@@ -139,3 +139,4 @@ python app.py
 
 **🎉 RESULTADO:**
 **Las dependencias están instaladas y funcionando. Solo queda resolver el problema específico de SQLAlchemy con Python 3.13 en Ticketera.**
+
