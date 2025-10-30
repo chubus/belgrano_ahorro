@@ -1,0 +1,226 @@
+{% extends "devops/base.html" %}
+
+{% block title %}Gestión de Negocios - DevOps{% endblock %}
+{% block page_title %}Gestión de Negocios{% endblock %}
+
+{% block content %}
+<!-- Alerta de configuración si es necesario -->
+{% if not config_ok %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <strong>Configuración requerida:</strong> Para crear negocios, configure las variables de entorno 
+    <code>BELGRANO_AHORRO_URL</code> y <code>BELGRANO_AHORRO_API_KEY</code>. 
+    <a href="#" class="alert-link" onclick="showConfigHelp()">Ver ayuda de configuración</a>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h4 class="mb-0">
+            <i class="fas fa-store me-2"></i>Lista de Negocios
+        </h4>
+        <p class="text-muted">Gestiona todos los negocios del sistema</p>
+    </div>
+    <div class="col-md-6 text-end">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#crearNegocioModal">
+            <i class="fas fa-plus me-2"></i>Crear Negocio
+        </button>
+    </div>
+</div>
+
+<!-- Tabla de Negocios -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Descripción</th>
+                        <th>Dirección</th>
+                        <th>Teléfono</th>
+                        <th>Email</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for negocio in negocios %}
+                    <tr>
+                        <td>{{ negocio.id }}</td>
+                        <td>
+                            <strong>{{ negocio.nombre }}</strong>
+                        </td>
+                        <td>{{ negocio.descripcion or '-' }}</td>
+                        <td>{{ negocio.direccion or '-' }}</td>
+                        <td>{{ negocio.telefono or '-' }}</td>
+                        <td>{{ negocio.email or '-' }}</td>
+                        <td>
+                            {% if negocio.activo %}
+                                <span class="badge bg-success">Activo</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-warning" 
+                                        onclick="editarNegocio({{ negocio.id }}, '{{ negocio.nombre }}', '{{ negocio.descripcion or '' }}', '{{ negocio.direccion or '' }}', '{{ negocio.telefono or '' }}', '{{ negocio.email or '' }}', {{ negocio.activo|lower }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <form method="POST" action="{{ url_for('devops.eliminar_negocio', negocio_id=negocio.id) }}" 
+                                      style="display: inline;" onsubmit="return confirm('¿Estás seguro de eliminar este negocio?')">
+                                    <button type="submit" class="btn btn-sm btn-danger btn-delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">
+                            <i class="fas fa-inbox me-2"></i>No hay negocios registrados
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear Negocio -->
+<div class="modal fade" id="crearNegocioModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Crear Nuevo Negocio
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('devops.gestion_negocios') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nombre *</label>
+                            <input type="text" class="form-control" name="nombre" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" name="telefono">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción</label>
+                        <textarea class="form-control" name="descripcion" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        <input type="text" class="form-control" name="direccion">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email">
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="activo" checked>
+                        <label class="form-check-label">Negocio activo</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Crear Negocio
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Negocio -->
+<div class="modal fade" id="editarNegocioModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Editar Negocio
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editarNegocioForm" method="POST">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nombre *</label>
+                            <input type="text" class="form-control" name="nombre" id="edit_nombre" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" name="telefono" id="edit_telefono">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción</label>
+                        <textarea class="form-control" name="descripcion" id="edit_descripcion" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        <input type="text" class="form-control" name="direccion" id="edit_direccion">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email" id="edit_email">
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="activo" id="edit_activo">
+                        <label class="form-check-label">Negocio activo</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save me-2"></i>Actualizar Negocio
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editarNegocio(id, nombre, descripcion, direccion, telefono, email, activo) {
+    document.getElementById('edit_nombre').value = nombre;
+    document.getElementById('edit_descripcion').value = descripcion;
+    document.getElementById('edit_direccion').value = direccion;
+    document.getElementById('edit_telefono').value = telefono;
+    document.getElementById('edit_email').value = email;
+    document.getElementById('edit_activo').checked = activo;
+    document.getElementById('editarNegocioForm').action = `/devops/negocios/${id}/editar`;
+    const modal = new bootstrap.Modal(document.getElementById('editarNegocioModal'));
+    modal.show();
+}
+
+function showConfigHelp() {
+    alert(`CONFIGURACIÓN REQUERIDA:
+
+Para que la creación de negocios funcione correctamente, configure estas variables de entorno:
+
+1. BELGRANO_AHORRO_URL
+   Ejemplo: http://localhost:5000
+
+2. BELGRANO_AHORRO_API_KEY
+   Ejemplo: your_api_key_here
+
+Puede usar el archivo config_devops_negocios.env como plantilla.
+
+Después de configurar las variables, reinicie la aplicación.`);
+}
+</script>
+{% endblock %}

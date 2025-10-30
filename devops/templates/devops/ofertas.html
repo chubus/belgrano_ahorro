@@ -1,0 +1,212 @@
+{% extends "devops/base.html" %}
+
+{% block title %}Gestión de Ofertas - DevOps{% endblock %}
+{% block page_title %}Gestión de Ofertas{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h4 class="mb-0">
+            <i class="fas fa-tags me-2"></i>Lista de Ofertas
+        </h4>
+        <p class="text-muted">Gestiona todas las ofertas del sistema</p>
+    </div>
+    <div class="col-md-6 text-end">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#crearOfertaModal">
+            <i class="fas fa-plus me-2"></i>Crear Oferta
+        </button>
+    </div>
+</div>
+
+<!-- Tabla de Ofertas -->
+        <div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Título</th>
+                        <th>Descripción</th>
+                        <th>Descuento %</th>
+                        <th>Descuento Fijo</th>
+                        <th>Estado</th>
+                        <th>Fecha Creación</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for oferta in ofertas %}
+                    <tr>
+                        <td>{{ oferta.id }}</td>
+                        <td>
+                            <strong>{{ oferta.titulo }}</strong>
+                        </td>
+                        <td>{{ oferta.descripcion or '-' }}</td>
+                        <td>
+                            {% if oferta.descuento_porcentaje > 0 %}
+                                <span class="badge bg-warning">{{ oferta.descuento_porcentaje }}%</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if oferta.descuento_fijo > 0 %}
+                                <span class="badge bg-info">${{ "%.2f"|format(oferta.descuento_fijo) }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if oferta.activa %}
+                                <span class="badge bg-success">Activa</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactiva</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ oferta.fecha_creacion }}</small>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-warning" 
+                                        onclick="editarOferta({{ oferta.id }}, '{{ oferta.titulo }}', '{{ oferta.descripcion or '' }}', {{ oferta.descuento_porcentaje }}, {{ oferta.descuento_fijo }}, {{ oferta.activa|lower }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <form method="POST" action="{{ url_for('devops.eliminar_oferta', oferta_id=oferta.id) }}" 
+                                      style="display: inline;" onsubmit="return confirm('¿Estás seguro de eliminar esta oferta?')">
+                                    <button type="submit" class="btn btn-sm btn-danger btn-delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                            </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">
+                            <i class="fas fa-inbox me-2"></i>No hay ofertas registradas
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+        </div>
+        
+<!-- Modal Crear Oferta -->
+<div class="modal fade" id="crearOfertaModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Crear Nueva Oferta
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+            <form method="POST" action="{{ url_for('devops.gestion_ofertas') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Título *</label>
+                        <input type="text" class="form-control" name="titulo" required placeholder="Ej: Oferta Especial de Granos">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción</label>
+                        <textarea class="form-control" name="descripcion" rows="3" placeholder="Descripción detallada de la oferta"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Descuento Porcentual (%)</label>
+                            <input type="number" class="form-control" name="descuento_porcentaje" min="0" max="100" step="0.01" value="0">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Descuento Fijo ($)</label>
+                            <input type="number" class="form-control" name="descuento_fijo" min="0" step="0.01" value="0">
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Nota:</strong> Puedes usar descuento porcentual O descuento fijo, no ambos a la vez.
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="activo" checked>
+                        <label class="form-check-label">Oferta activa</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Crear Oferta
+                </button>
+                </div>
+            </form>
+        </div>
+        </div>
+            </div>
+            
+<!-- Modal Editar Oferta -->
+<div class="modal fade" id="editarOfertaModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Editar Oferta
+                </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+            <form id="editarOfertaForm" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Título *</label>
+                        <input type="text" class="form-control" name="titulo" id="edit_titulo" required>
+                            </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción</label>
+                        <textarea class="form-control" name="descripcion" id="edit_descripcion" rows="3"></textarea>
+                            </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Descuento Porcentual (%)</label>
+                            <input type="number" class="form-control" name="descuento_porcentaje" id="edit_descuento_porcentaje" min="0" max="100" step="0.01">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Descuento Fijo ($)</label>
+                            <input type="number" class="form-control" name="descuento_fijo" id="edit_descuento_fijo" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Nota:</strong> Puedes usar descuento porcentual O descuento fijo, no ambos a la vez.
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="activo" id="edit_activo">
+                        <label class="form-check-label">Oferta activa</label>
+                        </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save me-2"></i>Actualizar Oferta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+    
+{% block scripts %}
+    <script>
+function editarOferta(id, titulo, descripcion, descuento_porcentaje, descuento_fijo, activo) {
+    document.getElementById('edit_titulo').value = titulo;
+    document.getElementById('edit_descripcion').value = descripcion;
+    document.getElementById('edit_descuento_porcentaje').value = descuento_porcentaje;
+    document.getElementById('edit_descuento_fijo').value = descuento_fijo;
+    document.getElementById('edit_activo').checked = activo;
+    document.getElementById('editarOfertaForm').action = `/devops/ofertas/${id}/editar`;
+    const modal = new bootstrap.Modal(document.getElementById('editarOfertaModal'));
+                modal.show();
+        }
+    </script>
+{% endblock %}

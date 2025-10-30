@@ -1,0 +1,215 @@
+{% extends "devops/base.html" %}
+
+{% block title %}Gestión de Sucursales - DevOps{% endblock %}
+{% block page_title %}Gestión de Sucursales{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h4 class="mb-0">
+            <i class="fas fa-building me-2"></i>Lista de Sucursales
+        </h4>
+        <p class="text-muted">Gestiona todas las sucursales del sistema</p>
+    </div>
+    <div class="col-md-6 text-end">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#crearSucursalModal">
+            <i class="fas fa-plus me-2"></i>Crear Sucursal
+        </button>
+    </div>
+</div>
+
+<!-- Tabla de Sucursales -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Dirección</th>
+                        <th>Teléfono</th>
+                        <th>Email</th>
+                        <th>Negocio</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sucursal in sucursales %}
+                    <tr>
+                        <td>{{ sucursal.id }}</td>
+                        <td>
+                            <strong>{{ sucursal.nombre }}</strong>
+                        </td>
+                        <td>{{ sucursal.direccion or '-' }}</td>
+                        <td>{{ sucursal.telefono or '-' }}</td>
+                        <td>{{ sucursal.email or '-' }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ sucursal.negocio_nombre or 'Sin negocio' }}</span>
+                        </td>
+                        <td>
+                            {% if sucursal.activo %}
+                                <span class="badge bg-success">Activa</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactiva</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-warning" 
+                                        onclick="editarSucursal({{ sucursal.id }}, '{{ sucursal.nombre }}', '{{ sucursal.direccion or '' }}', '{{ sucursal.telefono or '' }}', '{{ sucursal.email or '' }}', {{ sucursal.negocio_id }}, {{ sucursal.activo|lower }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <form method="POST" action="{{ url_for('devops.eliminar_sucursal', sucursal_id=sucursal.id) }}" 
+                                      style="display: inline;" onsubmit="return confirm('¿Estás seguro de eliminar esta sucursal?')">
+                                    <button type="submit" class="btn btn-sm btn-danger btn-delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">
+                            <i class="fas fa-inbox me-2"></i>No hay sucursales registradas
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear Sucursal -->
+<div class="modal fade" id="crearSucursalModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Crear Nueva Sucursal
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('devops.gestion_sucursales') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nombre *</label>
+                            <input type="text" class="form-control" name="nombre" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Negocio *</label>
+                            <select class="form-select" name="negocio_id" required>
+                                <option value="">Seleccionar negocio</option>
+                                {% for negocio in negocios %}
+                                <option value="{{ negocio.id }}">{{ negocio.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        <input type="text" class="form-control" name="direccion">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" name="telefono">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email">
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="activo" checked>
+                        <label class="form-check-label">Sucursal activa</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Crear Sucursal
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Sucursal -->
+<div class="modal fade" id="editarSucursalModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Editar Sucursal
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editarSucursalForm" method="POST">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nombre *</label>
+                            <input type="text" class="form-control" name="nombre" id="edit_nombre" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Negocio *</label>
+                            <select class="form-select" name="negocio_id" id="edit_negocio_id" required>
+                                <option value="">Seleccionar negocio</option>
+                                {% for negocio in negocios %}
+                                <option value="{{ negocio.id }}">{{ negocio.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        <input type="text" class="form-control" name="direccion" id="edit_direccion">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" name="telefono" id="edit_telefono">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" id="edit_email">
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="activo" id="edit_activo">
+                        <label class="form-check-label">Sucursal activa</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save me-2"></i>Actualizar Sucursal
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function editarSucursal(id, nombre, direccion, telefono, email, negocio_id, activo) {
+    document.getElementById('edit_nombre').value = nombre;
+    document.getElementById('edit_direccion').value = direccion;
+    document.getElementById('edit_telefono').value = telefono;
+    document.getElementById('edit_email').value = email;
+    document.getElementById('edit_negocio_id').value = negocio_id;
+    document.getElementById('edit_activo').checked = activo;
+    document.getElementById('editarSucursalForm').action = `/devops/sucursales/${id}/editar`;
+    const modal = new bootstrap.Modal(document.getElementById('editarSucursalModal'));
+    modal.show();
+}
+</script>
+{% endblock %}

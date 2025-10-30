@@ -1,0 +1,119 @@
+{% extends "devops/base.html" %}
+
+{% block title %}Estado del Sistema - DevOps{% endblock %}
+{% block page_title %}Estado del Sistema{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-server me-2"></i>Estado de Servicios
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if system_info %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Servicios del Sistema</h6>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Belgrano Ahorro
+                                <span class="badge bg-{% if system_info.services.belgrano_ahorro == 'active' %}success{% elif system_info.services.belgrano_ahorro == 'error' %}warning{% else %}danger{% endif %}">
+                                    {{ system_info.services.belgrano_ahorro }}
+                                </span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Ticketera
+                                <span class="badge bg-{% if system_info.services.ticketera == 'active' %}success{% elif system_info.services.ticketera == 'error' %}warning{% else %}danger{% endif %}">
+                                    {{ system_info.services.ticketera }}
+                                </span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                API Gateway
+                                <span class="badge bg-{% if system_info.services.gateway == 'active' %}success{% elif system_info.services.gateway == 'error' %}warning{% else %}danger{% endif %}">
+                                    {{ system_info.services.gateway }}
+                                </span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Sistema Sync
+                                <span class="badge bg-{% if system_info.services.sync == 'active' %}success{% elif system_info.services.sync == 'error' %}warning{% else %}danger{% endif %}">
+                                    {{ system_info.services.sync }}
+                                </span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Bases de Datos</h6>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Belgrano Ahorro DB
+                                <span class="badge bg-{% if system_info.database.belgrano_ahorro_db == 'active' %}success{% else %}danger{% endif %}">
+                                    {{ system_info.database.belgrano_ahorro_db }}
+                                </span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Tickets DB
+                                <span class="badge bg-{% if system_info.database.tickets_db == 'active' %}success{% else %}danger{% endif %}">
+                                    {{ system_info.database.tickets_db }}
+                                </span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h6>Información del Sistema</h6>
+                    <p><strong>Timestamp:</strong> {{ system_info.timestamp }}</p>
+                    <p><strong>Estado DevOps:</strong> 
+                        <span class="badge bg-success">{{ system_info.devops_status }}</span>
+                    </p>
+                </div>
+                {% else %}
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error obteniendo información del sistema: {{ error }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-tools me-2"></i>Acciones del Sistema
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="location.reload()">
+                            <i class="fas fa-sync me-2"></i>Actualizar Estado
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('devops.devops_home') }}" class="btn btn-secondary w-100">
+                            <i class="fas fa-home me-2"></i>Panel Principal
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('devops.devops_health') }}" class="btn btn-info w-100">
+                            <i class="fas fa-heartbeat me-2"></i>Health Check
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('devops.devops_info') }}" class="btn btn-success w-100">
+                            <i class="fas fa-info-circle me-2"></i>Información
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
