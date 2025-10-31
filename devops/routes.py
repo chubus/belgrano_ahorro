@@ -1,5 +1,7 @@
 # Rutas DevOps (migradas a paquete devops)
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
+import os
+import requests
 import logging
 from datetime import datetime
 
@@ -18,6 +20,41 @@ try:
 except Exception as e:
     logger.error(f"❌ No se pudo importar manager_unified: {e}")
     devops_manager = None
+
+# ================================
+# Helpers de conectividad externa
+# ================================
+def _ahorro_base_url() -> str:
+    return os.getenv('BELGRANO_AHORRO_URL', '').rstrip('/')
+
+def _ahorro_headers() -> dict:
+    api_key = os.getenv('BELGRANO_AHORRO_API_KEY', '')
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+        headers["X-API-Key"] = api_key
+    return headers
+
+def _ticketera_base_url() -> str:
+    # Prioridad: DEVOPS_API_URL (si ticketera expone REST), luego TICKETS_API_URL/TICKETERA_URL
+    return (
+        os.getenv('TICKETS_API_URL')
+        or os.getenv('TICKETERA_URL')
+        or os.getenv('DEVOPS_API_URL')
+        or ''
+    ).rstrip('/')
+
+def _ticketera_headers() -> dict:
+    api_key = (
+        os.getenv('TICKETS_API_KEY')
+        or os.getenv('TICKETERA_API_KEY')
+        or os.getenv('DEVOPS_API_KEY')
+        or ''
+    )
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return headers
 
 def devops_login_required(f):
     from functools import wraps
@@ -318,6 +355,264 @@ def devops_info():
         else:
             flash(f'Error interno: {str(e)}', 'error')
             return render_template('devops/info.html', status='error', message=f'Error interno: {str(e)}', system_status={})
+
+# =================================================================
+# Endpoints de conectividad y proxies a APIs externas
+# =================================================================
+
+@devops_bp.route('/api/integrations/health')
+@devops_login_required
+def integrations_health():
+    """Verifica salud de Belgrano Ahorro y Ticketera."""
+    results = {
+        'ahorro': {'ok': False, 'status': None, 'error': None},
+        'ticketera': {'ok': False, 'status': None, 'error': None},
+    }
+    # Belgrano Ahorro
+    try:
+        base = _ahorro_base_url()
+        if base:
+            resp = requests.get(f"{base}/api/health", headers=_ahorro_headers(), timeout=10)
+            results['ahorro']['ok'] = 200 <= resp.status_code < 300
+            results['ahorro']['status'] = resp.json() if resp.headers.get('content-type','').startswith('application/json') else resp.text
+        else:
+            results['ahorro']['error'] = 'BELGRANO_AHORRO_URL no configurada'
+    except Exception as e:
+        results['ahorro']['error'] = str(e)
+
+    # Ticketera
+    try:
+        base_t = _ticketera_base_url()
+        if base_t:
+            # Intentar health estándar
+            for path in ('/api/health', '/health', '/status'):
+                try:
+                    resp = requests.get(f"{base_t}{path}", headers=_ticketera_headers(), timeout=10)
+                    if 200 <= resp.status_code < 300:
+                        results['ticketera']['ok'] = True
+                        results['ticketera']['status'] = resp.json() if resp.headers.get('content-type','').startswith('application/json') else resp.text
+                        break
+                except Exception:
+                    continue
+            if not results['ticketera']['ok'] and not results['ticketera']['status']:
+                results['ticketera']['error'] = 'No respondió health en rutas conocidas'
+        else:
+            results['ticketera']['error'] = 'TICKETS_API_URL/TICKETERA_URL/DEVOPS_API_URL no configurada'
+    except Exception as e:
+        results['ticketera']['error'] = str(e)
+
+    overall = 'success' if results['ahorro']['ok'] and results['ticketera']['ok'] else (
+        'partial' if results['ahorro']['ok'] or results['ticketera']['ok'] else 'error'
+    )
+    return jsonify({'status': overall, 'results': results})
+
+
+def _proxy_request(base_url: str, subpath: str, headers: dict):
+    method = request.method.upper()
+    url = f"{base_url}/{subpath.lstrip('/')}"
+    kwargs = {
+        'headers': headers,
+        'timeout': 30,
+    }
+    if method in ('POST', 'PUT', 'PATCH'):
+        kwargs['json'] = request.get_json(silent=True) or {}
+    if method == 'GET':
+        kwargs['params'] = request.args
+    resp = requests.request(method, url, **kwargs)
+    content_type = resp.headers.get('content-type','')
+    body = None
+    try:
+        body = resp.json() if content_type.startswith('application/json') else resp.text
+    except Exception:
+        body = resp.text
+    return jsonify(body) if isinstance(body, (dict, list)) else (body, resp.status_code, {'Content-Type': content_type})
+
+
+@devops_bp.route('/api/ahorro/<path:subpath>', methods=['GET','POST','PUT','PATCH','DELETE'])
+@devops_login_required
+def proxy_belgrano_ahorro(subpath: str):
+    base = _ahorro_base_url()
+    if not base:
+        return jsonify({'status':'error','message':'BELGRANO_AHORRO_URL no configurada'}), 500
+    return _proxy_request(base, subpath, _ahorro_headers())
+
+
+@devops_bp.route('/api/ticketera/<path:subpath>', methods=['GET','POST','PUT','PATCH','DELETE'])
+@devops_login_required
+def proxy_ticketera(subpath: str):
+    base = _ticketera_base_url()
+    if not base:
+        return jsonify({'status':'error','message':'TICKETS_API_URL/TICKETERA_URL/DEVOPS_API_URL no configurada'}), 500
+    return _proxy_request(base, subpath, _ticketera_headers())
+
+# =================================================================
+# API REST JSON propia de DevOps (CRUD básico)
+# =================================================================
+
+def _json_response(ok: bool, data=None, message: str = 'ok', status_code: int = 200):
+    body = {'status': 'success' if ok else 'error', 'message': message}
+    if data is not None:
+        body['data'] = data
+    return jsonify(body), status_code
+
+
+@devops_bp.route('/api/negocios', methods=['GET', 'POST'])
+@devops_login_required
+def api_negocios():
+    if request.method == 'GET':
+        try:
+            items = devops_manager.get_negocios() if devops_manager else []
+            return _json_response(True, items)
+        except Exception as e:
+            return _json_response(False, None, str(e), 500)
+    # POST
+    payload = request.get_json(silent=True) or {}
+    try:
+        ok, msg = devops_manager.create_item('negocios', payload) if devops_manager else (False, 'manager no disponible')
+        return _json_response(ok, None, msg, 201 if ok else 400)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+
+@devops_bp.route('/api/negocios/<int:item_id>', methods=['PUT', 'DELETE'])
+@devops_login_required
+def api_negocio_detail(item_id: int):
+    if request.method == 'PUT':
+        payload = request.get_json(silent=True) or {}
+        try:
+            ok, msg = devops_manager.update_item('negocios', item_id, payload) if devops_manager else (False, 'manager no disponible')
+            return _json_response(ok, None, msg, 200 if ok else 400)
+        except Exception as e:
+            return _json_response(False, None, str(e), 500)
+    # DELETE
+    try:
+        ok, msg = devops_manager.delete_item('negocios', item_id) if devops_manager else (False, 'manager no disponible')
+        return _json_response(ok, None, msg, 200 if ok else 400)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+
+@devops_bp.route('/api/productos', methods=['GET', 'POST'])
+@devops_login_required
+def api_productos():
+    if request.method == 'GET':
+        try:
+            items = devops_manager.get_productos() if devops_manager else []
+            return _json_response(True, items)
+        except Exception as e:
+            return _json_response(False, None, str(e), 500)
+    payload = request.get_json(silent=True) or {}
+    try:
+        ok, msg = devops_manager.create_item('productos', payload) if devops_manager else (False, 'manager no disponible')
+        return _json_response(ok, None, msg, 201 if ok else 400)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+
+@devops_bp.route('/api/productos/<int:item_id>', methods=['PUT', 'DELETE'])
+@devops_login_required
+def api_producto_detail(item_id: int):
+    if request.method == 'PUT':
+        payload = request.get_json(silent=True) or {}
+        try:
+            ok, msg = devops_manager.update_item('productos', item_id, payload) if devops_manager else (False, 'manager no disponible')
+            return _json_response(ok, None, msg, 200 if ok else 400)
+        except Exception as e:
+            return _json_response(False, None, str(e), 500)
+    try:
+        ok, msg = devops_manager.delete_item('productos', item_id) if devops_manager else (False, 'manager no disponible')
+        return _json_response(ok, None, msg, 200 if ok else 400)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+
+@devops_bp.route('/api/ofertas', methods=['GET', 'POST'])
+@devops_login_required
+def api_ofertas():
+    if request.method == 'GET':
+        try:
+            items = devops_manager.get_ofertas() if devops_manager else []
+            return _json_response(True, items)
+        except Exception as e:
+            return _json_response(False, None, str(e), 500)
+    payload = request.get_json(silent=True) or {}
+    try:
+        ok, msg = devops_manager.create_item('ofertas', payload) if devops_manager else (False, 'manager no disponible')
+        return _json_response(ok, None, msg, 201 if ok else 400)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+
+@devops_bp.route('/api/ofertas/<int:item_id>', methods=['PUT', 'DELETE'])
+@devops_login_required
+def api_oferta_detail(item_id: int):
+    if request.method == 'PUT':
+        payload = request.get_json(silent=True) or {}
+        try:
+            ok, msg = devops_manager.update_item('ofertas', item_id, payload) if devops_manager else (False, 'manager no disponible')
+            return _json_response(ok, None, msg, 200 if ok else 400)
+        except Exception as e:
+            return _json_response(False, None, str(e), 500)
+    try:
+        ok, msg = devops_manager.delete_item('ofertas', item_id) if devops_manager else (False, 'manager no disponible')
+        return _json_response(ok, None, msg, 200 if ok else 400)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+
+@devops_bp.route('/api/sucursales', methods=['GET', 'POST'])
+@devops_login_required
+def api_sucursales():
+    if request.method == 'GET':
+        try:
+            items = devops_manager.get_items('sucursales') if devops_manager else []
+            return _json_response(True, items)
+        except Exception as e:
+            return _json_response(False, None, str(e), 500)
+    payload = request.get_json(silent=True) or {}
+    try:
+        ok, msg = devops_manager.create_item('sucursales', payload) if devops_manager else (False, 'manager no disponible')
+        return _json_response(ok, None, msg, 201 if ok else 400)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+
+@devops_bp.route('/api/sucursales/<string:item_id>', methods=['PUT', 'DELETE'])
+@devops_login_required
+def api_sucursal_detail(item_id: str):
+    if request.method == 'PUT':
+        payload = request.get_json(silent=True) or {}
+        try:
+            ok, msg = devops_manager.update_item('sucursales', item_id, payload) if devops_manager else (False, 'manager no disponible')
+            return _json_response(ok, None, msg, 200 if ok else 400)
+        except Exception as e:
+            return _json_response(False, None, str(e), 500)
+    try:
+        ok, msg = devops_manager.delete_item('sucursales', item_id) if devops_manager else (False, 'manager no disponible')
+        return _json_response(ok, None, msg, 200 if ok else 400)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+
+@devops_bp.route('/api/precios', methods=['GET', 'POST', 'PUT'])
+@devops_login_required
+def api_precios():
+    if request.method == 'GET':
+        try:
+            items = devops_manager.get_items('precios') if devops_manager else []
+            return _json_response(True, items)
+        except Exception as e:
+            return _json_response(False, None, str(e), 500)
+    payload = request.get_json(silent=True) or {}
+    # Para precios, usamos update_item con 'precios' y producto_id en payload
+    producto_id = payload.get('producto_id')
+    if not producto_id:
+        return _json_response(False, None, 'producto_id requerido', 400)
+    try:
+        ok, msg = devops_manager.update_item('precios', producto_id, payload) if devops_manager else (False, 'manager no disponible')
+        return _json_response(ok, None, msg, 200 if ok else 400)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
 
 @devops_bp.route('/sucursales', methods=['GET', 'POST'])
 @devops_login_required

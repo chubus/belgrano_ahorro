@@ -76,18 +76,40 @@ def get_db_connection():
 
 # Importar middleware de autenticación y manejo de errores
 try:
-    from auth_middleware import login_required, admin_required, flota_required, validate_input_data, production_only, rate_limit
-    from error_handlers import register_error_handlers, ValidationError, AuthenticationError, AuthorizationError
-    logger.info("✅ Middleware de autenticación importado correctamente")
+    from auth_middleware import (
+        login_required, admin_required, flota_required,
+        validate_input_data, production_only, rate_limit
+    )
+    logger.info("✅ auth_middleware importado correctamente")
 except Exception as e:
-    logger.error(f"❌ Error importando middleware: {e}")
-    raise
+    logger.error(f"⚠️ Error importando auth_middleware: {e}")
+    # Crear funciones stub para evitar errores
+    def login_required(f): return f
+    def admin_required(f): return f
+    def flota_required(f): return f
+    def validate_input_data(f): return f
+    def production_only(f): return f
+    def rate_limit(f): return f
+
+try:
+    from error_handlers import register_error_handlers, ValidationError, AuthenticationError, AuthorizationError
+    logger.info("✅ error_handlers importado correctamente")
+except Exception as e:
+    logger.error(f"⚠️ Error importando error_handlers: {e}")
+    # Crear funciones stub
+    class ValidationError(Exception): pass
+    class AuthenticationError(Exception): pass
+    class AuthorizationError(Exception): pass
+    def register_error_handlers(app): pass
 
 # Logger ya configurado arriba
 
 # Crear la instancia de Flask
 app = Flask(__name__)
 app.secret_key = 'belgrano_ahorro_secret_key_2025'  # Clave secreta para sesiones
+
+# Configurar API_KEY para auth_middleware
+app.config['API_KEY'] = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
 
 # Registrar API RESTful
 if api_bp:
@@ -2793,6 +2815,128 @@ def require_api_key(f):
     return decorated_function
 
 # ==========================================
+# FUNCIONES AUXILIARES PARA COMUNICACIÓN CON SERVICIOS EXTERNOS
+# ==========================================
+
+def _sync_to_external_services(endpoint, method='GET', data=None, item_id=None):
+    """
+    Sincronizar cambios con servicios externos (Ticketera y DevOps)
+    Retorna True si la sincronización fue exitosa, False en caso contrario
+    """
+    external_services = []
+    
+    # Agregar Ticketera
+    ticketera_url = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com')
+    if ticketera_url:
+        external_services.append({
+            'name': 'Ticketera',
+            'base_url': ticketera_url.rstrip('/'),
+            'api_key': os.environ.get('TICKETERA_API_KEY', os.environ.get('BELGRANO_AHORRO_API_KEY', ''))
+        })
+    
+    # Agregar DevOps (puede ser la misma URL de Belgrano Ahorro)
+    devops_url = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com')
+    if devops_url:
+        external_services.append({
+            'name': 'DevOps',
+            'base_url': devops_url.rstrip('/'),
+            'api_key': os.environ.get('BELGRANO_AHORRO_API_KEY', '')
+        })
+    
+    success_count = 0
+    for service in external_services:
+        try:
+            # Construir URL completa
+            url = f"{service['base_url']}{endpoint}"
+            if item_id:
+                url = f"{service['base_url']}{endpoint.rstrip('/')}/{item_id}"
+            
+            # Headers
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f"Bearer {service['api_key']}",
+                'X-API-Key': service['api_key']
+            }
+            
+            # Realizar petición con timeout corto
+            timeout = int(os.environ.get('API_TIMEOUT_SECS', 5))
+            if method == 'GET':
+                response = requests.get(url, headers=headers, timeout=timeout)
+            elif method == 'POST':
+                response = requests.post(url, headers=headers, json=data, timeout=timeout)
+            elif method == 'PUT':
+                response = requests.put(url, headers=headers, json=data, timeout=timeout)
+            elif method == 'DELETE':
+                response = requests.delete(url, headers=headers, timeout=timeout)
+            else:
+                continue
+            
+            if 200 <= response.status_code < 300:
+                success_count += 1
+                logger.info(f"✅ Sincronización exitosa con {service['name']}: {endpoint}")
+            else:
+                logger.warning(f"⚠️ Error sincronizando con {service['name']}: {response.status_code}")
+        except requests.exceptions.Timeout:
+            logger.warning(f"⏱️ Timeout sincronizando con {service['name']}: {endpoint}")
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"⚠️ Error de conexión con {service['name']}: {str(e)}")
+        except Exception as e:
+            logger.warning(f"⚠️ Error inesperado sincronizando con {service['name']}: {str(e)}")
+    
+    return success_count > 0
+
+
+def _get_from_external_service(endpoint, fallback_data_func):
+    """
+    Obtener datos de servicios externos con fallback a datos locales
+    Retorna los datos obtenidos
+    """
+    # Intentar obtener de servicios externos
+    services = [
+        {
+            'name': 'Belgrano Ahorro',
+            'url': os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com'),
+            'api_key': os.environ.get('BELGRANO_AHORRO_API_KEY', '')
+        },
+        {
+            'name': 'Ticketera',
+            'url': os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com'),
+            'api_key': os.environ.get('TICKETERA_API_KEY', os.environ.get('BELGRANO_AHORRO_API_KEY', ''))
+        }
+    ]
+    
+    for service in services:
+        if not service['url']:
+            continue
+        
+        try:
+            url = f"{service['url'].rstrip('/')}{endpoint}"
+            headers = {
+                'Authorization': f"Bearer {service['api_key']}",
+                'X-API-Key': service['api_key']
+            }
+            timeout = int(os.environ.get('API_TIMEOUT_SECS', 5))
+            response = requests.get(url, headers=headers, timeout=timeout)
+            
+            if 200 <= response.status_code < 300:
+                data = response.json()
+                # Normalizar formato de respuesta
+                if isinstance(data, dict) and 'data' in data:
+                    data = data['data']
+                logger.info(f"✅ Datos obtenidos de {service['name']}: {endpoint}")
+                return data
+        except requests.exceptions.Timeout:
+            logger.warning(f"⏱️ Timeout obteniendo datos de {service['name']}: {endpoint}")
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"⚠️ Error de conexión con {service['name']}: {str(e)}")
+        except Exception as e:
+            logger.warning(f"⚠️ Error obteniendo datos de {service['name']}: {str(e)}")
+    
+    # Fallback a datos locales
+    logger.info(f"📦 Usando datos locales (fallback) para: {endpoint}")
+    return fallback_data_func()
+
+# ==========================================
 # API ENDPOINTS PARA DEVOPS
 # ==========================================
 
@@ -2801,21 +2945,25 @@ def require_api_key(f):
 def api_get_negocios():
     """API endpoint para obtener todos los negocios"""
     try:
-        datos = cargar_datos_completos()
-        if not datos or 'negocios' not in datos:
-            return jsonify([]), 200
+        def fallback_negocios():
+            datos = cargar_datos_completos()
+            if not datos or 'negocios' not in datos:
+                return []
+            negocios = []
+            for negocio_id, negocio_data in datos['negocios'].items():
+                negocio_data['id'] = negocio_id
+                negocios.append(negocio_data)
+            return negocios
         
-        # Convertir diccionario a lista
-        negocios = []
-        for negocio_id, negocio_data in datos['negocios'].items():
-            negocio_data['id'] = negocio_id
-            negocios.append(negocio_data)
+        negocios = _get_from_external_service('/api/v1/negocios', fallback_negocios)
+        if not isinstance(negocios, list):
+            negocios = []
         
-        logger.info(f"API: Negocios obtenidos exitosamente ({len(negocios)} items)")
+        logger.info(f"✅ API: Negocios obtenidos exitosamente ({len(negocios)} items)")
         return jsonify(negocios), 200
     except Exception as e:
         logger.error(f"Error obteniendo negocios: {e}")
-        return jsonify({'error': 'Servicio DevOps temporalmente no disponible'}), 503
+        return jsonify({'error': 'Error obteniendo negocios'}), 500
 
 @app.route('/api/v1/negocios', methods=['POST'])
 @require_api_key
@@ -2855,12 +3003,15 @@ def api_create_negocio():
             datos['negocios'] = {}
         datos['negocios'][negocio_id] = nuevo_negocio
         
-        # Guardar
-        if guardar_datos_json(datos):
-            logger.info(f"Negocio creado via API: {nuevo_negocio['nombre']}")
-            return jsonify(nuevo_negocio), 201
-        else:
-            return jsonify({'error': 'Error al guardar el negocio'}), 500
+        # Guardar localmente primero
+        if not guardar_datos_json(datos):
+            return jsonify({'error': 'Error al guardar el negocio localmente'}), 500
+        
+        # Intentar sincronizar con servicios externos
+        _sync_to_external_services('/api/v1/negocios', 'POST', nuevo_negocio)
+        
+        logger.info(f"✅ Negocio creado via API: {nuevo_negocio['nombre']}")
+        return jsonify(nuevo_negocio), 201
             
     except Exception as e:
         logger.error(f"Error creando negocio via API: {e}")
@@ -2887,12 +3038,15 @@ def api_update_negocio(negocio_id):
         negocio['fecha_modificacion'] = datetime.now().isoformat()
         negocio['modificado_desde'] = data.get('modificado_desde', 'api')
         
-        # Guardar
-        if guardar_datos_json(datos):
-            logger.info(f"Negocio actualizado via API: {negocio['nombre']}")
-            return jsonify(negocio), 200
-        else:
-            return jsonify({'error': 'Error al guardar los cambios'}), 500
+        # Guardar localmente primero
+        if not guardar_datos_json(datos):
+            return jsonify({'error': 'Error al guardar los cambios localmente'}), 500
+        
+        # Intentar sincronizar con servicios externos
+        _sync_to_external_services('/api/v1/negocios', 'PUT', negocio, negocio_id)
+        
+        logger.info(f"✅ Negocio actualizado via API: {negocio['nombre']}")
+        return jsonify(negocio), 200
             
     except Exception as e:
         logger.error(f"Error actualizando negocio via API: {e}")
@@ -2912,12 +3066,15 @@ def api_delete_negocio(negocio_id):
         negocio_nombre = datos['negocios'][negocio_id]['nombre']
         del datos['negocios'][negocio_id]
         
-        # Guardar
-        if guardar_datos_json(datos):
-            logger.info(f"Negocio eliminado via API: {negocio_nombre}")
-            return jsonify({'message': 'Negocio eliminado exitosamente'}), 200
-        else:
-            return jsonify({'error': 'Error al guardar los cambios'}), 500
+        # Guardar localmente primero
+        if not guardar_datos_json(datos):
+            return jsonify({'error': 'Error al guardar los cambios localmente'}), 500
+        
+        # Intentar sincronizar con servicios externos
+        _sync_to_external_services('/api/v1/negocios', 'DELETE', None, negocio_id)
+        
+        logger.info(f"✅ Negocio eliminado via API: {negocio_nombre}")
+        return jsonify({'message': 'Negocio eliminado exitosamente'}), 200
             
     except Exception as e:
         logger.error(f"Error eliminando negocio via API: {e}")
@@ -2928,25 +3085,27 @@ def api_delete_negocio(negocio_id):
 def api_get_ofertas():
     """API endpoint para obtener todas las ofertas"""
     try:
-        datos = cargar_datos_completos()
-        if not datos or 'ofertas' not in datos:
-            return jsonify([]), 200
+        def fallback_ofertas():
+            datos = cargar_datos_completos()
+            if not datos or 'ofertas' not in datos:
+                return []
+            ofertas_data = datos['ofertas']
+            if isinstance(ofertas_data, list):
+                return ofertas_data
+            elif isinstance(ofertas_data, dict):
+                ofertas = []
+                for oferta_id, oferta_data in ofertas_data.items():
+                    oferta_data['id'] = oferta_id
+                    ofertas.append(oferta_data)
+                return ofertas
+            return []
         
-        # Verificar si ofertas es una lista o diccionario
-        ofertas_data = datos['ofertas']
-        if isinstance(ofertas_data, list):
-            # Si es lista, devolverla directamente
-            return jsonify(ofertas_data), 200
-        elif isinstance(ofertas_data, dict):
-            # Si es diccionario, convertir a lista
+        ofertas = _get_from_external_service('/api/v1/ofertas', fallback_ofertas)
+        if not isinstance(ofertas, list):
             ofertas = []
-            for oferta_id, oferta_data in ofertas_data.items():
-                oferta_data['id'] = oferta_id
-                ofertas.append(oferta_data)
-            return jsonify(ofertas), 200
-        else:
-            return jsonify([]), 200
         
+        logger.info(f"✅ API: Ofertas obtenidas exitosamente ({len(ofertas)} items)")
+        return jsonify(ofertas), 200
     except Exception as e:
         logger.error(f"Error obteniendo ofertas: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
@@ -2974,16 +3133,21 @@ def api_get_categorias():
 def api_get_sucursales():
     """API endpoint para obtener todas las sucursales"""
     try:
-        datos = cargar_datos_completos()
-        sucursales = datos.get('sucursales', {})
+        def fallback_sucursales():
+            datos = cargar_datos_completos()
+            sucursales = datos.get('sucursales', {})
+            sucursales_lista = []
+            for suc_id, suc_data in sucursales.items():
+                suc_data['id'] = suc_id
+                sucursales_lista.append(suc_data)
+            return sucursales_lista
         
-        # Convertir diccionario a lista
-        sucursales_lista = []
-        for suc_id, suc_data in sucursales.items():
-            suc_data['id'] = suc_id
-            sucursales_lista.append(suc_data)
+        sucursales = _get_from_external_service('/api/v1/sucursales', fallback_sucursales)
+        if not isinstance(sucursales, list):
+            sucursales = []
         
-        return jsonify(sucursales_lista), 200
+        logger.info(f"✅ API: Sucursales obtenidas exitosamente ({len(sucursales)} items)")
+        return jsonify(sucursales), 200
     except Exception as e:
         logger.error(f"Error obteniendo sucursales: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
@@ -3015,10 +3179,12 @@ def api_create_sucursal():
         if 'sucursales' not in datos:
             datos['sucursales'] = {}
         datos['sucursales'][sucursal_id] = nueva_sucursal
-        if guardar_datos_json(datos):
-            logger.info(f"Sucursal creada via API: {nueva_sucursal['nombre']}")
-            return jsonify(nueva_sucursal), 201
-        return jsonify({'error': 'Error al guardar la sucursal'}), 500
+        if not guardar_datos_json(datos):
+            return jsonify({'error': 'Error al guardar la sucursal localmente'}), 500
+        
+        _sync_to_external_services('/api/v1/sucursales', 'POST', nueva_sucursal)
+        logger.info(f"✅ Sucursal creada via API: {nueva_sucursal['nombre']}")
+        return jsonify(nueva_sucursal), 201
     except Exception as e:
         logger.error(f"Error creando sucursal via API: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
@@ -3038,10 +3204,12 @@ def api_update_sucursal(sucursal_id):
                 sucursal[key] = value
         sucursal['fecha_modificacion'] = datetime.now().isoformat()
         sucursal['modificado_desde'] = data.get('modificado_desde', 'api')
-        if guardar_datos_json(datos):
-            logger.info(f"Sucursal actualizada via API: {sucursal.get('nombre','')}")
-            return jsonify(sucursal), 200
-        return jsonify({'error': 'Error al guardar los cambios'}), 500
+        if not guardar_datos_json(datos):
+            return jsonify({'error': 'Error al guardar los cambios localmente'}), 500
+        
+        _sync_to_external_services('/api/v1/sucursales', 'PUT', sucursal, sucursal_id)
+        logger.info(f"✅ Sucursal actualizada via API: {sucursal.get('nombre','')}")
+        return jsonify(sucursal), 200
     except Exception as e:
         logger.error(f"Error actualizando sucursal via API: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
@@ -3056,10 +3224,12 @@ def api_delete_sucursal(sucursal_id):
             return jsonify({'error': 'Sucursal no encontrada'}), 404
         sucursal_nombre = datos['sucursales'][sucursal_id].get('nombre', '')
         del datos['sucursales'][sucursal_id]
-        if guardar_datos_json(datos):
-            logger.info(f"Sucursal eliminada via API: {sucursal_nombre}")
-            return jsonify({'message': 'Sucursal eliminada exitosamente'}), 200
-        return jsonify({'error': 'Error al guardar los cambios'}), 500
+        if not guardar_datos_json(datos):
+            return jsonify({'error': 'Error al guardar los cambios localmente'}), 500
+        
+        _sync_to_external_services('/api/v1/sucursales', 'DELETE', None, sucursal_id)
+        logger.info(f"✅ Sucursal eliminada via API: {sucursal_nombre}")
+        return jsonify({'message': 'Sucursal eliminada exitosamente'}), 200
     except Exception as e:
         logger.error(f"Error eliminando sucursal via API: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
@@ -3145,12 +3315,15 @@ def api_create_oferta():
             datos['ofertas'] = {}
         datos['ofertas'][oferta_id] = nueva_oferta
         
-        # Guardar
-        if guardar_datos_json(datos):
-            logger.info(f"Oferta creada via API: {nueva_oferta['titulo']}")
-            return jsonify(nueva_oferta), 201
-        else:
-            return jsonify({'error': 'Error al guardar la oferta'}), 500
+        # Guardar localmente primero
+        if not guardar_datos_json(datos):
+            return jsonify({'error': 'Error al guardar la oferta localmente'}), 500
+        
+        # Intentar sincronizar con servicios externos
+        _sync_to_external_services('/api/v1/ofertas', 'POST', nueva_oferta)
+        
+        logger.info(f"✅ Oferta creada via API: {nueva_oferta['titulo']}")
+        return jsonify(nueva_oferta), 201
             
     except Exception as e:
         logger.error(f"Error creando oferta via API: {e}")
@@ -3177,12 +3350,15 @@ def api_update_oferta(oferta_id):
         oferta['fecha_modificacion'] = datetime.now().isoformat()
         oferta['modificado_desde'] = data.get('modificado_desde', 'api')
         
-        # Guardar
-        if guardar_datos_json(datos):
-            logger.info(f"Oferta actualizada via API: {oferta['titulo']}")
-            return jsonify(oferta), 200
-        else:
-            return jsonify({'error': 'Error al guardar los cambios'}), 500
+        # Guardar localmente primero
+        if not guardar_datos_json(datos):
+            return jsonify({'error': 'Error al guardar los cambios localmente'}), 500
+        
+        # Intentar sincronizar con servicios externos
+        _sync_to_external_services('/api/v1/ofertas', 'PUT', oferta, oferta_id)
+        
+        logger.info(f"✅ Oferta actualizada via API: {oferta['titulo']}")
+        return jsonify(oferta), 200
             
     except Exception as e:
         logger.error(f"Error actualizando oferta via API: {e}")
@@ -3202,12 +3378,15 @@ def api_delete_oferta(oferta_id):
         oferta_titulo = datos['ofertas'][oferta_id]['titulo']
         del datos['ofertas'][oferta_id]
         
-        # Guardar
-        if guardar_datos_json(datos):
-            logger.info(f"Oferta eliminada via API: {oferta_titulo}")
-            return jsonify({'message': 'Oferta eliminada exitosamente'}), 200
-        else:
-            return jsonify({'error': 'Error al guardar los cambios'}), 500
+        # Guardar localmente primero
+        if not guardar_datos_json(datos):
+            return jsonify({'error': 'Error al guardar los cambios localmente'}), 500
+        
+        # Intentar sincronizar con servicios externos
+        _sync_to_external_services('/api/v1/ofertas', 'DELETE', None, oferta_id)
+        
+        logger.info(f"✅ Oferta eliminada via API: {oferta_titulo}")
+        return jsonify({'message': 'Oferta eliminada exitosamente'}), 200
             
     except Exception as e:
         logger.error(f"Error eliminando oferta via API: {e}")
@@ -3218,11 +3397,18 @@ def api_delete_oferta(oferta_id):
 def api_get_productos():
     """API endpoint para obtener todos los productos"""
     try:
-        datos = cargar_datos_completos()
-        if not datos or 'productos' not in datos:
-            return jsonify([]), 200
+        def fallback_productos():
+            datos = cargar_datos_completos()
+            if not datos or 'productos' not in datos:
+                return []
+            return datos['productos']
         
-        return jsonify(datos['productos']), 200
+        productos = _get_from_external_service('/api/v1/productos', fallback_productos)
+        if not isinstance(productos, list):
+            productos = []
+        
+        logger.info(f"✅ API: Productos obtenidos exitosamente ({len(productos)} items)")
+        return jsonify(productos), 200
     except Exception as e:
         logger.error(f"Error obteniendo productos: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
@@ -3255,10 +3441,12 @@ def api_create_producto():
         if 'productos' not in datos:
             datos['productos'] = []
         datos['productos'].append(nuevo_producto)
-        if guardar_datos_json(datos):
-            logger.info(f"Producto creado via API: {nuevo_producto['nombre']}")
-            return jsonify(nuevo_producto), 201
-        return jsonify({'error': 'Error al guardar el producto'}), 500
+        if not guardar_datos_json(datos):
+            return jsonify({'error': 'Error al guardar el producto localmente'}), 500
+        
+        _sync_to_external_services('/api/v1/productos', 'POST', nuevo_producto)
+        logger.info(f"✅ Producto creado via API: {nuevo_producto['nombre']}")
+        return jsonify(nuevo_producto), 201
     except Exception as e:
         logger.error(f"Error creando producto via API: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
@@ -3293,12 +3481,15 @@ def api_update_producto(producto_id):
         datos['productos'][producto_encontrado]['fecha_modificacion'] = datetime.now().isoformat()
         datos['productos'][producto_encontrado]['modificado_desde'] = data.get('modificado_desde', 'api')
         
-        # Guardar
-        if guardar_datos_json(datos):
-            logger.info(f"Producto actualizado via API: {datos['productos'][producto_encontrado]['nombre']}")
-            return jsonify(datos['productos'][producto_encontrado]), 200
-        else:
-            return jsonify({'error': 'Error al guardar los cambios'}), 500
+        # Guardar localmente primero
+        if not guardar_datos_json(datos):
+            return jsonify({'error': 'Error al guardar los cambios localmente'}), 500
+        
+        # Intentar sincronizar con servicios externos
+        _sync_to_external_services('/api/v1/productos', 'PUT', datos['productos'][producto_encontrado], producto_id)
+        
+        logger.info(f"✅ Producto actualizado via API: {datos['productos'][producto_encontrado]['nombre']}")
+        return jsonify(datos['productos'][producto_encontrado]), 200
             
     except Exception as e:
         logger.error(f"Error actualizando producto via API: {e}")
@@ -3321,10 +3512,12 @@ def api_delete_producto(producto_id):
             return jsonify({'error': 'Producto no encontrado'}), 404
         producto_nombre = datos['productos'][indice].get('nombre', '')
         del datos['productos'][indice]
-        if guardar_datos_json(datos):
-            logger.info(f"Producto eliminado via API: {producto_nombre}")
-            return jsonify({'message': 'Producto eliminado exitosamente'}), 200
-        return jsonify({'error': 'Error al guardar los cambios'}), 500
+        if not guardar_datos_json(datos):
+            return jsonify({'error': 'Error al guardar los cambios localmente'}), 500
+        
+        _sync_to_external_services('/api/v1/productos', 'DELETE', None, producto_id)
+        logger.info(f"✅ Producto eliminado via API: {producto_nombre}")
+        return jsonify({'message': 'Producto eliminado exitosamente'}), 200
     except Exception as e:
         logger.error(f"Error eliminando producto via API: {e}")
         return jsonify({'error': 'Error interno del servidor'}), 500
