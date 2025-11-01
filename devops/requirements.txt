@@ -1,0 +1,12 @@
+# Dependencias para DevOps Service
+# Framework web
+Flask==2.3.3
+Werkzeug==2.3.7
+
+# Cliente HTTP y comunicación con APIs
+requests==2.31.0
+urllib3>=1.26.0
+
+# Servidor de producción
+gunicorn==21.2.0
+

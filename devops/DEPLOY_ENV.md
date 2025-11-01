@@ -195,14 +195,54 @@ Algunas variables tienen alias/alternativas:
 ## 🚀 Ejemplo de Deploy en Render.com
 
 ### DevOps Service
+
+#### Archivos Necesarios:
+- ✅ `devops/app.py` - Aplicación Flask principal
+- ✅ `devops/wsgi.py` - Entry point para Gunicorn
+- ✅ `devops/requirements.txt` - Dependencias
+- ✅ `devops/routes.py` - Rutas de DevOps
+- ✅ `devops/manager_unified.py` - Gestor de APIs
+
+#### Configuración de Render:
+
+**Build Command:**
 ```bash
-# Environment Variables en Render
+cd devops && pip install -r requirements.txt
+```
+
+**Start Command (Recomendado):**
+```bash
+gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 wsgi_devops:application
+```
+
+**Alternativa si ejecutas desde el directorio devops:**
+```bash
+cd devops && gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 wsgi:application
+```
+
+**O usando Python directamente:**
+```bash
+cd devops && python app.py
+```
+
+**Environment Variables en Render:**
+```bash
 FLASK_ENV=production
 SECRET_KEY=<genera-uno-seguro>
 PORT=5000
+HOST=0.0.0.0
 BELGRANO_AHORRO_URL=https://belgranoahorro-hp30.onrender.com
 BELGRANO_AHORRO_API_KEY=<tu-api-key>
+API_TIMEOUT_SECS=15
+API_RETRY_TOTAL=3
+API_RETRY_BACKOFF=0.5
 SESSION_COOKIE_SECURE=true
+SESSION_COOKIE_SAMESITE=Lax
+REMEMBER_COOKIE_SECURE=true
+
+# Opcional - para comunicación con Ticketera
+TICKETS_API_URL=https://tu-ticketera.onrender.com
+TICKETS_API_KEY=<ticketera-api-key>
 ```
 
 ### Belgrano Ahorro Service

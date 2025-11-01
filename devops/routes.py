@@ -15,10 +15,19 @@ devops_bp = Blueprint(
 )
 
 try:
+    # Intentar import relativo (cuando se usa como paquete)
     from .manager_unified import devops_manager_unified as devops_manager
     logger.info("✅ Gestor DevOps unificado inicializado (paquete devops)")
+except ImportError:
+    try:
+        # Intentar import absoluto (si estamos en el directorio devops)
+        from manager_unified import devops_manager_unified as devops_manager
+        logger.info("✅ Gestor DevOps unificado inicializado (directorio)")
+    except ImportError as e:
+        logger.error(f"❌ No se pudo importar manager_unified: {e}")
+        devops_manager = None
 except Exception as e:
-    logger.error(f"❌ No se pudo importar manager_unified: {e}")
+    logger.error(f"❌ Error inesperado importando manager_unified: {e}")
     devops_manager = None
 
 # ================================

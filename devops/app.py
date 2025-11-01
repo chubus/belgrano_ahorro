@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Aplicación Flask independiente para DevOps
+Punto de entrada principal del servicio DevOps
+"""
+
+import os
+import sys
+import logging
+from flask import Flask
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Determinar la ruta base del módulo devops
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+
+# Buscar templates y static en la ubicación correcta
+_template_folder = os.path.join(_current_dir, 'templates')
+_static_folder = os.path.join(_current_dir, 'static')
+
+# Verificar que existan las carpetas, si no, usar valores relativos
+if not os.path.exists(_template_folder):
+    _template_folder = 'templates'
+if not os.path.exists(_static_folder):
+    _static_folder = 'static'
+
+# Crear la aplicación Flask
+app = Flask(__name__, 
+            template_folder=_template_folder,
+            static_folder=_static_folder)
+
+# Configurar secret key desde variables de entorno
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'devops_secret_key_2025_prod_segura')
+
+# Configurar cookies de sesión
+app.config.update(
+    SESSION_COOKIE_SAMESITE=os.environ.get('SESSION_COOKIE_SAMESITE', 'Lax'),
+    SESSION_COOKIE_SECURE=os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true',
+    REMEMBER_COOKIE_SECURE=os.environ.get('REMEMBER_COOKIE_SECURE', 'false').lower() == 'true',
+    SESSION_COOKIE_HTTPONLY=True,
+    PERMANENT_SESSION_LIFETIME=3600,  # 1 hora
+)
+
+# Registrar blueprint de DevOps
+try:
+    # Intentar importar desde diferentes ubicaciones posibles
+    try:
+        from devops.routes import devops_bp
+    except ImportError:
+        # Si estamos dentro del directorio devops, importar directamente
+        from routes import devops_bp
+    
+    app.register_blueprint(devops_bp)
+    logger.info("✅ Blueprint de DevOps registrado correctamente")
+except Exception as e:
+    logger.error(f"❌ Error registrando blueprint de DevOps: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
+    raise
+
+# Ruta raíz - redirigir a DevOps
+@app.route('/')
+def root():
+    from flask import redirect, url_for
+    return redirect(url_for('devops.dashboard'))
+
+# Health check endpoint
+@app.route('/health')
+def health():
+    return {'status': 'ok', 'service': 'devops'}, 200
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    host = os.environ.get('HOST', '0.0.0.0')
+    debug = os.environ.get('FLASK_ENV', 'production') == 'development'
+    
+    logger.info(f"🚀 Iniciando servicio DevOps...")
+    logger.info(f"📱 Puerto: {port}")
+    logger.info(f"🌐 Host: {host}")
+    logger.info(f"🔧 Debug: {debug}")
+    
+    app.run(host=host, port=port, debug=debug)
+
