@@ -9,9 +9,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Use package-local templates/static so frontend queda nucleado en devops/
+# Usar rutas absolutas para templates y static
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_template_dir = os.path.join(_current_dir, 'templates')
+_static_dir = os.path.join(_current_dir, 'static') if os.path.exists(os.path.join(_current_dir, 'static')) else None
+
 devops_bp = Blueprint(
     'devops', __name__, url_prefix='/devops',
-    template_folder='templates', static_folder='static', static_url_path='/devops/static'
+    template_folder=_template_dir if os.path.exists(_template_dir) else 'templates',
+    static_folder=_static_dir if _static_dir else None,
+    static_url_path='/devops/static' if _static_dir else None
 )
 
 try:
@@ -79,7 +86,11 @@ def devops_login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        if username == 'devops' and password == 'devops_password':
+        # Usar variables de entorno para credenciales (más seguro)
+        expected_username = os.getenv('DEVOPS_USERNAME', 'devops')
+        expected_password = os.getenv('DEVOPS_PASSWORD', 'devops_password')
+        
+        if username == expected_username and password == expected_password:
             session['devops_authenticated'] = True
             flash('Login exitoso', 'success')
             return redirect(url_for('devops.dashboard'))

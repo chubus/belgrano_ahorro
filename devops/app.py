@@ -73,8 +73,9 @@ def root():
 def health():
     return {'status': 'ok', 'service': 'devops'}, 200
 
+# Punto de entrada cuando se ejecuta directamente
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get("PORT", 5000))
     host = os.environ.get('HOST', '0.0.0.0')
     debug = os.environ.get('FLASK_ENV', 'production') == 'development'
     

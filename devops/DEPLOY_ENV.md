@@ -205,23 +205,29 @@ Algunas variables tienen alias/alternativas:
 
 #### Configuración de Render:
 
-**Build Command:**
+**Build Command (DESDE LA RAÍZ DEL PROYECTO):**
 ```bash
-cd devops && pip install -r requirements.txt
+pip install -r devops/requirements.txt
 ```
 
-**Start Command (Recomendado):**
+**IMPORTANTE:** El build debe ejecutarse desde la raíz, NO desde dentro de devops.
+
+**Start Command para Render.com (OBLIGATORIO):**
 ```bash
 gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 wsgi_devops:application
 ```
 
-**Alternativa si ejecutas desde el directorio devops:**
-```bash
-cd devops && gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 wsgi:application
-```
+**Nota importante:** 
+- Usar `wsgi_devops:application` (desde la raíz del proyecto)
+- El archivo `wsgi_devops.py` está en la raíz y maneja correctamente los imports
+- Render ejecuta desde la raíz del proyecto (`/opt/render/project/src/`)
 
-**O usando Python directamente:**
+**Alternativa para prueba local:**
 ```bash
+# Desde la raíz del proyecto
+gunicorn --bind 0.0.0.0:8000 devops.wsgi:application
+
+# O ejecutar directamente
 cd devops && python app.py
 ```
 
