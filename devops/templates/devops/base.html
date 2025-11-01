@@ -86,7 +86,7 @@
                         <i class="fas fa-cogs me-2"></i>DevOps Panel
                     </h4>
                     <nav class="nav flex-column">
-                        <a class="nav-link {% if request.endpoint == 'devops.devops_home' %}active{% endif %}" href="{{ url_for('devops.devops_home') }}">
+                        <a class="nav-link {% if request.endpoint == 'devops.dashboard' %}active{% endif %}" href="{{ url_for('devops.dashboard') }}">
                             <i class="fas fa-home me-2"></i>Dashboard
                         </a>
                         <a class="nav-link {% if request.endpoint == 'devops.gestion_negocios' %}active{% endif %}" href="{{ url_for('devops.gestion_negocios') }}">
@@ -105,8 +105,11 @@
                             <i class="fas fa-dollar-sign me-2"></i>Precios
                         </a>
                         <hr class="text-white">
-                        <a class="nav-link" href="{{ url_for('devops.devops_health') }}">
-                            <i class="fas fa-heartbeat me-2"></i>Health Check
+                        <a class="nav-link" href="{{ url_for('devops.conectar_belgrano') }}">
+                            <i class="fas fa-heartbeat me-2"></i>Status
+                        </a>
+                        <a class="nav-link" href="{{ url_for('devops.devops_info') }}">
+                            <i class="fas fa-info-circle me-2"></i>Info
                         </a>
                         <a class="nav-link" href="{{ url_for('devops.devops_logout') }}">
                             <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
@@ -125,7 +128,17 @@
                             <span class="badge bg-success me-2">
                                 <i class="fas fa-circle me-1"></i>Online
                             </span>
-                            <small class="text-muted">{{ moment().format('DD/MM/YYYY HH:mm') }}</small>
+                            <small class="text-muted" id="current-time"></small>
+                            <script>
+                                function updateTime() {
+                                    const now = new Date();
+                                    const timeStr = now.toLocaleDateString('es-ES') + ' ' + now.toLocaleTimeString('es-ES');
+                                    const elem = document.getElementById('current-time');
+                                    if (elem) elem.textContent = timeStr;
+                                }
+                                updateTime();
+                                setInterval(updateTime, 1000);
+                            </script>
                         </div>
                     </div>
                     

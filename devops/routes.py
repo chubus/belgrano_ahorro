@@ -166,6 +166,25 @@ def gestion_negocios():
         flash('Error interno al cargar negocios.', 'error')
         return render_template('devops/negocios.html', negocios=[], config_ok=False)
 
+@devops_bp.route('/negocios/eliminar/<int:negocio_id>', methods=['POST'])
+@devops_login_required
+def eliminar_negocio(negocio_id):
+    try:
+        if not devops_manager:
+            flash('Error: API no configurada.', 'error')
+            return redirect(url_for('devops.gestion_negocios'))
+        success, message = devops_manager.delete_item('negocios', negocio_id)
+        if success:
+            flash(f'Negocio eliminado exitosamente', 'success')
+            logger.info(f"Negocio {negocio_id} eliminado")
+        else:
+            flash(f'Error al eliminar negocio: {message}', 'error')
+            logger.error(f"Error eliminando negocio: {message}")
+    except Exception as e:
+        logger.error(f"Error eliminando negocio: {e}")
+        flash('Error interno al eliminar el negocio', 'error')
+    return redirect(url_for('devops.gestion_negocios'))
+
 @devops_bp.route('/productos', methods=['GET', 'POST'])
 @devops_login_required
 def gestion_productos():
@@ -217,6 +236,25 @@ def gestion_productos():
         flash('Error interno al cargar productos.', 'error')
         return render_template('devops/productos.html', productos=[], negocios=[])
 
+@devops_bp.route('/productos/eliminar/<int:producto_id>', methods=['POST'])
+@devops_login_required
+def eliminar_producto(producto_id):
+    try:
+        if not devops_manager:
+            flash('Error: API no configurada.', 'error')
+            return redirect(url_for('devops.gestion_productos'))
+        success, message = devops_manager.delete_item('productos', producto_id)
+        if success:
+            flash(f'Producto eliminado exitosamente', 'success')
+            logger.info(f"Producto {producto_id} eliminado")
+        else:
+            flash(f'Error al eliminar producto: {message}', 'error')
+            logger.error(f"Error eliminando producto: {message}")
+    except Exception as e:
+        logger.error(f"Error eliminando producto: {e}")
+        flash('Error interno al eliminar el producto', 'error')
+    return redirect(url_for('devops.gestion_productos'))
+
 @devops_bp.route('/ofertas', methods=['GET', 'POST'])
 @devops_login_required
 def gestion_ofertas():
@@ -267,6 +305,25 @@ def gestion_ofertas():
         logger.error(f"Error cargando ofertas: {e}")
         flash('Error interno al cargar ofertas.', 'error')
         return render_template('devops/ofertas.html', ofertas=[])
+
+@devops_bp.route('/ofertas/eliminar/<int:oferta_id>', methods=['POST'])
+@devops_login_required
+def eliminar_oferta(oferta_id):
+    try:
+        if not devops_manager:
+            flash('Error: API no configurada.', 'error')
+            return redirect(url_for('devops.gestion_ofertas'))
+        success, message = devops_manager.delete_item('ofertas', oferta_id)
+        if success:
+            flash(f'Oferta eliminada exitosamente', 'success')
+            logger.info(f"Oferta {oferta_id} eliminada")
+        else:
+            flash(f'Error al eliminar oferta: {message}', 'error')
+            logger.error(f"Error eliminando oferta: {message}")
+    except Exception as e:
+        logger.error(f"Error eliminando oferta: {e}")
+        flash('Error interno al eliminar la oferta', 'error')
+    return redirect(url_for('devops.gestion_ofertas'))
 
 @devops_bp.route('/precios', methods=['GET', 'POST'])
 @devops_login_required
@@ -678,3 +735,29 @@ def gestion_sucursales():
         logger.error(f"Error cargando sucursales: {e}")
         flash('Error interno al cargar sucursales.', 'error')
         return render_template('devops/sucursales.html', sucursales=[], negocios=[])
+
+@devops_bp.route('/sucursales/eliminar/<string:sucursal_id>', methods=['POST'])
+@devops_login_required
+def eliminar_sucursal(sucursal_id):
+    try:
+        if not devops_manager:
+            flash('Error: API no configurada.', 'error')
+            return redirect(url_for('devops.gestion_sucursales'))
+        success, message = devops_manager.delete_item('sucursales', sucursal_id)
+        if success:
+            flash(f'Sucursal eliminada exitosamente', 'success')
+            logger.info(f"Sucursal {sucursal_id} eliminada")
+        else:
+            flash(f'Error al eliminar sucursal: {message}', 'error')
+            logger.error(f"Error eliminando sucursal: {message}")
+    except Exception as e:
+        logger.error(f"Error eliminando sucursal: {e}")
+        flash('Error interno al eliminar la sucursal', 'error')
+    return redirect(url_for('devops.gestion_sucursales'))
+
+# Alias para compatibilidad con templates
+@devops_bp.route('/home')
+@devops_login_required
+def devops_home():
+    """Alias para dashboard - redirige a dashboard"""
+    return redirect(url_for('devops.dashboard'))
