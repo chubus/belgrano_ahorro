@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Gestor DevOps Unificado (migrado a paquete devops)
+Gestor DevOps Unificado - Conecta con Belgrano Ahorro y Ticketera
+Soporta operaciones CRUD, sincronización bidireccional y sincronización masiva
 """
 import os
 import logging
 from datetime import datetime
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, List, Optional
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -15,6 +16,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class DevOpsBelgranoManagerUnified:
+    """Gestor para conexión con API de Belgrano Ahorro"""
     def __init__(self) -> None:
         self.belgrano_url = os.getenv('BELGRANO_AHORRO_URL', 'https://belgranoahorro-hp30.onrender.com').rstrip('/')
         self.api_key = os.getenv('BELGRANO_AHORRO_API_KEY', '')
@@ -29,7 +31,7 @@ class DevOpsBelgranoManagerUnified:
         self.session = requests.Session()
         self.session.mount('https://', adapter)
         self.session.mount('http://', adapter)
-        logger.info("✅ Cliente API configurado para SOLO datos reales")
+        logger.info("✅ Cliente API Belgrano Ahorro configurado")
         logger.info(f"   URL: {self.belgrano_url}")
         logger.info(f"   API Key: {'*' * len(self.api_key) if self.api_key else 'no-set'}")
 
@@ -97,6 +99,245 @@ class DevOpsBelgranoManagerUnified:
             'api_url': self.belgrano_url,
             'api_configured': bool(self.api_key),
         }
+    
+    def get_item_detail(self, kind: str, item_id: Any) -> Tuple[bool, Any]:
+        """Obtener un item específico por ID"""
+        ok, data = self._req('GET', f"/api/{kind}/{item_id}")
+        if ok and isinstance(data, dict) and 'data' in data:
+            return True, data['data']
+        return ok, data
+    
+    def get_categorias(self) -> List[Dict[str, Any]]:
+        """Obtener todas las categorías"""
+        return self.get_items('categorias')
+    
+    def get_precios(self, producto_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Obtener precios - si se especifica producto_id, obtiene precios de ese producto"""
+        if producto_id:
+            ok, data = self._req('GET', f"/api/precios/{producto_id}")
+            if ok and isinstance(data, dict) and 'data' in data:
+                return [data['data']]
+            return [data] if ok else []
+        return self.get_items('precios')
+    
+    def update_precio(self, producto_id: int, precio_data: Dict[str, Any]) -> Tuple[bool, Any]:
+        """Actualizar precio de un producto"""
+        ok, data = self._req('PUT', f"/api/precios/{producto_id}", json=precio_data)
+        return (True, 'ok') if ok else (False, str(data))
 
-# Instancia global exportada
+
+class DevOpsTicketeraManager:
+    """Gestor para conexión con API de Ticketera"""
+    def __init__(self) -> None:
+        self.ticketera_url = (
+            os.getenv('TICKETS_API_URL') or 
+            os.getenv('TICKETERA_URL') or 
+            os.getenv('DEVOPS_API_URL') or ''
+        ).rstrip('/')
+        self.api_key = (
+            os.getenv('TICKETS_API_KEY') or 
+            os.getenv('TICKETERA_API_KEY') or 
+            os.getenv('DEVOPS_API_KEY') or ''
+        )
+        self.username = os.getenv('TICKETS_API_USERNAME', '')
+        self.password = os.getenv('TICKETS_API_PASSWORD', '')
+        self.timeout = int(os.getenv('API_TIMEOUT_SECS', '15'))
+        retry_strategy = Retry(
+            total=int(os.getenv('API_RETRY_TOTAL', '3')),
+            backoff_factor=float(os.getenv('API_RETRY_BACKOFF', '0.5')),
+            status_forcelist=(429, 500, 502, 503, 504),
+            allowed_methods=("GET", "POST", "PUT", "DELETE", "PATCH")
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session = requests.Session()
+        self.session.mount('https://', adapter)
+        self.session.mount('http://', adapter)
+        self._session_token = None
+        logger.info("✅ Cliente API Ticketera configurado")
+        logger.info(f"   URL: {self.ticketera_url}")
+        logger.info(f"   API Key: {'*' * len(self.api_key) if self.api_key else 'no-set'}")
+
+    def _headers(self) -> Dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+            headers["X-API-Key"] = self.api_key
+        elif self._session_token:
+            headers["Authorization"] = f"Bearer {self._session_token}"
+        # Si hay username/password pero no token, intentar login
+        elif self.username and self.password and not self._session_token:
+            self._authenticate()
+            if self._session_token:
+                headers["Authorization"] = f"Bearer {self._session_token}"
+        return headers
+
+    def _authenticate(self) -> bool:
+        """Autenticar con username/password si está configurado"""
+        if not (self.username and self.password):
+            return False
+        try:
+            resp = self.session.post(
+                f"{self.ticketera_url}/api/login",
+                json={"username": self.username, "password": self.password},
+                timeout=self.timeout
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                self._session_token = data.get('token') or data.get('access_token')
+                return bool(self._session_token)
+        except Exception as e:
+            logger.error(f"Error autenticando con Ticketera: {e}")
+        return False
+
+    def _req(self, method: str, path: str, **kwargs) -> Tuple[bool, Any]:
+        if not self.ticketera_url:
+            return False, "TICKETERA_URL no configurada"
+        url = f"{self.ticketera_url}/{path.lstrip('/')}"
+        try:
+            resp = self.session.request(method, url, headers=self._headers(), timeout=self.timeout, **kwargs)
+            # Si 401, intentar re-autenticar una vez
+            if resp.status_code == 401 and self.username and self.password:
+                if self._authenticate():
+                    resp = self.session.request(method, url, headers=self._headers(), timeout=self.timeout, **kwargs)
+            try:
+                data = resp.json()
+            except Exception:
+                data = resp.text
+            return (200 <= resp.status_code < 300), data
+        except requests.RequestException as e:
+            logger.error(f"HTTP error {method} {url}: {e}")
+            return False, str(e)
+
+    def get_tickets(self) -> List[Dict[str, Any]]:
+        """Obtener todos los tickets"""
+        ok, data = self._req('GET', '/api/tickets')
+        if ok and isinstance(data, dict) and 'data' in data:
+            return data['data']
+        return data if ok and isinstance(data, list) else []
+
+    def get_ticket(self, ticket_id: Any) -> Tuple[bool, Any]:
+        """Obtener un ticket específico"""
+        ok, data = self._req('GET', f'/api/tickets/{ticket_id}')
+        return ok, data
+
+    def create_ticket(self, ticket_data: Dict[str, Any]) -> Tuple[bool, Any]:
+        """Crear un nuevo ticket"""
+        ok, data = self._req('POST', '/api/tickets', json=ticket_data)
+        return (True, data) if ok else (False, str(data))
+
+    def update_ticket(self, ticket_id: Any, ticket_data: Dict[str, Any]) -> Tuple[bool, Any]:
+        """Actualizar un ticket"""
+        ok, data = self._req('PUT', f'/api/tickets/{ticket_id}', json=ticket_data)
+        return (True, data) if ok else (False, str(data))
+
+    def delete_ticket(self, ticket_id: Any) -> Tuple[bool, Any]:
+        """Eliminar un ticket"""
+        ok, data = self._req('DELETE', f'/api/tickets/{ticket_id}')
+        return (True, 'ok') if ok else (False, str(data))
+
+    def test_connectivity(self) -> Dict[str, Any]:
+        """Verificar conectividad con Ticketera"""
+        for health_path in ['/api/health', '/health', '/status', '/api/status']:
+            ok, data = self._req('GET', health_path)
+            if ok:
+                return {"overall_status": "success", "details": data}
+        return {"overall_status": "error", "details": "No se pudo conectar"}
+
+
+class DevOpsUnifiedSyncManager:
+    """Gestor unificado para sincronización entre DevOps, Belgrano Ahorro y Ticketera"""
+    def __init__(self):
+        self.belgrano = DevOpsBelgranoManagerUnified()
+        self.ticketera = DevOpsTicketeraManager()
+
+    def sync_negocios_to_ticketera(self) -> Dict[str, Any]:
+        """Sincronizar negocios de Belgrano Ahorro a Ticketera"""
+        negocios = self.belgrano.get_negocios()
+        results = {'success': 0, 'failed': 0, 'errors': []}
+        for negocio in negocios:
+            try:
+                # Convertir formato de negocio a formato de ticket si es necesario
+                ticket_data = {
+                    'titulo': f"Negocio: {negocio.get('nombre', 'Sin nombre')}",
+                    'descripcion': negocio.get('descripcion', ''),
+                    'negocio_id': negocio.get('id'),
+                    'estado': 'activo' if negocio.get('activo', True) else 'inactivo'
+                }
+                success, result = self.ticketera.create_ticket(ticket_data)
+                if success:
+                    results['success'] += 1
+                else:
+                    results['failed'] += 1
+                    results['errors'].append(f"Negocio {negocio.get('id')}: {result}")
+            except Exception as e:
+                results['failed'] += 1
+                results['errors'].append(f"Negocio {negocio.get('id', 'unknown')}: {str(e)}")
+        return results
+
+    def sync_productos_to_ticketera(self) -> Dict[str, Any]:
+        """Sincronizar productos de Belgrano Ahorro a Ticketera"""
+        productos = self.belgrano.get_productos()
+        results = {'success': 0, 'failed': 0, 'errors': []}
+        for producto in productos:
+            try:
+                ticket_data = {
+                    'titulo': f"Producto: {producto.get('nombre', 'Sin nombre')}",
+                    'descripcion': producto.get('descripcion', ''),
+                    'producto_id': producto.get('id'),
+                    'precio': producto.get('precio', 0),
+                    'negocio_id': producto.get('negocio_id'),
+                    'estado': 'activo' if producto.get('activo', True) else 'inactivo'
+                }
+                success, result = self.ticketera.create_ticket(ticket_data)
+                if success:
+                    results['success'] += 1
+                else:
+                    results['failed'] += 1
+                    results['errors'].append(f"Producto {producto.get('id')}: {result}")
+            except Exception as e:
+                results['failed'] += 1
+                results['errors'].append(f"Producto {producto.get('id', 'unknown')}: {str(e)}")
+        return results
+
+    def full_sync_all(self) -> Dict[str, Any]:
+        """Sincronización completa de todos los datos"""
+        results = {
+            'timestamp': datetime.now().isoformat(),
+            'negocios': self.sync_negocios_to_ticketera(),
+            'productos': self.sync_productos_to_ticketera(),
+            'overall_status': 'success'
+        }
+        # Verificar si hay errores
+        total_failed = results['negocios']['failed'] + results['productos']['failed']
+        if total_failed > 0:
+            results['overall_status'] = 'partial'
+        return results
+
+    def get_sync_status(self) -> Dict[str, Any]:
+        """Obtener estado de sincronización entre sistemas"""
+        belgrano_status = self.belgrano.test_connectivity()
+        ticketera_status = self.ticketera.test_connectivity()
+        
+        return {
+            'timestamp': datetime.now().isoformat(),
+            'belgrano_ahorro': {
+                'connected': belgrano_status.get('overall_status') == 'success',
+                'url': self.belgrano.belgrano_url,
+                'details': belgrano_status
+            },
+            'ticketera': {
+                'connected': ticketera_status.get('overall_status') == 'success',
+                'url': self.ticketera.ticketera_url,
+                'details': ticketera_status
+            },
+            'sync_ready': (
+                belgrano_status.get('overall_status') == 'success' and
+                ticketera_status.get('overall_status') == 'success'
+            )
+        }
+
+
+# Instancias globales exportadas
 devops_manager_unified = DevOpsBelgranoManagerUnified()
+devops_ticketera_manager = DevOpsTicketeraManager()
+devops_sync_manager = DevOpsUnifiedSyncManager()

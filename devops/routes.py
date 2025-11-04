@@ -23,19 +23,31 @@ devops_bp = Blueprint(
 
 try:
     # Intentar import relativo (cuando se usa como paquete)
-    from .manager_unified import devops_manager_unified as devops_manager
+    from .manager_unified import (
+        devops_manager_unified as devops_manager,
+        devops_ticketera_manager,
+        devops_sync_manager
+    )
     logger.info("✅ Gestor DevOps unificado inicializado (paquete devops)")
 except ImportError:
     try:
         # Intentar import absoluto (si estamos en el directorio devops)
-        from manager_unified import devops_manager_unified as devops_manager
+        from manager_unified import (
+            devops_manager_unified as devops_manager,
+            devops_ticketera_manager,
+            devops_sync_manager
+        )
         logger.info("✅ Gestor DevOps unificado inicializado (directorio)")
     except ImportError as e:
         logger.error(f"❌ No se pudo importar manager_unified: {e}")
         devops_manager = None
+        devops_ticketera_manager = None
+        devops_sync_manager = None
 except Exception as e:
     logger.error(f"❌ Error inesperado importando manager_unified: {e}")
     devops_manager = None
+    devops_ticketera_manager = None
+    devops_sync_manager = None
 
 # ================================
 # Helpers de conectividad externa
@@ -166,9 +178,16 @@ def gestion_negocios():
         flash('Error interno al cargar negocios.', 'error')
         return render_template('devops/negocios.html', negocios=[], config_ok=False)
 
-@devops_bp.route('/negocios/eliminar/<int:negocio_id>', methods=['POST'])
+@devops_bp.route('/negocios/eliminar/<int:negocio_id>', methods=['POST', 'GET'])
 @devops_login_required
 def eliminar_negocio(negocio_id):
+    """Eliminar un negocio - acepta POST (desde formulario) y GET (con confirmación)"""
+    if request.method == 'GET':
+        # Si accede por GET, redirigir a la página de negocios con mensaje
+        flash('La eliminación debe realizarse desde el botón de eliminar en la tabla', 'warning')
+        return redirect(url_for('devops.gestion_negocios'))
+    
+    # Método POST
     try:
         if not devops_manager:
             flash('Error: API no configurada.', 'error')
@@ -236,9 +255,14 @@ def gestion_productos():
         flash('Error interno al cargar productos.', 'error')
         return render_template('devops/productos.html', productos=[], negocios=[])
 
-@devops_bp.route('/productos/eliminar/<int:producto_id>', methods=['POST'])
+@devops_bp.route('/productos/eliminar/<int:producto_id>', methods=['POST', 'GET'])
 @devops_login_required
 def eliminar_producto(producto_id):
+    """Eliminar un producto - acepta POST (desde formulario) y GET"""
+    if request.method == 'GET':
+        flash('La eliminación debe realizarse desde el botón de eliminar en la tabla', 'warning')
+        return redirect(url_for('devops.gestion_productos'))
+    
     try:
         if not devops_manager:
             flash('Error: API no configurada.', 'error')
@@ -306,9 +330,14 @@ def gestion_ofertas():
         flash('Error interno al cargar ofertas.', 'error')
         return render_template('devops/ofertas.html', ofertas=[])
 
-@devops_bp.route('/ofertas/eliminar/<int:oferta_id>', methods=['POST'])
+@devops_bp.route('/ofertas/eliminar/<int:oferta_id>', methods=['POST', 'GET'])
 @devops_login_required
 def eliminar_oferta(oferta_id):
+    """Eliminar una oferta - acepta POST (desde formulario) y GET"""
+    if request.method == 'GET':
+        flash('La eliminación debe realizarse desde el botón de eliminar en la tabla', 'warning')
+        return redirect(url_for('devops.gestion_ofertas'))
+    
     try:
         if not devops_manager:
             flash('Error: API no configurada.', 'error')
@@ -676,18 +705,213 @@ def api_sucursal_detail(item_id: str):
 def api_precios():
     if request.method == 'GET':
         try:
-            items = devops_manager.get_items('precios') if devops_manager else []
+            producto_id = request.args.get('producto_id', type=int)
+            if producto_id:
+                items = devops_manager.get_precios(producto_id) if devops_manager else []
+            else:
+                items = devops_manager.get_precios() if devops_manager else []
             return _json_response(True, items)
         except Exception as e:
             return _json_response(False, None, str(e), 500)
     payload = request.get_json(silent=True) or {}
-    # Para precios, usamos update_item con 'precios' y producto_id en payload
+    # Para precios, usamos update_precio con producto_id
     producto_id = payload.get('producto_id')
     if not producto_id:
         return _json_response(False, None, 'producto_id requerido', 400)
     try:
-        ok, msg = devops_manager.update_item('precios', producto_id, payload) if devops_manager else (False, 'manager no disponible')
+        ok, msg = devops_manager.update_precio(producto_id, payload) if devops_manager else (False, 'manager no disponible')
         return _json_response(ok, None, msg, 200 if ok else 400)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+@devops_bp.route('/api/categorias', methods=['GET'])
+@devops_login_required
+def api_categorias():
+    """Obtener todas las categorías de Belgrano Ahorro"""
+    try:
+        items = devops_manager.get_categorias() if devops_manager else []
+        return _json_response(True, items)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+@devops_bp.route('/api/categorias/<int:categoria_id>', methods=['GET'])
+@devops_login_required
+def api_categoria_detail(categoria_id: int):
+    """Obtener una categoría específica"""
+    try:
+        ok, data = devops_manager.get_item_detail('categorias', categoria_id) if devops_manager else (False, 'manager no disponible')
+        return _json_response(ok, data if ok else None, 'ok' if ok else str(data))
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+# =================================================================
+# API REST para Ticketera
+# =================================================================
+
+@devops_bp.route('/api/ticketera/tickets', methods=['GET', 'POST'])
+@devops_login_required
+def api_ticketera_tickets():
+    """Obtener o crear tickets en Ticketera"""
+    if request.method == 'GET':
+        try:
+            if not devops_ticketera_manager:
+                return _json_response(False, None, 'Ticketera manager no disponible', 503)
+            tickets = devops_ticketera_manager.get_tickets()
+            return _json_response(True, tickets)
+        except Exception as e:
+            return _json_response(False, None, str(e), 500)
+    # POST
+    payload = request.get_json(silent=True) or {}
+    try:
+        if not devops_ticketera_manager:
+            return _json_response(False, None, 'Ticketera manager no disponible', 503)
+        ok, result = devops_ticketera_manager.create_ticket(payload)
+        return _json_response(ok, result if ok else None, 'ok' if ok else str(result), 201 if ok else 400)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+@devops_bp.route('/api/ticketera/tickets/<ticket_id>', methods=['GET', 'PUT', 'DELETE'])
+@devops_login_required
+def api_ticketera_ticket_detail(ticket_id):
+    """Obtener, actualizar o eliminar un ticket específico"""
+    if request.method == 'GET':
+        try:
+            if not devops_ticketera_manager:
+                return _json_response(False, None, 'Ticketera manager no disponible', 503)
+            ok, data = devops_ticketera_manager.get_ticket(ticket_id)
+            return _json_response(ok, data if ok else None, 'ok' if ok else str(data))
+        except Exception as e:
+            return _json_response(False, None, str(e), 500)
+    elif request.method == 'PUT':
+        payload = request.get_json(silent=True) or {}
+        try:
+            if not devops_ticketera_manager:
+                return _json_response(False, None, 'Ticketera manager no disponible', 503)
+            ok, result = devops_ticketera_manager.update_ticket(ticket_id, payload)
+            return _json_response(ok, result if ok else None, 'ok' if ok else str(result))
+        except Exception as e:
+            return _json_response(False, None, str(e), 500)
+    # DELETE
+    try:
+        if not devops_ticketera_manager:
+            return _json_response(False, None, 'Ticketera manager no disponible', 503)
+        ok, result = devops_ticketera_manager.delete_ticket(ticket_id)
+        return _json_response(ok, None, 'ok' if ok else str(result))
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+# =================================================================
+# API de Sincronización
+# =================================================================
+
+@devops_bp.route('/api/sync/status', methods=['GET'])
+@devops_login_required
+def api_sync_status():
+    """Obtener estado de sincronización entre sistemas"""
+    try:
+        if not devops_sync_manager:
+            return _json_response(False, None, 'Sync manager no disponible', 503)
+        status = devops_sync_manager.get_sync_status()
+        return _json_response(True, status)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+@devops_bp.route('/api/sync/negocios', methods=['POST'])
+@devops_login_required
+def api_sync_negocios():
+    """Sincronizar negocios de Belgrano Ahorro a Ticketera"""
+    try:
+        if not devops_sync_manager:
+            return _json_response(False, None, 'Sync manager no disponible', 503)
+        results = devops_sync_manager.sync_negocios_to_ticketera()
+        success = results['failed'] == 0
+        return _json_response(success, results, 
+                             f"Sincronizados {results['success']} negocios" if success else 
+                             f"Sincronizados {results['success']}, fallaron {results['failed']}", 
+                             200 if success else 207)  # 207 Multi-Status
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+@devops_bp.route('/api/sync/productos', methods=['POST'])
+@devops_login_required
+def api_sync_productos():
+    """Sincronizar productos de Belgrano Ahorro a Ticketera"""
+    try:
+        if not devops_sync_manager:
+            return _json_response(False, None, 'Sync manager no disponible', 503)
+        results = devops_sync_manager.sync_productos_to_ticketera()
+        success = results['failed'] == 0
+        return _json_response(success, results,
+                             f"Sincronizados {results['success']} productos" if success else
+                             f"Sincronizados {results['success']}, fallaron {results['failed']}",
+                             200 if success else 207)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+@devops_bp.route('/api/sync/all', methods=['POST'])
+@devops_login_required
+def api_sync_all():
+    """Sincronización completa de todos los datos (negocios + productos)"""
+    try:
+        if not devops_sync_manager:
+            return _json_response(False, None, 'Sync manager no disponible', 503)
+        results = devops_sync_manager.full_sync_all()
+        success = results['overall_status'] == 'success'
+        return _json_response(success, results,
+                             'Sincronización completa exitosa' if success else 'Sincronización parcial',
+                             200 if success else 207)
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+# =================================================================
+# Endpoints adicionales de Belgrano Ahorro
+# =================================================================
+
+@devops_bp.route('/api/ahorro/negocios/<int:negocio_id>', methods=['GET'])
+@devops_login_required
+def api_ahorro_negocio_detail(negocio_id: int):
+    """Obtener detalle de un negocio específico"""
+    try:
+        if not devops_manager:
+            return _json_response(False, None, 'Manager no disponible', 503)
+        ok, data = devops_manager.get_item_detail('negocios', negocio_id)
+        return _json_response(ok, data if ok else None, 'ok' if ok else str(data))
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+@devops_bp.route('/api/ahorro/productos/<int:producto_id>', methods=['GET'])
+@devops_login_required
+def api_ahorro_producto_detail(producto_id: int):
+    """Obtener detalle de un producto específico"""
+    try:
+        if not devops_manager:
+            return _json_response(False, None, 'Manager no disponible', 503)
+        ok, data = devops_manager.get_item_detail('productos', producto_id)
+        return _json_response(ok, data if ok else None, 'ok' if ok else str(data))
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+@devops_bp.route('/api/ahorro/ofertas/<int:oferta_id>', methods=['GET'])
+@devops_login_required
+def api_ahorro_oferta_detail(oferta_id: int):
+    """Obtener detalle de una oferta específica"""
+    try:
+        if not devops_manager:
+            return _json_response(False, None, 'Manager no disponible', 503)
+        ok, data = devops_manager.get_item_detail('ofertas', oferta_id)
+        return _json_response(ok, data if ok else None, 'ok' if ok else str(data))
+    except Exception as e:
+        return _json_response(False, None, str(e), 500)
+
+@devops_bp.route('/api/ahorro/sucursales/<sucursal_id>', methods=['GET'])
+@devops_login_required
+def api_ahorro_sucursal_detail(sucursal_id):
+    """Obtener detalle de una sucursal específica"""
+    try:
+        if not devops_manager:
+            return _json_response(False, None, 'Manager no disponible', 503)
+        ok, data = devops_manager.get_item_detail('sucursales', sucursal_id)
+        return _json_response(ok, data if ok else None, 'ok' if ok else str(data))
     except Exception as e:
         return _json_response(False, None, str(e), 500)
 

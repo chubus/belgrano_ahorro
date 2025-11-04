@@ -18,6 +18,11 @@ logger = logging.getLogger(__name__)
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 
+# Asegurar que el directorio padre (raíz del proyecto) esté en sys.path
+# Esto permite que los imports como 'from devops.routes import ...' funcionen
+if _parent_dir not in sys.path:
+    sys.path.insert(0, _parent_dir)
+
 # Buscar templates y static en la ubicación correcta
 _template_folder = os.path.join(_current_dir, 'templates')
 _static_folder = os.path.join(_current_dir, 'static')

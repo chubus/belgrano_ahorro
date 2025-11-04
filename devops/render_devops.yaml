@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: devops-service
+    env: python
+    buildCommand: |
+      pip install -r devops/requirements.txt
+      echo "✅ Build DevOps completado"
+    startCommand: |
+      echo "🚀 Iniciando servicio DevOps..."
+      gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 wsgi_devops:application
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        sync: false  # Configurar manualmente en Render Dashboard
+      - key: BELGRANO_AHORRO_URL
+        value: https://belgranoahorro-hp30.onrender.com
+      - key: BELGRANO_AHORRO_API_KEY
+        sync: false  # Configurar manualmente en Render Dashboard
+      - key: TICKETS_API_URL
+        value: https://ticketerabelgrano.onrender.com
+      - key: TICKETS_API_USERNAME
+        value: admin@belgranoahorro.com
+      - key: TICKETS_API_PASSWORD
+        sync: false  # Configurar manualmente en Render Dashboard
+      - key: DEVOPS_USERNAME
+        sync: false  # Configurar manualmente en Render Dashboard
+      - key: DEVOPS_PASSWORD
+        sync: false  # Configurar manualmente en Render Dashboard
+      - key: PORT
+        fromService:
+          type: web
+          property: port
+
