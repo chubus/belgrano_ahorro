@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class DevOpsBelgranoManagerUnified:
     """Gestor para conexión con API de Belgrano Ahorro"""
     def __init__(self) -> None:
-        self.belgrano_url = os.getenv('BELGRANO_AHORRO_URL', 'https://belgranoahorro-hp30.onrender.com').rstrip('/')
+        self.belgrano_url = os.getenv('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com').rstrip('/')
         self.api_key = os.getenv('BELGRANO_AHORRO_API_KEY', '')
         self.timeout = int(os.getenv('API_TIMEOUT_SECS', '15'))
         retry_strategy = Retry(
@@ -50,10 +50,21 @@ class DevOpsBelgranoManagerUnified:
                 data = resp.json()
             except Exception:
                 data = resp.text
-            return (200 <= resp.status_code < 300), data
+            
+            # Si la respuesta es exitosa (2xx), retornar True con los datos
+            if 200 <= resp.status_code < 300:
+                return True, data
+            else:
+                # Si hay error, retornar False con el mensaje de error
+                if isinstance(data, dict):
+                    error_msg = data.get('error', data.get('message', f'HTTP {resp.status_code}'))
+                else:
+                    error_msg = str(data) if data else f'HTTP {resp.status_code}'
+                logger.warning(f"API error {method} {url}: {resp.status_code} - {error_msg}")
+                return False, {'error': error_msg, 'status_code': resp.status_code}
         except requests.RequestException as e:
             logger.error(f"HTTP error {method} {url}: {e}")
-            return False, str(e)
+            return False, {'error': str(e), 'status_code': 0}
 
     def get_items(self, kind: str):
         ok, data = self._req('GET', f"/api/{kind}")
@@ -87,6 +98,9 @@ class DevOpsBelgranoManagerUnified:
 
     def create_sucursal(self, payload: Dict[str, Any]):
         return self.create_item('sucursales', payload)
+    
+    def get_categorias(self):
+        return self.get_items('categorias')
 
     def test_connectivity(self) -> Dict[str, Any]:
         ok, data = self._req('GET', '/api/health')

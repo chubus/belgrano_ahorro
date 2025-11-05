@@ -556,10 +556,42 @@ def proxy_ticketera(subpath: str):
 # =================================================================
 
 def _json_response(ok: bool, data=None, message: str = 'ok', status_code: int = 200):
+    """Respuesta JSON consistente para todos los endpoints"""
     body = {'status': 'success' if ok else 'error', 'message': message}
     if data is not None:
         body['data'] = data
     return jsonify(body), status_code
+
+def _parse_manager_response(result: tuple, default_message: str = 'ok') -> tuple:
+    """Parsear respuesta del manager para extraer datos y mensajes correctamente"""
+    if not result:
+        return False, None, 'Manager no disponible'
+    
+    ok, response = result
+    if ok:
+        # Si es exitoso, puede venir 'ok' o datos
+        if isinstance(response, dict):
+            # Si response tiene 'status' y es 'success', es exitoso
+            if response.get('status') == 'success':
+                return True, response.get('data'), response.get('message', default_message)
+            # Si response tiene 'data', extraerlo
+            if 'data' in response:
+                return True, response.get('data'), response.get('message', default_message)
+            # Si response tiene 'message', usar ese
+            if 'message' in response:
+                return True, response.get('data'), response.get('message', default_message)
+            # Si response es el objeto completo
+            return True, response, default_message
+        # Si response es 'ok' o string, es exitoso sin datos
+        if response == 'ok' or (isinstance(response, str) and 'ok' in response.lower()):
+            return True, None, default_message
+        return True, response if response != 'ok' else None, default_message
+    else:
+        # Si falló, response puede ser un string o un dict con error
+        if isinstance(response, dict):
+            error_msg = response.get('error', response.get('message', str(response)))
+            return False, None, error_msg
+        return False, None, str(response) if response else 'Error desconocido'
 
 
 @devops_bp.route('/api/negocios', methods=['GET', 'POST'])
@@ -567,35 +599,75 @@ def _json_response(ok: bool, data=None, message: str = 'ok', status_code: int = 
 def api_negocios():
     if request.method == 'GET':
         try:
-            items = devops_manager.get_negocios() if devops_manager else []
-            return _json_response(True, items)
+            if not devops_manager:
+                return _json_response(False, None, 'Manager no disponible', 503)
+            items = devops_manager.get_negocios()
+            # get_negocios puede devolver lista o dict con 'data'
+            if isinstance(items, dict) and 'data' in items:
+                items = items['data']
+            return _json_response(True, items if items else [], 'Negocios obtenidos exitosamente')
         except Exception as e:
-            return _json_response(False, None, str(e), 500)
+            logger.error(f"Error obteniendo negocios: {e}")
+            return _json_response(False, None, f'Error al obtener negocios: {str(e)}', 500)
+    
     # POST
+    if not devops_manager:
+        return _json_response(False, None, 'Manager no disponible', 503)
+    
     payload = request.get_json(silent=True) or {}
+    if not payload or 'nombre' not in payload:
+        return _json_response(False, None, 'El campo "nombre" es requerido', 400)
+    
     try:
-        ok, msg = devops_manager.create_item('negocios', payload) if devops_manager else (False, 'manager no disponible')
-        return _json_response(ok, None, msg, 201 if ok else 400)
+        result = devops_manager.create_item('negocios', payload)
+        ok, data, msg = _parse_manager_response(result, 'Negocio creado exitosamente')
+        return _json_response(ok, data, msg, 201 if ok else 400)
     except Exception as e:
-        return _json_response(False, None, str(e), 500)
+        logger.error(f"Error creando negocio: {e}")
+        return _json_response(False, None, f'Error al crear negocio: {str(e)}', 500)
 
 
-@devops_bp.route('/api/negocios/<int:item_id>', methods=['PUT', 'DELETE'])
+@devops_bp.route('/api/negocios/<int:item_id>', methods=['GET', 'PUT', 'DELETE'])
 @devops_login_required
 def api_negocio_detail(item_id: int):
+    if not devops_manager:
+        return _json_response(False, None, 'Manager no disponible', 503)
+    
+    if request.method == 'GET':
+        try:
+            # Obtener negocio específico usando el endpoint de detalle
+            ok, data = devops_manager._req('GET', f"/api/negocios/{item_id}")
+            if ok:
+                if isinstance(data, dict) and 'data' in data:
+                    return _json_response(True, data['data'], 'Negocio obtenido exitosamente')
+                return _json_response(True, data, 'Negocio obtenido exitosamente')
+            else:
+                error_msg = data.get('error', str(data)) if isinstance(data, dict) else str(data)
+                return _json_response(False, None, error_msg, 404)
+        except Exception as e:
+            logger.error(f"Error obteniendo negocio {item_id}: {e}")
+            return _json_response(False, None, f'Error al obtener negocio: {str(e)}', 500)
+    
     if request.method == 'PUT':
         payload = request.get_json(silent=True) or {}
+        if not payload:
+            return _json_response(False, None, 'Datos requeridos para actualizar', 400)
         try:
-            ok, msg = devops_manager.update_item('negocios', item_id, payload) if devops_manager else (False, 'manager no disponible')
-            return _json_response(ok, None, msg, 200 if ok else 400)
+            result = devops_manager.update_item('negocios', item_id, payload)
+            ok, data, msg = _parse_manager_response(result, 'Negocio actualizado exitosamente')
+            return _json_response(ok, data, msg, 200 if ok else 400)
         except Exception as e:
-            return _json_response(False, None, str(e), 500)
+            logger.error(f"Error actualizando negocio {item_id}: {e}")
+            return _json_response(False, None, f'Error al actualizar negocio: {str(e)}', 500)
+    
     # DELETE
     try:
-        ok, msg = devops_manager.delete_item('negocios', item_id) if devops_manager else (False, 'manager no disponible')
-        return _json_response(ok, None, msg, 200 if ok else 400)
+        result = devops_manager.delete_item('negocios', item_id)
+        ok, data, msg = _parse_manager_response(result, 'Negocio eliminado exitosamente')
+        return _json_response(ok, data, msg, 200 if ok else 400)
     except Exception as e:
-        return _json_response(False, None, str(e), 500)
+        logger.error(f"Error eliminando negocio {item_id}: {e}")
+        return _json_response(False, None, f'Error al eliminar negocio: {str(e)}', 500)
 
 
 @devops_bp.route('/api/productos', methods=['GET', 'POST'])
@@ -603,33 +675,72 @@ def api_negocio_detail(item_id: int):
 def api_productos():
     if request.method == 'GET':
         try:
-            items = devops_manager.get_productos() if devops_manager else []
-            return _json_response(True, items)
+            if not devops_manager:
+                return _json_response(False, None, 'Manager no disponible', 503)
+            items = devops_manager.get_productos()
+            if isinstance(items, dict) and 'data' in items:
+                items = items['data']
+            return _json_response(True, items if items else [], 'Productos obtenidos exitosamente')
         except Exception as e:
-            return _json_response(False, None, str(e), 500)
+            logger.error(f"Error obteniendo productos: {e}")
+            return _json_response(False, None, f'Error al obtener productos: {str(e)}', 500)
+    
+    if not devops_manager:
+        return _json_response(False, None, 'Manager no disponible', 503)
+    
     payload = request.get_json(silent=True) or {}
+    if not payload or 'nombre' not in payload or 'precio' not in payload:
+        return _json_response(False, None, 'Los campos "nombre" y "precio" son requeridos', 400)
+    
     try:
-        ok, msg = devops_manager.create_item('productos', payload) if devops_manager else (False, 'manager no disponible')
-        return _json_response(ok, None, msg, 201 if ok else 400)
+        result = devops_manager.create_item('productos', payload)
+        ok, data, msg = _parse_manager_response(result, 'Producto creado exitosamente')
+        return _json_response(ok, data, msg, 201 if ok else 400)
     except Exception as e:
-        return _json_response(False, None, str(e), 500)
+        logger.error(f"Error creando producto: {e}")
+        return _json_response(False, None, f'Error al crear producto: {str(e)}', 500)
 
 
-@devops_bp.route('/api/productos/<int:item_id>', methods=['PUT', 'DELETE'])
+@devops_bp.route('/api/productos/<int:item_id>', methods=['GET', 'PUT', 'DELETE'])
 @devops_login_required
 def api_producto_detail(item_id: int):
+    if not devops_manager:
+        return _json_response(False, None, 'Manager no disponible', 503)
+    
+    if request.method == 'GET':
+        try:
+            ok, data = devops_manager._req('GET', f"/api/productos/{item_id}")
+            if ok:
+                if isinstance(data, dict) and 'data' in data:
+                    return _json_response(True, data['data'], 'Producto obtenido exitosamente')
+                return _json_response(True, data, 'Producto obtenido exitosamente')
+            else:
+                error_msg = data.get('error', str(data)) if isinstance(data, dict) else str(data)
+                return _json_response(False, None, error_msg, 404)
+        except Exception as e:
+            logger.error(f"Error obteniendo producto {item_id}: {e}")
+            return _json_response(False, None, f'Error al obtener producto: {str(e)}', 500)
+    
     if request.method == 'PUT':
         payload = request.get_json(silent=True) or {}
+        if not payload:
+            return _json_response(False, None, 'Datos requeridos para actualizar', 400)
         try:
-            ok, msg = devops_manager.update_item('productos', item_id, payload) if devops_manager else (False, 'manager no disponible')
-            return _json_response(ok, None, msg, 200 if ok else 400)
+            result = devops_manager.update_item('productos', item_id, payload)
+            ok, data, msg = _parse_manager_response(result, 'Producto actualizado exitosamente')
+            return _json_response(ok, data, msg, 200 if ok else 400)
         except Exception as e:
-            return _json_response(False, None, str(e), 500)
+            logger.error(f"Error actualizando producto {item_id}: {e}")
+            return _json_response(False, None, f'Error al actualizar producto: {str(e)}', 500)
+    
+    # DELETE
     try:
-        ok, msg = devops_manager.delete_item('productos', item_id) if devops_manager else (False, 'manager no disponible')
-        return _json_response(ok, None, msg, 200 if ok else 400)
+        result = devops_manager.delete_item('productos', item_id)
+        ok, data, msg = _parse_manager_response(result, 'Producto eliminado exitosamente')
+        return _json_response(ok, data, msg, 200 if ok else 400)
     except Exception as e:
-        return _json_response(False, None, str(e), 500)
+        logger.error(f"Error eliminando producto {item_id}: {e}")
+        return _json_response(False, None, f'Error al eliminar producto: {str(e)}', 500)
 
 
 @devops_bp.route('/api/ofertas', methods=['GET', 'POST'])
@@ -637,33 +748,72 @@ def api_producto_detail(item_id: int):
 def api_ofertas():
     if request.method == 'GET':
         try:
-            items = devops_manager.get_ofertas() if devops_manager else []
-            return _json_response(True, items)
+            if not devops_manager:
+                return _json_response(False, None, 'Manager no disponible', 503)
+            items = devops_manager.get_ofertas()
+            if isinstance(items, dict) and 'data' in items:
+                items = items['data']
+            return _json_response(True, items if items else [], 'Ofertas obtenidas exitosamente')
         except Exception as e:
-            return _json_response(False, None, str(e), 500)
+            logger.error(f"Error obteniendo ofertas: {e}")
+            return _json_response(False, None, f'Error al obtener ofertas: {str(e)}', 500)
+    
+    if not devops_manager:
+        return _json_response(False, None, 'Manager no disponible', 503)
+    
     payload = request.get_json(silent=True) or {}
+    if not payload or 'titulo' not in payload:
+        return _json_response(False, None, 'El campo "titulo" es requerido', 400)
+    
     try:
-        ok, msg = devops_manager.create_item('ofertas', payload) if devops_manager else (False, 'manager no disponible')
-        return _json_response(ok, None, msg, 201 if ok else 400)
+        result = devops_manager.create_item('ofertas', payload)
+        ok, data, msg = _parse_manager_response(result, 'Oferta creada exitosamente')
+        return _json_response(ok, data, msg, 201 if ok else 400)
     except Exception as e:
-        return _json_response(False, None, str(e), 500)
+        logger.error(f"Error creando oferta: {e}")
+        return _json_response(False, None, f'Error al crear oferta: {str(e)}', 500)
 
 
-@devops_bp.route('/api/ofertas/<int:item_id>', methods=['PUT', 'DELETE'])
+@devops_bp.route('/api/ofertas/<int:item_id>', methods=['GET', 'PUT', 'DELETE'])
 @devops_login_required
 def api_oferta_detail(item_id: int):
+    if not devops_manager:
+        return _json_response(False, None, 'Manager no disponible', 503)
+    
+    if request.method == 'GET':
+        try:
+            ok, data = devops_manager._req('GET', f"/api/ofertas/{item_id}")
+            if ok:
+                if isinstance(data, dict) and 'data' in data:
+                    return _json_response(True, data['data'], 'Oferta obtenida exitosamente')
+                return _json_response(True, data, 'Oferta obtenida exitosamente')
+            else:
+                error_msg = data.get('error', str(data)) if isinstance(data, dict) else str(data)
+                return _json_response(False, None, error_msg, 404)
+        except Exception as e:
+            logger.error(f"Error obteniendo oferta {item_id}: {e}")
+            return _json_response(False, None, f'Error al obtener oferta: {str(e)}', 500)
+    
     if request.method == 'PUT':
         payload = request.get_json(silent=True) or {}
+        if not payload:
+            return _json_response(False, None, 'Datos requeridos para actualizar', 400)
         try:
-            ok, msg = devops_manager.update_item('ofertas', item_id, payload) if devops_manager else (False, 'manager no disponible')
-            return _json_response(ok, None, msg, 200 if ok else 400)
+            result = devops_manager.update_item('ofertas', item_id, payload)
+            ok, data, msg = _parse_manager_response(result, 'Oferta actualizada exitosamente')
+            return _json_response(ok, data, msg, 200 if ok else 400)
         except Exception as e:
-            return _json_response(False, None, str(e), 500)
+            logger.error(f"Error actualizando oferta {item_id}: {e}")
+            return _json_response(False, None, f'Error al actualizar oferta: {str(e)}', 500)
+    
+    # DELETE
     try:
-        ok, msg = devops_manager.delete_item('ofertas', item_id) if devops_manager else (False, 'manager no disponible')
-        return _json_response(ok, None, msg, 200 if ok else 400)
+        result = devops_manager.delete_item('ofertas', item_id)
+        ok, data, msg = _parse_manager_response(result, 'Oferta eliminada exitosamente')
+        return _json_response(ok, data, msg, 200 if ok else 400)
     except Exception as e:
-        return _json_response(False, None, str(e), 500)
+        logger.error(f"Error eliminando oferta {item_id}: {e}")
+        return _json_response(False, None, f'Error al eliminar oferta: {str(e)}', 500)
 
 
 @devops_bp.route('/api/sucursales', methods=['GET', 'POST'])
@@ -671,16 +821,30 @@ def api_oferta_detail(item_id: int):
 def api_sucursales():
     if request.method == 'GET':
         try:
-            items = devops_manager.get_items('sucursales') if devops_manager else []
-            return _json_response(True, items)
+            if not devops_manager:
+                return _json_response(False, None, 'Manager no disponible', 503)
+            items = devops_manager.get_sucursales()
+            if isinstance(items, dict) and 'data' in items:
+                items = items['data']
+            return _json_response(True, items if items else [], 'Sucursales obtenidas exitosamente')
         except Exception as e:
-            return _json_response(False, None, str(e), 500)
+            logger.error(f"Error obteniendo sucursales: {e}")
+            return _json_response(False, None, f'Error al obtener sucursales: {str(e)}', 500)
+    
+    if not devops_manager:
+        return _json_response(False, None, 'Manager no disponible', 503)
+    
     payload = request.get_json(silent=True) or {}
+    if not payload or 'nombre' not in payload:
+        return _json_response(False, None, 'El campo "nombre" es requerido', 400)
+    
     try:
-        ok, msg = devops_manager.create_item('sucursales', payload) if devops_manager else (False, 'manager no disponible')
-        return _json_response(ok, None, msg, 201 if ok else 400)
+        result = devops_manager.create_sucursal(payload)
+        ok, data, msg = _parse_manager_response(result, 'Sucursal creada exitosamente')
+        return _json_response(ok, data, msg, 201 if ok else 400)
     except Exception as e:
-        return _json_response(False, None, str(e), 500)
+        logger.error(f"Error creando sucursal: {e}")
+        return _json_response(False, None, f'Error al crear sucursal: {str(e)}', 500)
 
 
 @devops_bp.route('/api/sucursales/<string:item_id>', methods=['PUT', 'DELETE'])
@@ -729,10 +893,15 @@ def api_precios():
 def api_categorias():
     """Obtener todas las categorías de Belgrano Ahorro"""
     try:
-        items = devops_manager.get_categorias() if devops_manager else []
-        return _json_response(True, items)
+        if not devops_manager:
+            return _json_response(False, None, 'Manager no disponible', 503)
+        items = devops_manager.get_categorias()
+        if isinstance(items, dict) and 'data' in items:
+            items = items['data']
+        return _json_response(True, items if items else [], 'Categorías obtenidas exitosamente')
     except Exception as e:
-        return _json_response(False, None, str(e), 500)
+        logger.error(f"Error obteniendo categorías: {e}")
+        return _json_response(False, None, f'Error al obtener categorías: {str(e)}', 500)
 
 @devops_bp.route('/api/categorias/<int:categoria_id>', methods=['GET'])
 @devops_login_required
