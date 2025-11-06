@@ -178,6 +178,48 @@ def gestion_negocios():
         flash('Error interno al cargar negocios.', 'error')
         return render_template('devops/negocios.html', negocios=[], config_ok=False)
 
+@devops_bp.route('/negocios/<int:negocio_id>/editar', methods=['GET', 'POST'])
+@devops_login_required
+def editar_negocio(negocio_id):
+    """Editar un negocio - GET muestra formulario, POST procesa actualización"""
+    if request.method == 'POST':
+        try:
+            if not devops_manager:
+                flash('Error: API no configurada.', 'error')
+                return redirect(url_for('devops.gestion_negocios'))
+            
+            # Obtener datos del formulario
+            negocio_data = {
+                'nombre': request.form.get('nombre', '').strip(),
+                'descripcion': request.form.get('descripcion', '').strip(),
+                'direccion': request.form.get('direccion', '').strip(),
+                'telefono': request.form.get('telefono', '').strip(),
+                'email': request.form.get('email', '').strip(),
+                'activo': request.form.get('activo') == 'on'
+            }
+            
+            # Validar campos requeridos
+            if not negocio_data['nombre'] or not negocio_data['descripcion']:
+                flash('Nombre y descripción son requeridos', 'error')
+                return redirect(url_for('devops.gestion_negocios'))
+            
+            # Actualizar negocio usando el manager
+            success, message = devops_manager.update_item('negocios', negocio_id, negocio_data)
+            if success:
+                flash(f'Negocio "{negocio_data["nombre"]}" actualizado exitosamente', 'success')
+                logger.info(f"Negocio {negocio_id} actualizado: {negocio_data['nombre']}")
+            else:
+                flash(f'Error al actualizar negocio: {message}', 'error')
+                logger.error(f"Error actualizando negocio {negocio_id}: {message}")
+        except Exception as e:
+            logger.error(f"Error actualizando negocio: {e}")
+            flash(f'Error interno al actualizar el negocio: {str(e)}', 'error')
+        return redirect(url_for('devops.gestion_negocios'))
+    
+    # GET - Redirigir a gestión (el template maneja el modal)
+    flash('Usa el botón de editar en la tabla para modificar negocios', 'info')
+    return redirect(url_for('devops.gestion_negocios'))
+
 @devops_bp.route('/negocios/eliminar/<int:negocio_id>', methods=['POST', 'GET'])
 @devops_login_required
 def eliminar_negocio(negocio_id):
@@ -255,6 +297,72 @@ def gestion_productos():
         flash('Error interno al cargar productos.', 'error')
         return render_template('devops/productos.html', productos=[], negocios=[])
 
+@devops_bp.route('/productos/<int:producto_id>/editar', methods=['GET', 'POST'])
+@devops_login_required
+def editar_producto(producto_id):
+    """Editar un producto - GET muestra formulario, POST procesa actualización"""
+    if request.method == 'POST':
+        try:
+            if not devops_manager:
+                flash('Error: API no configurada.', 'error')
+                return redirect(url_for('devops.gestion_productos'))
+            
+            # Obtener datos del formulario
+            producto_data = {
+                'nombre': request.form.get('nombre', '').strip(),
+                'descripcion': request.form.get('descripcion', '').strip(),
+                'precio': request.form.get('precio', '').strip(),
+                'categoria': request.form.get('categoria', '').strip(),
+                'stock': request.form.get('stock', '0').strip(),
+                'negocio_id': request.form.get('negocio_id', '').strip(),
+                'activo': request.form.get('activo') == 'on'
+            }
+            
+            # Validar campos requeridos
+            if not producto_data['nombre'] or not producto_data['precio']:
+                flash('Nombre y precio son requeridos', 'error')
+                return redirect(url_for('devops.gestion_productos'))
+            
+            try:
+                producto_data['precio'] = float(producto_data['precio'])
+            except ValueError:
+                flash('El precio debe ser un número válido', 'error')
+                return redirect(url_for('devops.gestion_productos'))
+            
+            if producto_data['negocio_id']:
+                try:
+                    producto_data['negocio_id'] = int(producto_data['negocio_id'])
+                except ValueError:
+                    producto_data['negocio_id'] = None
+            else:
+                producto_data['negocio_id'] = None
+            
+            if producto_data['stock']:
+                try:
+                    producto_data['stock'] = int(producto_data['stock'])
+                except ValueError:
+                    producto_data['stock'] = 0
+            else:
+                producto_data['stock'] = 0
+            
+            # Actualizar producto usando el manager
+            success, message = devops_manager.update_item('productos', producto_id, producto_data)
+            if success:
+                flash(f'Producto "{producto_data["nombre"]}" actualizado exitosamente', 'success')
+                logger.info(f"Producto {producto_id} actualizado: {producto_data['nombre']}")
+            else:
+                flash(f'Error al actualizar producto: {message}', 'error')
+                logger.error(f"Error actualizando producto {producto_id}: {message}")
+        except Exception as e:
+            logger.error(f"Error actualizando producto: {e}")
+            flash(f'Error interno al actualizar el producto: {str(e)}', 'error')
+        return redirect(url_for('devops.gestion_productos'))
+    
+    # GET - Mostrar página de edición (redirigir a gestión con el modal abierto)
+    # El template maneja el modal, así que redirigimos a la página de gestión
+    flash('Usa el botón de editar en la tabla para modificar productos', 'info')
+    return redirect(url_for('devops.gestion_productos'))
+
 @devops_bp.route('/productos/eliminar/<int:producto_id>', methods=['POST', 'GET'])
 @devops_login_required
 def eliminar_producto(producto_id):
@@ -329,6 +437,68 @@ def gestion_ofertas():
         logger.error(f"Error cargando ofertas: {e}")
         flash('Error interno al cargar ofertas.', 'error')
         return render_template('devops/ofertas.html', ofertas=[])
+
+@devops_bp.route('/ofertas/<int:oferta_id>/editar', methods=['GET', 'POST'])
+@devops_login_required
+def editar_oferta(oferta_id):
+    """Editar una oferta - GET muestra formulario, POST procesa actualización"""
+    if request.method == 'POST':
+        try:
+            if not devops_manager:
+                flash('Error: API no configurada.', 'error')
+                return redirect(url_for('devops.gestion_ofertas'))
+            
+            # Obtener datos del formulario
+            oferta_data = {
+                'titulo': request.form.get('titulo', '').strip(),
+                'descripcion': request.form.get('descripcion', '').strip(),
+                'descuento_porcentaje': request.form.get('descuento_porcentaje', '').strip(),
+                'descuento_fijo': request.form.get('descuento_fijo', '').strip(),
+                'activa': request.form.get('activo') == 'on'
+            }
+            
+            # Validar campos requeridos
+            if not oferta_data['titulo']:
+                flash('El título es requerido', 'error')
+                return redirect(url_for('devops.gestion_ofertas'))
+            
+            # Procesar descuentos
+            if oferta_data['descuento_porcentaje']:
+                try:
+                    oferta_data['descuento'] = float(oferta_data['descuento_porcentaje'])
+                except ValueError:
+                    flash('El descuento porcentual debe ser un número válido', 'error')
+                    return redirect(url_for('devops.gestion_ofertas'))
+            elif oferta_data['descuento_fijo']:
+                try:
+                    oferta_data['descuento'] = float(oferta_data['descuento_fijo'])
+                except ValueError:
+                    flash('El descuento fijo debe ser un número válido', 'error')
+                    return redirect(url_for('devops.gestion_ofertas'))
+            else:
+                flash('Debe especificar un descuento (porcentual o fijo)', 'error')
+                return redirect(url_for('devops.gestion_ofertas'))
+            
+            # Limpiar campos no usados
+            oferta_data.pop('descuento_porcentaje', None)
+            oferta_data.pop('descuento_fijo', None)
+            
+            # Actualizar oferta usando el manager
+            success, message = devops_manager.update_item('ofertas', oferta_id, oferta_data)
+            if success:
+                flash(f'Oferta "{oferta_data["titulo"]}" actualizada exitosamente', 'success')
+                logger.info(f"Oferta {oferta_id} actualizada: {oferta_data['titulo']}")
+            else:
+                flash(f'Error al actualizar oferta: {message}', 'error')
+                logger.error(f"Error actualizando oferta {oferta_id}: {message}")
+        except Exception as e:
+            logger.error(f"Error actualizando oferta: {e}")
+            flash(f'Error interno al actualizar la oferta: {str(e)}', 'error')
+        return redirect(url_for('devops.gestion_ofertas'))
+    
+    # GET - Redirigir a gestión (el template maneja el modal)
+    flash('Usa el botón de editar en la tabla para modificar ofertas', 'info')
+    return redirect(url_for('devops.gestion_ofertas'))
 
 @devops_bp.route('/ofertas/eliminar/<int:oferta_id>', methods=['POST', 'GET'])
 @devops_login_required
@@ -442,13 +612,34 @@ def conectar_belgrano():
 @devops_login_required
 def devops_info():
     try:
+        def _safe_system_status() -> dict:
+            return {
+                'timestamp': datetime.now().isoformat(),
+                'fallback_mode': True,
+                'api_url': os.getenv('BELGRANO_AHORRO_URL', ''),
+                'api_configured': bool(os.getenv('BELGRANO_AHORRO_API_KEY')),
+            }
+        
         if not devops_manager:
             if request.headers.get('Accept') == 'application/json':
-                return jsonify({'status': 'error', 'message': 'Gestor DevOps no disponible', 'data': {'timestamp': datetime.now().isoformat(), 'fallback_mode': True, 'api_configured': False}}), 503
+                return jsonify({'status': 'error', 'message': 'Gestor DevOps no disponible', 'data': _safe_system_status()}), 503
             else:
                 flash('Gestor DevOps no disponible', 'error')
-                return render_template('devops/info.html', status='error', message='Gestor DevOps no disponible', system_status={'timestamp': datetime.now().isoformat(), 'fallback_mode': True, 'api_configured': False})
-        system_status = devops_manager.get_system_status()
+                return render_template('devops/info.html', status='error', message='Gestor DevOps no disponible', system_status=_safe_system_status())
+        
+        try:
+            system_status = devops_manager.get_system_status()
+            # Normalizar estructura mínima esperada
+            if not isinstance(system_status, dict):
+                system_status = _safe_system_status()
+            system_status.setdefault('timestamp', datetime.now().isoformat())
+            system_status.setdefault('api_url', os.getenv('BELGRANO_AHORRO_URL', ''))
+            system_status.setdefault('api_configured', bool(os.getenv('BELGRANO_AHORRO_API_KEY')))
+            system_status.setdefault('fallback_mode', False)
+        except Exception as inner_e:
+            logger.warning(f"get_system_status falló, usando fallback: {inner_e}")
+            system_status = _safe_system_status()
+        
         if request.headers.get('Accept') == 'application/json':
             return jsonify({'status': 'success', 'message': 'Información del sistema DevOps', 'data': system_status})
         else:
@@ -1128,6 +1319,57 @@ def gestion_sucursales():
         logger.error(f"Error cargando sucursales: {e}")
         flash('Error interno al cargar sucursales.', 'error')
         return render_template('devops/sucursales.html', sucursales=[], negocios=[])
+
+@devops_bp.route('/sucursales/<string:sucursal_id>/editar', methods=['GET', 'POST'])
+@devops_login_required
+def editar_sucursal(sucursal_id):
+    """Editar una sucursal - GET muestra formulario, POST procesa actualización"""
+    if request.method == 'POST':
+        try:
+            if not devops_manager:
+                flash('Error: API no configurada.', 'error')
+                return redirect(url_for('devops.gestion_sucursales'))
+            
+            # Obtener datos del formulario
+            sucursal_data = {
+                'nombre': request.form.get('nombre', '').strip(),
+                'direccion': request.form.get('direccion', '').strip(),
+                'telefono': request.form.get('telefono', '').strip(),
+                'email': request.form.get('email', '').strip(),
+                'negocio_id': request.form.get('negocio_id', '').strip(),
+                'activo': request.form.get('activo') == 'on'
+            }
+            
+            # Validar campos requeridos
+            if not sucursal_data['nombre']:
+                flash('El nombre es requerido', 'error')
+                return redirect(url_for('devops.gestion_sucursales'))
+            
+            if sucursal_data['negocio_id']:
+                try:
+                    sucursal_data['negocio_id'] = int(sucursal_data['negocio_id'])
+                except ValueError:
+                    flash('El ID de negocio debe ser un número válido', 'error')
+                    return redirect(url_for('devops.gestion_sucursales'))
+            else:
+                sucursal_data['negocio_id'] = None
+            
+            # Actualizar sucursal usando el manager
+            success, message = devops_manager.update_item('sucursales', sucursal_id, sucursal_data)
+            if success:
+                flash(f'Sucursal "{sucursal_data["nombre"]}" actualizada exitosamente', 'success')
+                logger.info(f"Sucursal {sucursal_id} actualizada: {sucursal_data['nombre']}")
+            else:
+                flash(f'Error al actualizar sucursal: {message}', 'error')
+                logger.error(f"Error actualizando sucursal {sucursal_id}: {message}")
+        except Exception as e:
+            logger.error(f"Error actualizando sucursal: {e}")
+            flash(f'Error interno al actualizar la sucursal: {str(e)}', 'error')
+        return redirect(url_for('devops.gestion_sucursales'))
+    
+    # GET - Redirigir a gestión (el template maneja el modal)
+    flash('Usa el botón de editar en la tabla para modificar sucursales', 'info')
+    return redirect(url_for('devops.gestion_sucursales'))
 
 @devops_bp.route('/sucursales/eliminar/<string:sucursal_id>', methods=['POST'])
 @devops_login_required

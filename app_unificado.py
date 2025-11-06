@@ -1134,6 +1134,48 @@ def contacto_soporte():
 # RUTAS DE LA APLICACIÓN
 # ==========================================
 
+def obtener_negocios_desde_db():
+    """
+    Obtener negocios desde la base de datos SQLite (donde se guardan los creados desde DevOps)
+    Retorna diccionario con estructura {negocio_id: negocio_data} o {} si falla
+    """
+    try:
+        import sqlite3
+        db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, nombre, descripcion, direccion, telefono, email, activo,
+                       fecha_creacion, fecha_actualizacion
+                FROM negocios 
+                WHERE activo = 1
+                ORDER BY nombre
+            ''')
+            rows = cursor.fetchall()
+            negocios = {}
+            for row in rows:
+                negocio_id = str(row['id'])
+                negocios[negocio_id] = {
+                    'id': negocio_id,
+                    'nombre': row['nombre'],
+                    'descripcion': row['descripcion'] or '',
+                    'direccion': row['direccion'] or '',
+                    'telefono': row['telefono'] or '',
+                    'email': row['email'] or '',
+                    'activo': bool(row['activo']),
+                    'categoria': 'General',  # Valor por defecto
+                    'color': '#007bff',  # Color por defecto
+                    'fecha_creacion': row['fecha_creacion'] or '',
+                    'fecha_actualizacion': row['fecha_actualizacion'] or ''
+                }
+            if negocios:
+                logger.info(f"✅ Negocios obtenidos desde base de datos: {len(negocios)}")
+            return negocios
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudieron obtener negocios desde DB: {e}")
+        return {}
+
 @app.route("/", methods=['GET', 'HEAD'])
 def index():
     """
@@ -1144,7 +1186,23 @@ def index():
     
     # Cargar datos completos
     datos = cargar_datos_completos()
+    
+    # Intentar obtener negocios desde la base de datos (donde se guardan los creados desde DevOps)
+    negocios_db = obtener_negocios_desde_db()
+    
+    # Combinar negocios: primero desde DB (tienen prioridad), luego desde JSON
     negocios_raw = datos.get('negocios', {})
+    
+    # Si hay negocios en DB, usarlos como base y combinar con JSON
+    if negocios_db:
+        # Combinar: DB tiene prioridad, pero mantener los del JSON que no estén en DB
+        negocios_combinados = negocios_db.copy()
+        if isinstance(negocios_raw, dict):
+            for negocio_id, negocio_data in negocios_raw.items():
+                if negocio_id not in negocios_combinados:
+                    negocios_combinados[negocio_id] = negocio_data
+        negocios_raw = negocios_combinados
+        logger.info(f"✅ Negocios combinados: {len(negocios_db)} desde DB + {len(negocios_raw) - len(negocios_db)} desde JSON")
     categorias_raw = datos.get('categorias', {})
     sucursales_raw = datos.get('sucursales', {})
     ofertas_activas = obtener_ofertas_activas()
