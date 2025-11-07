@@ -418,80 +418,141 @@ def obtener_ofertas_activas():
         belgrano_url = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com')
         api_key = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
         
+        # Timeout configurable (15s por defecto, suficiente para servicios en Render)
+        api_timeout = int(os.environ.get('API_TIMEOUT_SECS', '15'))
+        
         logger.info(f"🔍 Obteniendo ofertas desde APIs: Ticketera={ticketera_url}, Belgrano={belgrano_url}")
         
-        # Intentar obtener ofertas desde Ticketera
-        try:
-            import requests
-            headers = {
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json'
-            }
-            
-            # Obtener ofertas desde Ticketera con timeout reducido
-            ticketera_response = requests.get(f"{ticketera_url}/api/ofertas", headers=headers, timeout=5)
-            if ticketera_response.status_code == 200:
-                try:
-                    ticketera_ofertas = ticketera_response.json()
-                    logger.info(f"✅ Ofertas obtenidas desde Ticketera: {len(ticketera_ofertas) if isinstance(ticketera_ofertas, list) else 'N/A'}")
-                    
-                    # Procesar ofertas de Ticketera - VALIDAR ESTRUCTURA
-                    if isinstance(ticketera_ofertas, list):
-                        for oferta in ticketera_ofertas:
-                            if isinstance(oferta, dict):
-                                negocio = oferta.get('negocio', 'Sin negocio')
-                                if negocio not in ofertas_activas:
-                                    ofertas_activas[negocio] = []
-                                ofertas_activas[negocio].append(oferta)
-                    elif isinstance(ticketera_ofertas, dict):
-                        # Asegurar estructura consistente
-                        for negocio, ofertas_negocio in ticketera_ofertas.items():
-                            if isinstance(ofertas_negocio, list):
-                                ofertas_activas[negocio] = ofertas_negocio
-                            else:
-                                ofertas_activas[negocio] = [ofertas_negocio]
-                except Exception as e:
-                    logger.warning(f"⚠️ Error procesando respuesta de Ticketera: {e}")
-            else:
-                logger.warning(f"⚠️ Ticketera respondió con código {ticketera_response.status_code}")
-                    
-        except requests.exceptions.Timeout:
-            logger.warning(f"⚠️ Timeout obteniendo ofertas desde Ticketera (30s)")
-        except Exception as e:
-            logger.warning(f"⚠️ Error obteniendo ofertas desde Ticketera: {e}")
+        import requests
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
         
-        # Intentar obtener ofertas desde Belgrano Ahorro
-        try:
-            belgrano_response = requests.get(f"{belgrano_url}/api/v1/ofertas", headers=headers, timeout=5)
-            if belgrano_response.status_code == 200:
-                try:
-                    belgrano_ofertas = belgrano_response.json()
-                    logger.info(f"✅ Ofertas obtenidas desde Belgrano Ahorro: {len(belgrano_ofertas) if isinstance(belgrano_ofertas, list) else 'N/A'}")
-                    
-                    # Procesar ofertas de Belgrano Ahorro - VALIDAR ESTRUCTURA
-                    if isinstance(belgrano_ofertas, list):
-                        for oferta in belgrano_ofertas:
-                            if isinstance(oferta, dict):
-                                negocio = oferta.get('negocio', 'Sin negocio')
-                                if negocio not in ofertas_activas:
-                                    ofertas_activas[negocio] = []
-                                ofertas_activas[negocio].append(oferta)
-                    elif isinstance(belgrano_ofertas, dict):
-                        # Asegurar estructura consistente
-                        for negocio, ofertas_negocio in belgrano_ofertas.items():
-                            if isinstance(ofertas_negocio, list):
-                                ofertas_activas[negocio] = ofertas_negocio
-                            else:
-                                ofertas_activas[negocio] = [ofertas_negocio]
-                except Exception as e:
-                    logger.warning(f"⚠️ Error procesando respuesta de Belgrano Ahorro: {e}")
-            else:
-                logger.warning(f"⚠️ Belgrano Ahorro respondió con código {belgrano_response.status_code}")
-                    
-        except requests.exceptions.Timeout:
-            logger.warning(f"⚠️ Timeout obteniendo ofertas desde Belgrano Ahorro (30s)")
-        except Exception as e:
-            logger.warning(f"⚠️ Error obteniendo ofertas desde Belgrano Ahorro: {e}")
+        # Configurar sesión con retry para manejar errores temporales
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=2,  # 2 reintentos
+            backoff_factor=1,  # Esperar 1s, 2s entre reintentos
+            status_forcelist=[502, 503, 504],  # Reintentar en errores de gateway/servidor
+            allowed_methods=["GET"]
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        # Intentar obtener ofertas desde Ticketera (opcional, puede no tener este endpoint)
+        ticketera_paths = ['/api/ofertas', '/api/tickets', '/ofertas']  # Rutas alternativas
+        ticketera_success = False
+        for path in ticketera_paths:
+            try:
+                ticketera_response = session.get(
+                    f"{ticketera_url}{path}", 
+                    headers=headers, 
+                    timeout=api_timeout
+                )
+                if ticketera_response.status_code == 200:
+                    try:
+                        ticketera_ofertas = ticketera_response.json()
+                        # Si la respuesta tiene estructura de API estándar
+                        if isinstance(ticketera_ofertas, dict) and 'data' in ticketera_ofertas:
+                            ticketera_ofertas = ticketera_ofertas['data']
+                        
+                        logger.info(f"✅ Ofertas obtenidas desde Ticketera ({path}): {len(ticketera_ofertas) if isinstance(ticketera_ofertas, list) else 'N/A'}")
+                        
+                        # Procesar ofertas de Ticketera - VALIDAR ESTRUCTURA
+                        if isinstance(ticketera_ofertas, list):
+                            for oferta in ticketera_ofertas:
+                                if isinstance(oferta, dict):
+                                    negocio = oferta.get('negocio', oferta.get('negocio_nombre', 'Sin negocio'))
+                                    if negocio not in ofertas_activas:
+                                        ofertas_activas[negocio] = []
+                                    ofertas_activas[negocio].append(oferta)
+                        elif isinstance(ticketera_ofertas, dict):
+                            # Asegurar estructura consistente
+                            for negocio, ofertas_negocio in ticketera_ofertas.items():
+                                if isinstance(ofertas_negocio, list):
+                                    ofertas_activas[negocio] = ofertas_negocio
+                                else:
+                                    ofertas_activas[negocio] = [ofertas_negocio]
+                        ticketera_success = True
+                        break  # Salir si encontramos datos
+                    except Exception as e:
+                        logger.warning(f"⚠️ Error procesando respuesta de Ticketera ({path}): {e}")
+                elif ticketera_response.status_code == 404:
+                    # 404 significa que la ruta no existe, intentar siguiente
+                    continue
+                else:
+                    logger.warning(f"⚠️ Ticketera respondió con código {ticketera_response.status_code} en {path}")
+            except requests.exceptions.Timeout:
+                logger.warning(f"⚠️ Timeout obteniendo ofertas desde Ticketera ({path}, {api_timeout}s)")
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"⚠️ Error de conexión con Ticketera ({path}): {e}")
+            except Exception as e:
+                logger.warning(f"⚠️ Error obteniendo ofertas desde Ticketera ({path}): {e}")
+        
+        if not ticketera_success:
+            logger.info("ℹ️ No se pudieron obtener ofertas desde Ticketera (puede no tener este endpoint)")
+        
+        # Intentar obtener ofertas desde Belgrano Ahorro (fuente principal)
+        belgrano_paths = ['/api/ofertas', '/api/v1/ofertas']  # Intentar ambas rutas
+        belgrano_success = False
+        for path in belgrano_paths:
+            try:
+                belgrano_response = session.get(
+                    f"{belgrano_url}{path}", 
+                    headers=headers, 
+                    timeout=api_timeout
+                )
+                if belgrano_response.status_code == 200:
+                    try:
+                        belgrano_ofertas = belgrano_response.json()
+                        # Si la respuesta tiene estructura de API estándar
+                        if isinstance(belgrano_ofertas, dict) and 'data' in belgrano_ofertas:
+                            belgrano_ofertas = belgrano_ofertas['data']
+                        
+                        logger.info(f"✅ Ofertas obtenidas desde Belgrano Ahorro ({path}): {len(belgrano_ofertas) if isinstance(belgrano_ofertas, list) else 'N/A'}")
+                        
+                        # Procesar ofertas de Belgrano Ahorro - VALIDAR ESTRUCTURA
+                        if isinstance(belgrano_ofertas, list):
+                            for oferta in belgrano_ofertas:
+                                if isinstance(oferta, dict):
+                                    negocio = oferta.get('negocio', oferta.get('negocio_nombre', 'Sin negocio'))
+                                    if negocio not in ofertas_activas:
+                                        ofertas_activas[negocio] = []
+                                    ofertas_activas[negocio].append(oferta)
+                        elif isinstance(belgrano_ofertas, dict):
+                            # Asegurar estructura consistente
+                            for negocio, ofertas_negocio in belgrano_ofertas.items():
+                                if isinstance(ofertas_negocio, list):
+                                    ofertas_activas[negocio] = ofertas_negocio
+                                else:
+                                    ofertas_activas[negocio] = [ofertas_negocio]
+                        belgrano_success = True
+                        break  # Salir si encontramos datos
+                    except Exception as e:
+                        logger.warning(f"⚠️ Error procesando respuesta de Belgrano Ahorro ({path}): {e}")
+                elif belgrano_response.status_code == 502:
+                    # 502 Bad Gateway - puede ser temporal, intentar siguiente ruta
+                    logger.warning(f"⚠️ Belgrano Ahorro respondió con código 502 (Bad Gateway) en {path} - puede ser temporal")
+                    continue
+                elif belgrano_response.status_code == 404:
+                    # 404 significa que la ruta no existe, intentar siguiente
+                    continue
+                else:
+                    logger.warning(f"⚠️ Belgrano Ahorro respondió con código {belgrano_response.status_code} en {path}")
+            except requests.exceptions.Timeout:
+                logger.warning(f"⚠️ Timeout obteniendo ofertas desde Belgrano Ahorro ({path}, {api_timeout}s)")
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"⚠️ Error de conexión con Belgrano Ahorro ({path}): {e}")
+            except Exception as e:
+                logger.warning(f"⚠️ Error obteniendo ofertas desde Belgrano Ahorro ({path}): {e}")
+        
+        if not belgrano_success:
+            logger.warning("⚠️ No se pudieron obtener ofertas desde Belgrano Ahorro - usando datos locales")
         
         # Si no se obtuvieron ofertas de las APIs, intentar desde datos locales UNA SOLA VEZ
         if not ofertas_activas:
