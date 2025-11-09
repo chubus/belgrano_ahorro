@@ -39,6 +39,8 @@ import re
 import secrets
 import hashlib
 import time
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 # Configurar logging PRIMERO
 import logging
