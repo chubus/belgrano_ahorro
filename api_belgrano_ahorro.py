@@ -206,15 +206,21 @@ def api_negocio_create():
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
+            # Aceptar activo (booleano o entero) y convertirlo a 1 o 0
+            activo = 1
+            if 'activo' in data:
+                activo = 1 if (data['activo'] is True or data['activo'] == 1 or str(data['activo']).lower() == 'true') else 0
+            
             cursor.execute('''
-                INSERT INTO negocios (nombre, descripcion, direccion, telefono, email)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo)
+                VALUES (?, ?, ?, ?, ?, ?)
             ''', (
                 data['nombre'],
                 data.get('descripcion', ''),
                 data.get('direccion', ''),
                 data.get('telefono', ''),
-                data.get('email', '')
+                data.get('email', ''),
+                activo
             ))
             
             negocio_id = cursor.lastrowid
@@ -392,22 +398,34 @@ def api_producto_create():
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
+            # Mapear campos: DevOps puede enviar 'descripcion' -> 'store', 'categoria_id' -> 'categoria'
+            store = data.get('store', data.get('descripcion', ''))
+            categoria = data.get('categoria', '')
+            # Si viene categoria_id, intentar obtener el nombre de la categoría (por ahora usar el ID como string)
+            if not categoria and 'categoria_id' in data:
+                categoria = str(data['categoria_id'])
+            
+            # Aceptar activo (booleano o entero) y convertirlo a 1 o 0
+            activo = 1
+            if 'activo' in data:
+                activo = 1 if (data['activo'] is True or data['activo'] == 1 or str(data['activo']).lower() == 'true') else 0
+            
             cursor.execute('''
                 INSERT INTO productos (nombre, store, precio, original_price, categoria, imagen, 
                                     stock, stock_minimo, negocio_id, activo, destacado)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 data['nombre'],
-                data.get('store', ''),
-                data['precio'],
-                data.get('original_price', data['precio']),
-                data.get('categoria', ''),
+                store,
+                float(data['precio']),
+                float(data.get('original_price', data['precio'])),
+                categoria,
                 data.get('imagen', ''),
-                data.get('stock', 0),
-                data.get('stock_minimo', 5),
-                data.get('negocio_id', 1),
-                data.get('activo', 1),
-                data.get('destacado', 0)
+                int(data.get('stock', 0)),
+                int(data.get('stock_minimo', 5)),
+                int(data.get('negocio_id', 1)),
+                activo,
+                int(data.get('destacado', 0))
             ))
             
             producto_id = cursor.lastrowid
@@ -650,25 +668,45 @@ def api_oferta_create():
     """Crear nueva oferta"""
     try:
         data = request.get_json()
-        if not data or 'nombre' not in data or 'descuento' not in data:
-            return jsonify({'error': 'Nombre y descuento son requeridos'}), 400
+        # Aceptar tanto 'nombre' como 'titulo' (DevOps envía 'titulo')
+        nombre_oferta = data.get('nombre') or data.get('titulo')
+        if not nombre_oferta or 'descuento' not in data:
+            return jsonify({'error': 'Nombre/titulo y descuento son requeridos'}), 400
         
         with get_db_connection() as conn:
             cursor = conn.cursor()
+            
+            # Aceptar activa (booleano) o activo (entero) y convertirlo a 1 o 0
+            activo = 1
+            if 'activa' in data:
+                activo = 1 if (data['activa'] is True or data['activa'] == 1 or str(data['activa']).lower() == 'true') else 0
+            elif 'activo' in data:
+                activo = 1 if (data['activo'] is True or data['activo'] == 1 or str(data['activo']).lower() == 'true') else 0
+            
+            # Obtener negocio_id del producto si no viene directamente
+            negocio_id = data.get('negocio_id')
+            if not negocio_id and data.get('producto_id'):
+                try:
+                    cursor.execute('SELECT negocio_id FROM productos WHERE id = ?', (data['producto_id'],))
+                    producto_row = cursor.fetchone()
+                    if producto_row:
+                        negocio_id = producto_row[0]
+                except Exception:
+                    pass  # Si falla, negocio_id queda None
             
             cursor.execute('''
                 INSERT INTO ofertas (nombre, descripcion, descuento, fecha_inicio, fecha_fin,
                                   producto_id, negocio_id, activo)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                data['nombre'],
+                nombre_oferta,
                 data.get('descripcion', ''),
-                data['descuento'],
+                float(data['descuento']),
                 data.get('fecha_inicio'),
                 data.get('fecha_fin'),
                 data.get('producto_id'),
-                data.get('negocio_id'),
-                data.get('activo', 1)
+                negocio_id,
+                activo
             ))
             
             oferta_id = cursor.lastrowid

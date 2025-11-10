@@ -266,12 +266,18 @@ def gestion_productos():
             if not devops_manager:
                 flash('Error: API no configurada.', 'error')
                 return redirect(url_for('devops.gestion_productos'))
+            # Obtener categoría del formulario o usar valor por defecto
+            categoria = request.form.get('categoria', '').strip()
+            if not categoria:
+                categoria = request.form.get('categoria_id', '1')  # Fallback a categoria_id si no hay categoria
+            
             producto_data = {
                 'nombre': nombre,
-                'descripcion': descripcion,
+                'descripcion': descripcion,  # Se mapea a 'store' en la API
                 'precio': precio_float,
                 'negocio_id': int(negocio_id),
-                'categoria_id': request.form.get('categoria_id', 1),
+                'categoria': categoria,  # Enviar categoria (string) en lugar de categoria_id
+                'stock': int(request.form.get('stock', 0)),
                 'activo': True
             }
             success, message = devops_manager.create_item('productos', producto_data)
@@ -407,14 +413,25 @@ def gestion_ofertas():
             if not devops_manager:
                 flash('Error: API no configurada.', 'error')
                 return redirect(url_for('devops.gestion_ofertas'))
+            # Asegurar que fecha_fin tenga un valor válido
+            fecha_inicio = request.form.get('fecha_inicio', '').strip()
+            if not fecha_inicio:
+                fecha_inicio = datetime.now().strftime('%Y-%m-%d')
+            
+            fecha_fin = request.form.get('fecha_fin', '').strip()
+            if not fecha_fin:
+                # Si no hay fecha_fin, usar 30 días desde hoy
+                from datetime import timedelta
+                fecha_fin = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+            
             oferta_data = {
-                'titulo': titulo,
+                'titulo': titulo,  # La API acepta tanto 'titulo' como 'nombre'
                 'descripcion': descripcion,
                 'descuento': descuento_float,
                 'producto_id': int(producto_id),
-                'fecha_inicio': request.form.get('fecha_inicio', datetime.now().strftime('%Y-%m-%d')),
-                'fecha_fin': request.form.get('fecha_fin', ''),
-                'activa': True
+                'fecha_inicio': fecha_inicio,
+                'fecha_fin': fecha_fin,
+                'activa': True  # La API acepta tanto 'activa' como 'activo'
             }
             success, message = devops_manager.create_item('ofertas', oferta_data)
             if success:

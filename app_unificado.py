@@ -1239,6 +1239,130 @@ def obtener_negocios_desde_db():
         logger.warning(f"⚠️ No se pudieron obtener negocios desde DB: {e}")
         return {}
 
+def obtener_productos_desde_db():
+    """
+    Obtener productos desde la base de datos SQLite (donde se guardan los creados desde DevOps)
+    Retorna lista de productos o [] si falla
+    """
+    try:
+        import sqlite3
+        db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT p.id, p.nombre, p.store as descripcion, p.precio, p.original_price, 
+                       p.categoria, p.imagen, p.stock, p.stock_minimo, p.negocio_id, 
+                       p.activo, p.destacado, p.fecha_creacion, p.fecha_actualizacion,
+                       n.nombre as negocio_nombre
+                FROM productos p
+                LEFT JOIN negocios n ON p.negocio_id = n.id
+                WHERE p.activo = 1
+                ORDER BY p.destacado DESC, p.nombre
+            ''')
+            rows = cursor.fetchall()
+            productos = []
+            for row in rows:
+                producto = {
+                    'id': str(row['id']),
+                    'nombre': row['nombre'],
+                    'descripcion': row['descripcion'] or '',
+                    'precio': float(row['precio']),
+                    'precio_original': float(row['original_price']) if row['original_price'] else float(row['precio']),
+                    'categoria': row['categoria'] or 'General',
+                    'imagen': row['imagen'] or '/static/images/producto-default.jpg',
+                    'stock': int(row['stock']) if row['stock'] else 0,
+                    'negocio_id': str(row['negocio_id']) if row['negocio_id'] else '1',
+                    'negocio': row['negocio_nombre'] or 'Sin negocio',
+                    'activo': bool(row['activo']),
+                    'destacado': bool(row['destacado']),
+                    'fecha_creacion': row['fecha_creacion'] or '',
+                    'fecha_actualizacion': row['fecha_actualizacion'] or ''
+                }
+                productos.append(producto)
+            if productos:
+                logger.info(f"✅ Productos obtenidos desde base de datos: {len(productos)}")
+            return productos
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudieron obtener productos desde DB: {e}")
+        return []
+
+def obtener_ofertas_desde_db():
+    """
+    Obtener ofertas desde la base de datos SQLite (donde se guardan las creadas desde DevOps)
+    Retorna diccionario con estructura {negocio: [ofertas]} o {} si falla
+    """
+    try:
+        import sqlite3
+        from datetime import datetime
+        db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT o.id, o.nombre as titulo, o.descripcion, o.descuento, 
+                       o.fecha_inicio, o.fecha_fin, o.producto_id, o.negocio_id, 
+                       o.activo, o.fecha_creacion, o.fecha_actualizacion,
+                       n.nombre as negocio_nombre, p.nombre as producto_nombre
+                FROM ofertas o
+                LEFT JOIN negocios n ON o.negocio_id = n.id
+                LEFT JOIN productos p ON o.producto_id = p.id
+                WHERE o.activo = 1
+                ORDER BY o.fecha_creacion DESC
+            ''')
+            rows = cursor.fetchall()
+            ofertas_por_negocio = {}
+            fecha_actual = datetime.now().date()
+            
+            for row in rows:
+                # Verificar si la oferta está activa por fechas
+                fecha_inicio = None
+                fecha_fin = None
+                if row['fecha_inicio']:
+                    try:
+                        fecha_inicio = datetime.strptime(row['fecha_inicio'], '%Y-%m-%d').date()
+                    except:
+                        pass
+                if row['fecha_fin']:
+                    try:
+                        fecha_fin = datetime.strptime(row['fecha_fin'], '%Y-%m-%d').date()
+                    except:
+                        pass
+                
+                # Verificar si está dentro del rango de fechas
+                if fecha_inicio and fecha_actual < fecha_inicio:
+                    continue
+                if fecha_fin and fecha_actual > fecha_fin:
+                    continue
+                
+                negocio_nombre = row['negocio_nombre'] or 'Sin negocio'
+                if negocio_nombre not in ofertas_por_negocio:
+                    ofertas_por_negocio[negocio_nombre] = []
+                
+                oferta = {
+                    'id': str(row['id']),
+                    'titulo': row['titulo'],
+                    'descripcion': row['descripcion'] or '',
+                    'descuento': float(row['descuento']),
+                    'producto_id': str(row['producto_id']) if row['producto_id'] else '',
+                    'producto_nombre': row['producto_nombre'] or '',
+                    'negocio_id': str(row['negocio_id']) if row['negocio_id'] else '',
+                    'negocio': negocio_nombre,
+                    'fecha_inicio': row['fecha_inicio'] or '',
+                    'fecha_fin': row['fecha_fin'] or '',
+                    'activa': bool(row['activo']),
+                    'fecha_creacion': row['fecha_creacion'] or ''
+                }
+                ofertas_por_negocio[negocio_nombre].append(oferta)
+            
+            if ofertas_por_negocio:
+                total_ofertas = sum(len(ofertas) for ofertas in ofertas_por_negocio.values())
+                logger.info(f"✅ Ofertas obtenidas desde base de datos: {total_ofertas} en {len(ofertas_por_negocio)} negocios")
+            return ofertas_por_negocio
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudieron obtener ofertas desde DB: {e}")
+        return {}
+
 @app.route("/", methods=['GET', 'HEAD'])
 def index():
     """
@@ -1266,9 +1390,39 @@ def index():
                     negocios_combinados[negocio_id] = negocio_data
         negocios_raw = negocios_combinados
         logger.info(f"✅ Negocios combinados: {len(negocios_db)} desde DB + {len(negocios_raw) - len(negocios_db)} desde JSON")
+    
+    # Obtener productos desde la base de datos y combinar con JSON
+    productos_db = obtener_productos_desde_db()
+    productos_json = datos.get('productos', [])
+    if productos_db:
+        # Combinar productos: DB tiene prioridad, agregar los del JSON que no estén en DB
+        productos_combinados = productos_db.copy()
+        # Agregar productos del JSON que no estén en DB (comparar por ID)
+        productos_db_ids = {p['id'] for p in productos_db}
+        for producto_json in productos_json:
+            if producto_json.get('id') not in productos_db_ids:
+                productos_combinados.append(producto_json)
+        datos['productos'] = productos_combinados
+        logger.info(f"✅ Productos combinados: {len(productos_db)} desde DB + {len(productos_combinados) - len(productos_db)} desde JSON")
+    
+    # Obtener ofertas desde la base de datos y combinar con JSON
+    ofertas_db = obtener_ofertas_desde_db()
+    ofertas_activas = obtener_ofertas_activas()  # Obtener del JSON/externos
+    if ofertas_db:
+        # Combinar ofertas: DB tiene prioridad
+        for negocio, ofertas_negocio in ofertas_db.items():
+            if negocio not in ofertas_activas:
+                ofertas_activas[negocio] = []
+            # Agregar ofertas de DB (evitar duplicados por ID)
+            ofertas_existentes_ids = {o.get('id') for o in ofertas_activas[negocio]}
+            for oferta_db in ofertas_negocio:
+                if oferta_db.get('id') not in ofertas_existentes_ids:
+                    ofertas_activas[negocio].append(oferta_db)
+        total_ofertas = sum(len(ofertas) for ofertas in ofertas_activas.values())
+        logger.info(f"✅ Ofertas combinadas: {total_ofertas} totales")
+    
     categorias_raw = datos.get('categorias', {})
     sucursales_raw = datos.get('sucursales', {})
-    ofertas_activas = obtener_ofertas_activas()
     productos_destacados = obtener_productos_destacados()
     
     # Manejar negocios - puede ser lista o diccionario
