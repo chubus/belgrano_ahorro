@@ -686,7 +686,20 @@ def integrations_health():
     try:
         base = _ahorro_base_url()
         if base:
-            resp = requests.get(f"{base}/api/health", headers=_ahorro_headers(), timeout=10)
+            from devops.api_helpers import cached_request
+            resp_data = cached_request(f"{base}/api/health", timeout=8, cache_ttl=60, headers=_ahorro_headers())
+            # cached_request devuelve dict, simular response para compatibilidad
+            class MockResponse:
+                def __init__(self, data):
+                    self.status_code = 200 if 'error' not in data else 500
+                    self.data = data
+                    self.headers = {'content-type': 'application/json'}
+                def json(self):
+                    return self.data if isinstance(self.data, dict) else {}
+                @property
+                def text(self):
+                    return str(self.data)
+            resp = MockResponse(resp_data)
             results['ahorro']['ok'] = 200 <= resp.status_code < 300
             results['ahorro']['status'] = resp.json() if resp.headers.get('content-type','').startswith('application/json') else resp.text
         else:
@@ -701,7 +714,20 @@ def integrations_health():
             # Intentar health estándar
             for path in ('/api/health', '/health', '/status'):
                 try:
-                    resp = requests.get(f"{base_t}{path}", headers=_ticketera_headers(), timeout=10)
+                    from devops.api_helpers import cached_request
+                    resp_data = cached_request(f"{base_t}{path}", timeout=8, cache_ttl=60, headers=_ticketera_headers())
+                    # cached_request devuelve dict, simular response para compatibilidad
+                    class MockResponse:
+                        def __init__(self, data):
+                            self.status_code = 200 if 'error' not in data else 500
+                            self.data = data
+                            self.headers = {'content-type': 'application/json'}
+                        def json(self):
+                            return self.data if isinstance(self.data, dict) else {}
+                        @property
+                        def text(self):
+                            return str(self.data)
+                    resp = MockResponse(resp_data)
                     if 200 <= resp.status_code < 300:
                         results['ticketera']['ok'] = True
                         results['ticketera']['status'] = resp.json() if resp.headers.get('content-type','').startswith('application/json') else resp.text

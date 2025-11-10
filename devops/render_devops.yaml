@@ -7,7 +7,7 @@ services:
       echo "✅ Build DevOps completado"
     startCommand: |
       echo "🚀 Iniciando servicio DevOps..."
-      gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 wsgi_devops:application
+      gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120 --keep-alive 5 wsgi_devops:application
     envVars:
       - key: FLASK_ENV
         value: production

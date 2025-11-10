@@ -8,7 +8,7 @@ services:
       echo "📁 Verificando estructura..."
       ls -la devops/ || dir devops
       echo "✅ Estructura verificada"
-    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 wsgi:application
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120 --keep-alive 5 wsgi:application
     envVars:
       - key: FLASK_ENV
         value: production

@@ -210,3 +210,4 @@ Para confirmar que todo funciona:
 - La página principal combina datos de la base de datos con datos del JSON local
 - Los cambios se reflejan inmediatamente en la API, pero pueden requerir recarga de página en la UI
 
+
