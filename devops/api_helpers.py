@@ -20,7 +20,7 @@ CACHE: Dict[str, Dict[str, Any]] = {}
 def cached_request(
     url: str,
     method: str = "GET",
-    timeout: int = 10,
+    timeout: int = 20,  # 20s por defecto para producción
     retries: int = 2,
     cache_ttl: int = 60,
     headers: Optional[Dict[str, str]] = None,

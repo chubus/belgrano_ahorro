@@ -19,10 +19,10 @@ class DevOpsBelgranoManagerUnified:
     def __init__(self) -> None:
         self.belgrano_url = os.getenv('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com').rstrip('/')
         self.api_key = os.getenv('BELGRANO_AHORRO_API_KEY', '')
-        # Timeout configurable (8s por defecto, suficiente para la mayoría de casos)
-        self.timeout = int(os.getenv('API_TIMEOUT_SECS', '8'))
+        # Timeout configurable (20s por defecto para producción en Render)
+        self.timeout = int(os.getenv('API_TIMEOUT_SECS', '20'))
         self.cache_ttl = int(os.getenv('API_CACHE_TTL_SECS', '120'))  # Cache por 120 segundos
-        self.retries = int(os.getenv('API_RETRY_TOTAL', '2'))
+        self.retries = int(os.getenv('API_RETRY_TOTAL', '3'))  # 3 reintentos para producción
         
         logger.info("✅ Cliente API Belgrano Ahorro configurado")
         logger.info(f"   URL: {self.belgrano_url}")
@@ -190,10 +190,10 @@ class DevOpsTicketeraManager:
         )
         self.username = os.getenv('TICKETS_API_USERNAME', '')
         self.password = os.getenv('TICKETS_API_PASSWORD', '')
-        self.timeout = int(os.getenv('API_TIMEOUT_SECS', '15'))
+        self.timeout = int(os.getenv('API_TIMEOUT_SECS', '20'))  # 20s para producción
         retry_strategy = Retry(
             total=int(os.getenv('API_RETRY_TOTAL', '3')),
-            backoff_factor=float(os.getenv('API_RETRY_BACKOFF', '0.5')),
+            backoff_factor=float(os.getenv('API_RETRY_BACKOFF', '1.0')),  # 1.0s para producción
             status_forcelist=(429, 500, 502, 503, 504),
             allowed_methods=("GET", "POST", "PUT", "DELETE", "PATCH")
         )

@@ -420,8 +420,8 @@ def obtener_ofertas_activas():
         belgrano_url = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com')
         api_key = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
         
-        # Timeout configurable (15s por defecto, suficiente para servicios en Render)
-        api_timeout = int(os.environ.get('API_TIMEOUT_SECS', '15'))
+        # Timeout configurable (20s por defecto para producción en Render)
+        api_timeout = int(os.environ.get('API_TIMEOUT_SECS', '20'))
         
         logger.info(f"🔍 Obteniendo ofertas desde APIs: Ticketera={ticketera_url}, Belgrano={belgrano_url}")
         

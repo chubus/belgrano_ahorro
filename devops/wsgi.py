@@ -19,6 +19,26 @@ parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
+# Cargar variables de entorno desde .env ANTES de importar la app
+try:
+    from dotenv import load_dotenv
+    # Buscar .env en múltiples ubicaciones
+    env_paths = [
+        os.path.join(current_dir, '.env'),
+        os.path.join(current_dir, 'env', '.env'),
+        os.path.join(parent_dir, '.env'),
+    ]
+    for env_path in env_paths:
+        if os.path.exists(env_path):
+            load_dotenv(env_path, override=False)  # No sobrescribir variables ya existentes
+            print(f"✅ Variables de entorno cargadas desde: {env_path}")
+            break
+except ImportError:
+    # python-dotenv no está instalado, usar solo variables de entorno del sistema
+    pass
+except Exception as e:
+    print(f"⚠️ Error cargando .env: {e}")
+
 # Ruta absoluta a devops/app.py
 app_py_path = os.path.join(current_dir, "app.py")
 

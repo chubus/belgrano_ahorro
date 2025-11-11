@@ -694,7 +694,7 @@ def integrations_health():
         base = _ahorro_base_url()
         if base:
             from devops.api_helpers import cached_request
-            resp_data = cached_request(f"{base}/api/health", timeout=8, cache_ttl=60, headers=_ahorro_headers())
+            resp_data = cached_request(f"{base}/api/health", timeout=20, cache_ttl=60, headers=_ahorro_headers())
             # cached_request devuelve dict, simular response para compatibilidad
             class MockResponse:
                 def __init__(self, data):
@@ -722,7 +722,7 @@ def integrations_health():
             for path in ('/api/health', '/health', '/status'):
                 try:
                     from devops.api_helpers import cached_request
-                    resp_data = cached_request(f"{base_t}{path}", timeout=8, cache_ttl=60, headers=_ticketera_headers())
+                    resp_data = cached_request(f"{base_t}{path}", timeout=20, cache_ttl=60, headers=_ticketera_headers())
                     # cached_request devuelve dict, simular response para compatibilidad
                     class MockResponse:
                         def __init__(self, data):
