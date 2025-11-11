@@ -30,6 +30,14 @@ class DevOpsBelgranoManagerUnified:
         logger.info(f"   Cache TTL: {self.cache_ttl}s")
         logger.info(f"   Retries: {self.retries}")
         logger.info(f"   API Key: {'*' * len(self.api_key) if self.api_key else 'no-set'}")
+        
+        # Advertir si no está configurado
+        if not self.is_configured():
+            logger.warning("⚠️ API Key no configurada. Configure BELGRANO_AHORRO_API_KEY para usar la API.")
+
+    def is_configured(self) -> bool:
+        """Verificar si el manager está correctamente configurado"""
+        return bool(self.api_key and self.api_key.strip() and self.belgrano_url)
 
     def _headers(self) -> Dict[str, str]:
         headers = {"Content-Type": "application/json"}

@@ -121,8 +121,15 @@ def devops_logout():
 @devops_login_required
 def dashboard():
     try:
-        if not devops_manager:
-            flash('Error: API de Belgrano Ahorro no configurada. Configure BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY.', 'error')
+        # Verificar si el manager existe y está configurado
+        if not devops_manager or not devops_manager.is_configured():
+            error_msg = (
+                'Error: API de Belgrano Ahorro no configurada. '
+                'Configure las variables de entorno BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY. '
+                'Verifique la documentación en devops/env/env.example'
+            )
+            flash(error_msg, 'error')
+            logger.warning("⚠️ Dashboard accedido sin configuración de API")
             return render_template('devops/dashboard.html', negocios=[], productos=[], ofertas=[], sucursales=[])
         negocios = devops_manager.get_negocios()
         productos = devops_manager.get_productos()

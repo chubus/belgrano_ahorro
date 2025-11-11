@@ -7,6 +7,9 @@ Werkzeug==2.3.7
 requests==2.31.0
 urllib3>=1.26.0
 
+# Carga de variables de entorno desde archivo .env
+python-dotenv==1.0.0
+
 # Servidor de producción
 gunicorn==21.2.0
 

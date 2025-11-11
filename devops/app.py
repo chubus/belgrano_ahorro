@@ -10,9 +10,31 @@ import sys
 import logging
 from flask import Flask
 
-# Configurar logging
+# Configurar logging PRIMERO
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Intentar cargar variables de entorno desde .env si existe
+try:
+    from dotenv import load_dotenv
+    # Buscar .env en el directorio devops y en el directorio raíz
+    _current_dir = os.path.dirname(os.path.abspath(__file__))
+    _parent_dir = os.path.dirname(_current_dir)
+    env_paths = [
+        os.path.join(_current_dir, '.env'),
+        os.path.join(_current_dir, 'env', '.env'),
+        os.path.join(_parent_dir, '.env'),
+    ]
+    for env_path in env_paths:
+        if os.path.exists(env_path):
+            load_dotenv(env_path)
+            logger.info(f"✅ Variables de entorno cargadas desde: {env_path}")
+            break
+    else:
+        logger.info("ℹ️ No se encontró archivo .env, usando variables de entorno del sistema")
+except ImportError:
+    # python-dotenv no está instalado, usar solo variables de entorno del sistema
+    logger.info("ℹ️ python-dotenv no instalado, usando solo variables de entorno del sistema")
 
 # Determinar la ruta base del módulo devops
 _current_dir = os.path.dirname(os.path.abspath(__file__))
