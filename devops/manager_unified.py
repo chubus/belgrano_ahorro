@@ -390,6 +390,8 @@ class DevOpsUnifiedSyncManager:
 
 
 # Instancias globales exportadas
+# Se inicializan al importar el módulo, después de que las variables de entorno estén cargadas
+# Si no hay API key configurada, el manager se crea pero is_configured() retornará False
 devops_manager_unified = DevOpsBelgranoManagerUnified()
 devops_ticketera_manager = DevOpsTicketeraManager()
 devops_sync_manager = DevOpsUnifiedSyncManager()

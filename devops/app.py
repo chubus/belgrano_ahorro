@@ -25,16 +25,57 @@ try:
         os.path.join(_current_dir, 'env', '.env'),
         os.path.join(_parent_dir, '.env'),
     ]
+    
+    env_loaded = False
     for env_path in env_paths:
         if os.path.exists(env_path):
-            load_dotenv(env_path)
+            load_dotenv(env_path, override=False)
             logger.info(f"✅ Variables de entorno cargadas desde: {env_path}")
+            env_loaded = True
             break
-    else:
-        logger.info("ℹ️ No se encontró archivo .env, usando variables de entorno del sistema")
+    
+    # Si no existe .env, crear uno con valores por defecto para producción
+    if not env_loaded:
+        default_env_path = os.path.join(_current_dir, '.env')
+        if not os.path.exists(default_env_path):
+            logger.warning("⚠️ No se encontró archivo .env, creando uno con valores por defecto...")
+            try:
+                env_content = """# Variables de Entorno para DevOps - PRODUCCIÓN
+# Configurar estas variables en Render Dashboard o editar este archivo
+
+# Belgrano Ahorro API (OBLIGATORIO)
+BELGRANO_AHORRO_URL=https://belgranoahorro-aliq.onrender.com
+BELGRANO_AHORRO_API_KEY=belgrano_ahorro_api_key_2025
+
+# Configuración de API
+API_TIMEOUT_SECS=20
+API_RETRY_TOTAL=3
+API_RETRY_BACKOFF=1.0
+
+# Ticketera (OPCIONAL)
+TICKETERA_URL=https://ticketerabelgrano.onrender.com
+TICKETS_API_URL=https://ticketerabelgrano.onrender.com
+
+# Seguridad DevOps
+DEVOPS_USERNAME=devops
+DEVOPS_PASSWORD=devops_password
+
+# Flask
+FLASK_ENV=production
+SECRET_KEY=devops_secret_key_2025_prod_segura_cambiar_en_produccion
+"""
+                with open(default_env_path, 'w', encoding='utf-8') as f:
+                    f.write(env_content)
+                load_dotenv(default_env_path, override=False)
+                logger.info(f"✅ Archivo .env creado en: {default_env_path}")
+                logger.info("✅ Archivo .env creado con API key por defecto: belgrano_ahorro_api_key_2025")
+            except Exception as e:
+                logger.error(f"❌ Error creando archivo .env: {e}")
+        else:
+            logger.info("ℹ️ No se encontró archivo .env, usando variables de entorno del sistema")
 except ImportError:
     # python-dotenv no está instalado, usar solo variables de entorno del sistema
-    logger.info("ℹ️ python-dotenv no instalado, usando solo variables de entorno del sistema")
+    logger.warning("⚠️ python-dotenv no instalado, usando solo variables de entorno del sistema")
 
 # Determinar la ruta base del módulo devops
 _current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -71,6 +112,17 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     PERMANENT_SESSION_LIFETIME=3600,  # 1 hora
 )
+
+# Verificar que las variables críticas estén configuradas antes de registrar el blueprint
+belgrano_url = os.environ.get('BELGRANO_AHORRO_URL', '')
+belgrano_api_key = os.environ.get('BELGRANO_AHORRO_API_KEY', '')
+
+if not belgrano_url or not belgrano_api_key:
+    logger.warning("⚠️ Variables de entorno no configuradas completamente:")
+    logger.warning(f"   BELGRANO_AHORRO_URL: {'✅' if belgrano_url else '❌ NO CONFIGURADA'}")
+    logger.warning(f"   BELGRANO_AHORRO_API_KEY: {'✅' if belgrano_api_key else '❌ NO CONFIGURADA'}")
+    logger.warning("   El dashboard mostrará un error hasta que se configuren estas variables")
+    logger.warning("   Edita devops/.env o configura las variables en Render Dashboard")
 
 # Registrar blueprint de DevOps
 try:
