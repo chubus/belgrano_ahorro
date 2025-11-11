@@ -10,6 +10,9 @@ import time
 from datetime import datetime
 from typing import Any, Dict, Tuple, List, Optional
 from devops.api_helpers import cached_request, clear_cache
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

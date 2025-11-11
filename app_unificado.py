@@ -415,6 +415,15 @@ def obtener_ofertas_activas():
         # Intentar obtener datos desde APIs reales primero
         ofertas_activas = {}
         
+        # Cache simple en memoria para ofertas (respaldo ante timeouts/errores)
+        global _ofertas_cache, _ofertas_cache_ts
+        try:
+            _ofertas_cache
+        except NameError:
+            _ofertas_cache = {}
+            _ofertas_cache_ts = 0
+        ofertas_cache_ttl = int(os.environ.get('OFERTAS_CACHE_TTL_SECS', '300'))
+        
         # Variables de entorno para APIs
         ticketera_url = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com')
         belgrano_url = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com')
@@ -432,10 +441,10 @@ def obtener_ofertas_activas():
         # Configurar sesión con retry para manejar errores temporales
         session = requests.Session()
         retry_strategy = Retry(
-            total=2,  # 2 reintentos
-            backoff_factor=1,  # Esperar 1s, 2s entre reintentos
-            status_forcelist=[502, 503, 504],  # Reintentar en errores de gateway/servidor
-            allowed_methods=["GET"]
+            total=int(os.environ.get('API_RETRY_TOTAL', '3')),
+            backoff_factor=float(os.environ.get('API_RETRY_BACKOFF', '1.0')),
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["HEAD", "GET", "OPTIONS"]
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
         session.mount("http://", adapter)
@@ -447,7 +456,7 @@ def obtener_ofertas_activas():
         }
         
         # Intentar obtener ofertas desde Ticketera (opcional, puede no tener este endpoint)
-        ticketera_paths = ['/api/ofertas', '/api/tickets', '/ofertas']  # Rutas alternativas
+        ticketera_paths = ['/api/ofertas', '/ofertas']  # Rutas alternativas de solo lectura
         ticketera_success = False
         for path in ticketera_paths:
             try:
@@ -484,6 +493,9 @@ def obtener_ofertas_activas():
                         break  # Salir si encontramos datos
                     except Exception as e:
                         logger.warning(f"⚠️ Error procesando respuesta de Ticketera ({path}): {e}")
+                elif ticketera_response.status_code == 405:
+                    # Método no permitido, omitir sin ruido excesivo
+                    logger.info(f"ℹ️ Método no permitido en Ticketera {path}, omitiendo")
                 elif ticketera_response.status_code == 404:
                     # 404 significa que la ruta no existe, intentar siguiente
                     continue
@@ -534,6 +546,12 @@ def obtener_ofertas_activas():
                                 else:
                                     ofertas_activas[negocio] = [ofertas_negocio]
                         belgrano_success = True
+                        # Actualizar cache de respaldo al tener datos válidos
+                        try:
+                            _ofertas_cache = ofertas_activas.copy()
+                            _ofertas_cache_ts = time.time()
+                        except Exception:
+                            pass
                         break  # Salir si encontramos datos
                     except Exception as e:
                         logger.warning(f"⚠️ Error procesando respuesta de Belgrano Ahorro ({path}): {e}")
@@ -547,7 +565,14 @@ def obtener_ofertas_activas():
                 else:
                     logger.warning(f"⚠️ Belgrano Ahorro respondió con código {belgrano_response.status_code} en {path}")
             except requests.exceptions.Timeout:
-                logger.warning(f"⚠️ Timeout obteniendo ofertas desde Belgrano Ahorro ({path}, {api_timeout}s)")
+                logger.warning(f"⚠️ Timeout obteniendo ofertas desde Belgrano Ahorro ({path}, {api_timeout}s) - usando cache si disponible")
+                # Usar cache si está fresco
+                try:
+                    if _ofertas_cache and (time.time() - _ofertas_cache_ts) < ofertas_cache_ttl:
+                        logger.info("📦 Usando ofertas cacheadas por timeout")
+                        return _ofertas_cache
+                except Exception:
+                    pass
             except requests.exceptions.RequestException as e:
                 logger.warning(f"⚠️ Error de conexión con Belgrano Ahorro ({path}): {e}")
             except Exception as e:
@@ -2668,6 +2693,19 @@ try:
     logger.info("✅ API de Belgrano Ahorro registrada en /api/v1")
 except ImportError as e:
     logger.warning(f"⚠️ No se pudo registrar la API: {e}")
+else:
+    # Precarga no bloqueante de datos para evitar cold-start lentos
+    try:
+        from concurrent.futures import ThreadPoolExecutor
+        _preload_executor = ThreadPoolExecutor(max_workers=2)
+        def _precargar_datos():
+            try:
+                obtener_ofertas_activas()
+            except Exception:
+                pass
+        _preload_executor.submit(_precargar_datos)
+    except Exception as _e:
+        logger.info("Precarga no disponible, continuando sin ella")
 
 # ==========================================
 # API ENDPOINTS PARA INTEGRACIÓN (LEGACY)
