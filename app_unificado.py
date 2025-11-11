@@ -41,6 +41,7 @@ import hashlib
 import time
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from urllib.parse import urlparse
 
 # Configurar logging PRIMERO
 import logging
@@ -51,6 +52,63 @@ logger = logging.getLogger(__name__)
 _data_cache = {}
 _cache_timestamp = None
 CACHE_DURATION = 300  # 5 minutos
+
+
+def _normalize_host(candidate: str) -> str:
+    """Normalizar host para comparar URLs locales vs externas."""
+    if not candidate:
+        return ''
+    value = candidate.strip()
+    if '://' not in value:
+        value = f"https://{value}"
+    try:
+        parsed = urlparse(value)
+    except Exception:
+        return ''
+    host = (parsed.netloc or parsed.path or '').lower()
+    return host.rstrip('/')
+
+
+_SELF_HOST_CANDIDATES = [
+    os.environ.get('SELF_BASE_URL'),
+    os.environ.get('BELGRANO_SELF_URL'),
+    os.environ.get('RENDER_EXTERNAL_URL'),
+    os.environ.get('RENDER_EXTERNAL_HOSTNAME'),
+    os.environ.get('HOSTNAME'),
+    os.environ.get('APP_URL'),
+    os.environ.get('BELGRANO_AHORRO_URL'),
+    'https://belgranoahorro-aliq.onrender.com',
+    'http://localhost:5000',
+    'http://127.0.0.1:5000'
+]
+
+_SELF_HOSTS = {host for host in (_normalize_host(v) for v in _SELF_HOST_CANDIDATES) if host}
+
+
+def _is_self_host(url: str) -> bool:
+    """Determinar si la URL apunta a esta misma instancia."""
+    return _normalize_host(url) in _SELF_HOSTS
+
+
+def _build_http_session() -> requests.Session:
+    """Crear sesión HTTP global con reintentos controlados."""
+    session = requests.Session()
+    retries_total = max(1, int(os.environ.get('API_RETRY_TOTAL', '3')))
+    retries_backoff = max(0.1, float(os.environ.get('API_RETRY_BACKOFF', '1.0')))
+    retry_strategy = Retry(
+        total=retries_total,
+        backoff_factor=retries_backoff,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["HEAD", "GET", "OPTIONS", "POST", "PUT", "DELETE", "PATCH"]
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+
+HTTP_SESSION = _build_http_session()
+HTTP_TIMEOUT_SECS = max(1, min(int(os.environ.get('API_TIMEOUT_SECS', '10')), 10))
 
 # Importar base de datos con manejo de errores
 try:
@@ -425,30 +483,25 @@ def obtener_ofertas_activas():
         ofertas_cache_ttl = int(os.environ.get('OFERTAS_CACHE_TTL_SECS', '300'))
         
         # Variables de entorno para APIs
-        ticketera_url = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com')
-        belgrano_url = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com')
+        ticketera_url = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com').rstrip('/')
+        belgrano_url = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com').rstrip('/')
         api_key = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
         
-        # Timeout configurable (20s por defecto para producción en Render)
-        api_timeout = int(os.environ.get('API_TIMEOUT_SECS', '20'))
+        # Timeout controlado (máx 10s para evitar bloqueos)
+        api_timeout = HTTP_TIMEOUT_SECS
+        
+        belgrano_fetch_url = belgrano_url
+        if _is_self_host(belgrano_url):
+            internal_override = os.environ.get('BELGRANO_INTERNAL_URL')
+            if internal_override and _normalize_host(internal_override) != _normalize_host(belgrano_url):
+                belgrano_fetch_url = internal_override.rstrip('/')
+                logger.info(f"ℹ️ Usando URL interna para Belgrano Ahorro: {belgrano_fetch_url}")
+            else:
+                logger.info("ℹ️ Belgrano Ahorro apunta a esta instancia, se omite petición HTTP y se usarán datos internos.")
+                belgrano_fetch_url = None
         
         logger.info(f"🔍 Obteniendo ofertas desde APIs: Ticketera={ticketera_url}, Belgrano={belgrano_url}")
-        
-        import requests
-        from requests.adapters import HTTPAdapter
-        from urllib3.util.retry import Retry
-        
-        # Configurar sesión con retry para manejar errores temporales
-        session = requests.Session()
-        retry_strategy = Retry(
-            total=int(os.environ.get('API_RETRY_TOTAL', '3')),
-            backoff_factor=float(os.environ.get('API_RETRY_BACKOFF', '1.0')),
-            status_forcelist=[429, 500, 502, 503, 504],
-            allowed_methods=["HEAD", "GET", "OPTIONS"]
-        )
-        adapter = HTTPAdapter(max_retries=retry_strategy)
-        session.mount("http://", adapter)
-        session.mount("https://", adapter)
+        session = HTTP_SESSION
         
         headers = {
             'Authorization': f'Bearer {api_key}',
@@ -511,72 +564,75 @@ def obtener_ofertas_activas():
         if not ticketera_success:
             logger.info("ℹ️ No se pudieron obtener ofertas desde Ticketera (puede no tener este endpoint)")
         
-        # Intentar obtener ofertas desde Belgrano Ahorro (fuente principal)
-        belgrano_paths = ['/api/ofertas', '/api/v1/ofertas']  # Intentar ambas rutas
+        # Intentar obtener ofertas desde Belgrano Ahorro (fuente principal) solo si no es la misma instancia
         belgrano_success = False
-        for path in belgrano_paths:
-            try:
-                belgrano_response = session.get(
-                    f"{belgrano_url}{path}", 
-                    headers=headers, 
-                    timeout=api_timeout
-                )
-                if belgrano_response.status_code == 200:
-                    try:
-                        belgrano_ofertas = belgrano_response.json()
-                        # Si la respuesta tiene estructura de API estándar
-                        if isinstance(belgrano_ofertas, dict) and 'data' in belgrano_ofertas:
-                            belgrano_ofertas = belgrano_ofertas['data']
-                        
-                        logger.info(f"✅ Ofertas obtenidas desde Belgrano Ahorro ({path}): {len(belgrano_ofertas) if isinstance(belgrano_ofertas, list) else 'N/A'}")
-                        
-                        # Procesar ofertas de Belgrano Ahorro - VALIDAR ESTRUCTURA
-                        if isinstance(belgrano_ofertas, list):
-                            for oferta in belgrano_ofertas:
-                                if isinstance(oferta, dict):
-                                    negocio = oferta.get('negocio', oferta.get('negocio_nombre', 'Sin negocio'))
-                                    if negocio not in ofertas_activas:
-                                        ofertas_activas[negocio] = []
-                                    ofertas_activas[negocio].append(oferta)
-                        elif isinstance(belgrano_ofertas, dict):
-                            # Asegurar estructura consistente
-                            for negocio, ofertas_negocio in belgrano_ofertas.items():
-                                if isinstance(ofertas_negocio, list):
-                                    ofertas_activas[negocio] = ofertas_negocio
-                                else:
-                                    ofertas_activas[negocio] = [ofertas_negocio]
-                        belgrano_success = True
-                        # Actualizar cache de respaldo al tener datos válidos
-                        try:
-                            _ofertas_cache = ofertas_activas.copy()
-                            _ofertas_cache_ts = time.time()
-                        except Exception:
-                            pass
-                        break  # Salir si encontramos datos
-                    except Exception as e:
-                        logger.warning(f"⚠️ Error procesando respuesta de Belgrano Ahorro ({path}): {e}")
-                elif belgrano_response.status_code == 502:
-                    # 502 Bad Gateway - puede ser temporal, intentar siguiente ruta
-                    logger.warning(f"⚠️ Belgrano Ahorro respondió con código 502 (Bad Gateway) en {path} - puede ser temporal")
-                    continue
-                elif belgrano_response.status_code == 404:
-                    # 404 significa que la ruta no existe, intentar siguiente
-                    continue
-                else:
-                    logger.warning(f"⚠️ Belgrano Ahorro respondió con código {belgrano_response.status_code} en {path}")
-            except requests.exceptions.Timeout:
-                logger.warning(f"⚠️ Timeout obteniendo ofertas desde Belgrano Ahorro ({path}, {api_timeout}s) - usando cache si disponible")
-                # Usar cache si está fresco
+        if belgrano_fetch_url:
+            belgrano_paths = ['/api/ofertas', '/api/v1/ofertas']  # Intentar ambas rutas
+            for path in belgrano_paths:
                 try:
-                    if _ofertas_cache and (time.time() - _ofertas_cache_ts) < ofertas_cache_ttl:
-                        logger.info("📦 Usando ofertas cacheadas por timeout")
-                        return _ofertas_cache
-                except Exception:
-                    pass
-            except requests.exceptions.RequestException as e:
-                logger.warning(f"⚠️ Error de conexión con Belgrano Ahorro ({path}): {e}")
-            except Exception as e:
-                logger.warning(f"⚠️ Error obteniendo ofertas desde Belgrano Ahorro ({path}): {e}")
+                    belgrano_response = session.get(
+                        f"{belgrano_fetch_url}{path}", 
+                        headers=headers, 
+                        timeout=api_timeout
+                    )
+                    if belgrano_response.status_code == 200:
+                        try:
+                            belgrano_ofertas = belgrano_response.json()
+                            # Si la respuesta tiene estructura de API estándar
+                            if isinstance(belgrano_ofertas, dict) and 'data' in belgrano_ofertas:
+                                belgrano_ofertas = belgrano_ofertas['data']
+                            
+                            logger.info(f"✅ Ofertas obtenidas desde Belgrano Ahorro ({path}): {len(belgrano_ofertas) if isinstance(belgrano_ofertas, list) else 'N/A'}")
+                            
+                            # Procesar ofertas de Belgrano Ahorro - VALIDAR ESTRUCTURA
+                            if isinstance(belgrano_ofertas, list):
+                                for oferta in belgrano_ofertas:
+                                    if isinstance(oferta, dict):
+                                        negocio = oferta.get('negocio', oferta.get('negocio_nombre', 'Sin negocio'))
+                                        if negocio not in ofertas_activas:
+                                            ofertas_activas[negocio] = []
+                                        ofertas_activas[negocio].append(oferta)
+                            elif isinstance(belgrano_ofertas, dict):
+                                # Asegurar estructura consistente
+                                for negocio, ofertas_negocio in belgrano_ofertas.items():
+                                    if isinstance(ofertas_negocio, list):
+                                        ofertas_activas[negocio] = ofertas_negocio
+                                    else:
+                                        ofertas_activas[negocio] = [ofertas_negocio]
+                            belgrano_success = True
+                            # Actualizar cache de respaldo al tener datos válidos
+                            try:
+                                _ofertas_cache = ofertas_activas.copy()
+                                _ofertas_cache_ts = time.time()
+                            except Exception:
+                                pass
+                            break  # Salir si encontramos datos
+                        except Exception as e:
+                            logger.warning(f"⚠️ Error procesando respuesta de Belgrano Ahorro ({path}): {e}")
+                    elif belgrano_response.status_code == 502:
+                        # 502 Bad Gateway - puede ser temporal, intentar siguiente ruta
+                        logger.warning(f"⚠️ Belgrano Ahorro respondió con código 502 (Bad Gateway) en {path} - puede ser temporal")
+                        continue
+                    elif belgrano_response.status_code == 404:
+                        # 404 significa que la ruta no existe, intentar siguiente
+                        continue
+                    else:
+                        logger.warning(f"⚠️ Belgrano Ahorro respondió con código {belgrano_response.status_code} en {path}")
+                except requests.exceptions.Timeout:
+                    logger.warning(f"⚠️ Timeout obteniendo ofertas desde Belgrano Ahorro ({path}, {api_timeout}s) - usando cache si disponible")
+                    # Usar cache si está fresco
+                    try:
+                        if _ofertas_cache and (time.time() - _ofertas_cache_ts) < ofertas_cache_ttl:
+                            logger.info("📦 Usando ofertas cacheadas por timeout")
+                            return _ofertas_cache
+                    except Exception:
+                        pass
+                except requests.exceptions.RequestException as e:
+                    logger.warning(f"⚠️ Error de conexión con Belgrano Ahorro ({path}): {e}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Error obteniendo ofertas desde Belgrano Ahorro ({path}): {e}")
+        else:
+            logger.debug("Belgrano Ahorro remoto omitido; se usarán datos almacenados/caché.")
         
         if not belgrano_success:
             logger.warning("⚠️ No se pudieron obtener ofertas desde Belgrano Ahorro - usando datos locales")
@@ -3139,24 +3195,29 @@ def _sync_to_external_services(endpoint, method='GET', data=None, item_id=None):
     external_services = []
     
     # Agregar Ticketera
-    ticketera_url = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com')
-    if ticketera_url:
+    ticketera_url = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com').rstrip('/')
+    if ticketera_url and not _is_self_host(ticketera_url):
         external_services.append({
             'name': 'Ticketera',
-            'base_url': ticketera_url.rstrip('/'),
+            'base_url': ticketera_url,
             'api_key': os.environ.get('TICKETERA_API_KEY', os.environ.get('BELGRANO_AHORRO_API_KEY', ''))
         })
+    elif _is_self_host(ticketera_url):
+        logger.debug("Ticketera URL apunta a esta instancia, se omite sincronización interna.")
     
     # Agregar DevOps (puede ser la misma URL de Belgrano Ahorro)
-    devops_url = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com')
-    if devops_url:
+    devops_url = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com').rstrip('/')
+    if devops_url and not _is_self_host(devops_url):
         external_services.append({
             'name': 'DevOps',
-            'base_url': devops_url.rstrip('/'),
+            'base_url': devops_url,
             'api_key': os.environ.get('BELGRANO_AHORRO_API_KEY', '')
         })
+    elif _is_self_host(devops_url):
+        logger.debug("DevOps URL coincide con la instancia actual; no se realiza request HTTP.")
     
     success_count = 0
+    session = HTTP_SESSION
     for service in external_services:
         try:
             # Construir URL completa
@@ -3172,17 +3233,8 @@ def _sync_to_external_services(endpoint, method='GET', data=None, item_id=None):
             }
             
             # Realizar petición con timeout corto
-            timeout = int(os.environ.get('API_TIMEOUT_SECS', 5))
-            if method == 'GET':
-                response = requests.get(url, headers=headers, timeout=timeout)
-            elif method == 'POST':
-                response = requests.post(url, headers=headers, json=data, timeout=timeout)
-            elif method == 'PUT':
-                response = requests.put(url, headers=headers, json=data, timeout=timeout)
-            elif method == 'DELETE':
-                response = requests.delete(url, headers=headers, timeout=timeout)
-            else:
-                continue
+            timeout = HTTP_TIMEOUT_SECS
+            response = session.request(method.upper(), url, headers=headers, json=data, timeout=timeout)
             
             if 200 <= response.status_code < 300:
                 success_count += 1
@@ -3222,14 +3274,18 @@ def _get_from_external_service(endpoint, fallback_data_func):
         if not service['url']:
             continue
         
+        if _is_self_host(service['url']):
+            logger.debug(f"Servicio {service['name']} apunta a esta instancia; se omite request HTTP.")
+            continue
+        
         try:
             url = f"{service['url'].rstrip('/')}{endpoint}"
             headers = {
                 'Authorization': f"Bearer {service['api_key']}",
                 'X-API-Key': service['api_key']
             }
-            timeout = int(os.environ.get('API_TIMEOUT_SECS', 5))
-            response = requests.get(url, headers=headers, timeout=timeout)
+            timeout = HTTP_TIMEOUT_SECS
+            response = HTTP_SESSION.get(url, headers=headers, timeout=timeout)
             
             if 200 <= response.status_code < 300:
                 data = response.json()
