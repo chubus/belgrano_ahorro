@@ -1,0 +1,37 @@
+# ============================================================
+# VARIABLES DE ENTORNO PARA RENDER DASHBOARD
+# Copia y pega estas variables en Render → Environment
+# ============================================================
+
+# ============================================================
+# OBLIGATORIAS - Sin estas el dashboard NO funcionará
+# ============================================================
+BELGRANO_AHORRO_URL=https://belgranoahorro-aliq.onrender.com
+BELGRANO_AHORRO_API_KEY=belgrano_ahorro_api_key_2025
+
+# ============================================================
+# RECOMENDADAS - Para mejor funcionamiento en producción
+# ============================================================
+API_TIMEOUT_SECS=20
+API_RETRY_TOTAL=3
+API_RETRY_BACKOFF=1.0
+
+# ============================================================
+# OPCIONALES - Para integración con Ticketera
+# ============================================================
+TICKETERA_URL=https://ticketerabelgrano.onrender.com
+TICKETS_API_URL=https://ticketerabelgrano.onrender.com
+TICKETS_API_USERNAME=admin@belgranoahorro.com
+TICKETS_API_PASSWORD=admin123
+
+# ============================================================
+# SEGURIDAD - Cambiar en producción
+# ============================================================
+DEVOPS_USERNAME=devops
+DEVOPS_PASSWORD=devops_password
+SECRET_KEY=devops_secret_key_2025_prod_segura_cambiar_en_produccion
+FLASK_ENV=production
+SESSION_COOKIE_SAMESITE=Lax
+SESSION_COOKIE_SECURE=false
+REMEMBER_COOKIE_SECURE=false
+

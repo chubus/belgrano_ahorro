@@ -21,23 +21,30 @@ devops_bp = Blueprint(
     static_url_path='/devops/static' if _static_dir else None
 )
 
+# Importar managers - se inicializan cuando se importa el módulo
+# Las variables de entorno DEBEN estar cargadas antes de importar este módulo
+# (app.py carga las variables antes de importar routes)
 try:
     # Intentar import relativo (cuando se usa como paquete)
     from .manager_unified import (
-        devops_manager_unified as devops_manager,
+        devops_manager_unified,
         devops_ticketera_manager,
         devops_sync_manager
     )
-    logger.info("✅ Gestor DevOps unificado inicializado (paquete devops)")
+    # Acceder a los managers para forzar inicialización lazy
+    # Esto asegura que las variables de entorno estén cargadas
+    devops_manager = devops_manager_unified
+    logger.info("✅ Gestor DevOps unificado importado (paquete devops)")
 except ImportError:
     try:
         # Intentar import absoluto (si estamos en el directorio devops)
         from manager_unified import (
-            devops_manager_unified as devops_manager,
+            devops_manager_unified,
             devops_ticketera_manager,
             devops_sync_manager
         )
-        logger.info("✅ Gestor DevOps unificado inicializado (directorio)")
+        devops_manager = devops_manager_unified
+        logger.info("✅ Gestor DevOps unificado importado (directorio)")
     except ImportError as e:
         logger.error(f"❌ No se pudo importar manager_unified: {e}")
         devops_manager = None
@@ -122,7 +129,9 @@ def devops_logout():
 def dashboard():
     try:
         # Verificar si el manager existe y está configurado
-        if not devops_manager or not devops_manager.is_configured():
+        # Acceder al manager para forzar inicialización lazy
+        manager = devops_manager if devops_manager else None
+        if not manager or not manager.is_configured():
             error_msg = (
                 'Error: API de Belgrano Ahorro no configurada. '
                 'Configure las variables de entorno BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY. '

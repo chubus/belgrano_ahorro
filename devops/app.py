@@ -117,12 +117,27 @@ app.config.update(
 belgrano_url = os.environ.get('BELGRANO_AHORRO_URL', '')
 belgrano_api_key = os.environ.get('BELGRANO_AHORRO_API_KEY', '')
 
+# Si no están configuradas, intentar usar valores por defecto
+if not belgrano_url:
+    belgrano_url = 'https://belgranoahorro-aliq.onrender.com'
+    os.environ['BELGRANO_AHORRO_URL'] = belgrano_url
+    logger.info(f"✅ Usando URL por defecto: {belgrano_url}")
+
+if not belgrano_api_key:
+    belgrano_api_key = 'belgrano_ahorro_api_key_2025'
+    os.environ['BELGRANO_AHORRO_API_KEY'] = belgrano_api_key
+    logger.info("✅ Usando API key por defecto: belgrano_ahorro_api_key_2025")
+
 if not belgrano_url or not belgrano_api_key:
     logger.warning("⚠️ Variables de entorno no configuradas completamente:")
     logger.warning(f"   BELGRANO_AHORRO_URL: {'✅' if belgrano_url else '❌ NO CONFIGURADA'}")
     logger.warning(f"   BELGRANO_AHORRO_API_KEY: {'✅' if belgrano_api_key else '❌ NO CONFIGURADA'}")
     logger.warning("   El dashboard mostrará un error hasta que se configuren estas variables")
     logger.warning("   Edita devops/.env o configura las variables en Render Dashboard")
+else:
+    logger.info("✅ Variables de entorno configuradas correctamente")
+    logger.info(f"   BELGRANO_AHORRO_URL: {belgrano_url}")
+    logger.info(f"   BELGRANO_AHORRO_API_KEY: {'*' * min(len(belgrano_api_key), 10)}...")
 
 # Registrar blueprint de DevOps
 try:

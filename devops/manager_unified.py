@@ -389,9 +389,72 @@ class DevOpsUnifiedSyncManager:
         }
 
 
-# Instancias globales exportadas
-# Se inicializan al importar el módulo, después de que las variables de entorno estén cargadas
-# Si no hay API key configurada, el manager se crea pero is_configured() retornará False
-devops_manager_unified = DevOpsBelgranoManagerUnified()
-devops_ticketera_manager = DevOpsTicketeraManager()
-devops_sync_manager = DevOpsUnifiedSyncManager()
+# Instancias globales exportadas - Inicialización lazy
+# Se inicializan solo cuando se acceden por primera vez
+# Esto asegura que las variables de entorno estén cargadas antes de la inicialización
+_devops_manager_unified = None
+_devops_ticketera_manager = None
+_devops_sync_manager = None
+
+def _get_manager_unified():
+    """Obtener instancia de DevOpsBelgranoManagerUnified (lazy initialization)"""
+    global _devops_manager_unified
+    if _devops_manager_unified is None:
+        _devops_manager_unified = DevOpsBelgranoManagerUnified()
+    return _devops_manager_unified
+
+def _get_ticketera_manager():
+    """Obtener instancia de DevOpsTicketeraManager (lazy initialization)"""
+    global _devops_ticketera_manager
+    if _devops_ticketera_manager is None:
+        _devops_ticketera_manager = DevOpsTicketeraManager()
+    return _devops_ticketera_manager
+
+def _get_sync_manager():
+    """Obtener instancia de DevOpsUnifiedSyncManager (lazy initialization)"""
+    global _devops_sync_manager
+    if _devops_sync_manager is None:
+        _devops_sync_manager = DevOpsUnifiedSyncManager()
+    return _devops_sync_manager
+
+# Clase wrapper para acceso lazy a los managers
+class _LazyManager:
+    """Wrapper lazy para los managers - se inicializa solo cuando se accede"""
+    def __init__(self, getter_func):
+        self._getter = getter_func
+        self._instance = None
+    
+    def _ensure_instance(self):
+        """Asegurar que la instancia esté inicializada"""
+        if self._instance is None:
+            self._instance = self._getter()
+        return self._instance
+    
+    def __getattr__(self, name):
+        """Delegar todos los atributos a la instancia real"""
+        return getattr(self._ensure_instance(), name)
+    
+    def __bool__(self):
+        """Permite verificar si el manager está disponible"""
+        try:
+            instance = self._ensure_instance()
+            return instance is not None and (hasattr(instance, 'is_configured') and instance.is_configured() if hasattr(instance, 'is_configured') else True)
+        except:
+            return False
+    
+    def __call__(self, *args, **kwargs):
+        """Permite llamar al manager como función"""
+        return self._ensure_instance()(*args, **kwargs)
+    
+    def __repr__(self):
+        """Representación del wrapper"""
+        try:
+            instance = self._ensure_instance()
+            return f"<LazyManager: {type(instance).__name__}>"
+        except:
+            return "<LazyManager: not initialized>"
+
+# Exportar como atributos del módulo (se inicializan lazy cuando se acceden)
+devops_manager_unified = _LazyManager(_get_manager_unified)
+devops_ticketera_manager = _LazyManager(_get_ticketera_manager)
+devops_sync_manager = _LazyManager(_get_sync_manager)
