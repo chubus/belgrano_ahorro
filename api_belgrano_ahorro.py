@@ -709,36 +709,36 @@ def api_producto_create():
         
         # Usar función helper compatible con SQLite y PostgreSQL
         producto_id = execute_insert_returning_id(
-                '''
-                INSERT INTO productos (nombre, store, precio, original_price, categoria, imagen, 
-                                    stock, stock_minimo, negocio_id, activo, destacado)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''',
-                (
-                    data['nombre'],
-                    store,
-                    float(data['precio']),
-                    float(data.get('original_price', data['precio'])),
-                    categoria,
-                    data.get('imagen', ''),
-                    int(data.get('stock', 0)),
-                    int(data.get('stock_minimo', 5)),
-                    int(data.get('negocio_id', 1)),
-                    activo,
-                    int(data.get('destacado', 0))
-                ),
-                table_name='productos'
-            )
-            
-            if producto_id:
-                return jsonify({
-                    'status': 'success',
-                    'message': 'Producto creado exitosamente',
-                    'data': {'id': producto_id},
-                    'timestamp': datetime.now().isoformat()
-                }), 201
-            else:
-                return jsonify({'error': 'Error al crear producto'}), 500
+            '''
+            INSERT INTO productos (nombre, store, precio, original_price, categoria, imagen, 
+                                stock, stock_minimo, negocio_id, activo, destacado)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (
+                data['nombre'],
+                store,
+                float(data['precio']),
+                float(data.get('original_price', data['precio'])),
+                categoria,
+                data.get('imagen', ''),
+                int(data.get('stock', 0)),
+                int(data.get('stock_minimo', 5)),
+                int(data.get('negocio_id', 1)),
+                activo,
+                int(data.get('destacado', 0))
+            ),
+            table_name='productos'
+        )
+        
+        if producto_id:
+            return jsonify({
+                'status': 'success',
+                'message': 'Producto creado exitosamente',
+                'data': {'id': producto_id},
+                'timestamp': datetime.now().isoformat()
+            }), 201
+        else:
+            return jsonify({'error': 'Error al crear producto'}), 500
             
     except Exception as e:
         logger.error(f"Error in api_producto_create: {e}")
