@@ -415,6 +415,112 @@ def guardar_items_pedido(pedido_id, items):
         logger.error(f"Error al guardar items de pedido: {e}")
         return False
 
+def validar_stock_producto(producto_id, cantidad_solicitada):
+    """Validar si hay stock suficiente para un producto"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT stock FROM productos WHERE id = ? AND activo = 1', (producto_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if not row:
+            return False, 'Producto no encontrado o inactivo'
+        
+        stock_disponible = row[0] or 0
+        if stock_disponible < cantidad_solicitada:
+            return False, f'Stock insuficiente. Disponible: {stock_disponible}, Solicitado: {cantidad_solicitada}'
+        
+        return True, stock_disponible
+    except Exception as e:
+        logger.error(f"Error validando stock: {e}")
+        return False, f'Error al validar stock: {str(e)}'
+
+def validar_stock_carrito(carrito_items):
+    """Validar stock para todos los items del carrito"""
+    errores = []
+    productos_validos = []
+    
+    for item in carrito_items:
+        producto_id = item.get('producto_id') or item.get('producto', {}).get('id')
+        cantidad = item.get('cantidad', 0)
+        
+        if not producto_id:
+            errores.append('Producto sin ID válido')
+            continue
+        
+        valido, resultado = validar_stock_producto(producto_id, cantidad)
+        if not valido:
+            # Obtener nombre del producto para el mensaje de error
+            producto_nombre = item.get('producto', {}).get('nombre', f'Producto ID {producto_id}')
+            errores.append(f'{producto_nombre}: {resultado}')
+        else:
+            productos_validos.append({
+                'producto_id': producto_id,
+                'cantidad': cantidad,
+                'stock_disponible': resultado
+            })
+    
+    return len(errores) == 0, errores, productos_validos
+
+def actualizar_stock_producto(producto_id, cantidad_vendida):
+    """Actualizar stock de un producto después de una venta"""
+    try:
+        conn = sqlite3.connect('belgrano_ahorro.db')
+        cursor = conn.cursor()
+        
+        # Verificar stock actual
+        cursor.execute('SELECT stock FROM productos WHERE id = ?', (producto_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            conn.close()
+            return False, 'Producto no encontrado'
+        
+        stock_actual = row[0] or 0
+        nuevo_stock = max(0, stock_actual - cantidad_vendida)  # No permitir stock negativo
+        
+        # Actualizar stock
+        cursor.execute('''
+            UPDATE productos 
+            SET stock = ?, fecha_actualizacion = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (nuevo_stock, producto_id))
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"✅ Stock actualizado: Producto {producto_id} - Stock anterior: {stock_actual}, Vendido: {cantidad_vendida}, Nuevo stock: {nuevo_stock}")
+        return True, nuevo_stock
+    except Exception as e:
+        logger.error(f"Error actualizando stock: {e}")
+        return False, f'Error al actualizar stock: {str(e)}'
+
+def actualizar_stock_carrito(carrito_items):
+    """Actualizar stock para todos los items del carrito"""
+    resultados = []
+    errores = []
+    
+    for item in carrito_items:
+        producto_id = item.get('producto_id') or item.get('producto', {}).get('id')
+        cantidad = item.get('cantidad', 0)
+        
+        if not producto_id:
+            errores.append('Producto sin ID válido')
+            continue
+        
+        exito, resultado = actualizar_stock_producto(producto_id, cantidad)
+        if exito:
+            resultados.append({
+                'producto_id': producto_id,
+                'cantidad_vendida': cantidad,
+                'nuevo_stock': resultado
+            })
+        else:
+            errores.append(f'Producto {producto_id}: {resultado}')
+    
+    return len(errores) == 0, resultados, errores
+
 def obtener_pedidos_usuario(usuario_id):
     """Obtener todos los pedidos de un usuario"""
     try:

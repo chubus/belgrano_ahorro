@@ -113,3 +113,4 @@ INFO:manager_unified:Usando datos en cache debido a timeout
 3. Forzar refresh haciendo un request sin cache (modificar código temporalmente)
 
 
+

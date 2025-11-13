@@ -166,3 +166,4 @@ clear_cache("GET:/api/negocios")
 3. Verificar logs para ver si está usando cache
 
 
+

@@ -1045,5 +1045,233 @@ def api_status():
         logger.error(f"Error in api_status: {e}")
         return jsonify({'error': str(e)}), 500
 
+# =============================
+# ENDPOINTS DE COMPRAS/PEDIDOS
+# =============================
+
+@api_bp.route('/compras', methods=['POST'])
+@require_api_key
+def api_crear_compra():
+    """Crear una nueva compra con validación de stock"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Datos requeridos'}), 400
+        
+        # Validar campos requeridos
+        required_fields = ['usuario_id', 'items', 'metodo_pago', 'direccion_entrega']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Campo requerido: {field}'}), 400
+        
+        items = data['items']
+        if not items or not isinstance(items, list):
+            return jsonify({'error': 'Items debe ser una lista no vacía'}), 400
+        
+        # Importar funciones de validación de stock
+        import sys
+        import os
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        import db as database
+        
+        # Validar stock para todos los items
+        items_para_validar = []
+        for item in items:
+            if 'producto_id' not in item or 'cantidad' not in item:
+                return jsonify({'error': 'Cada item debe tener producto_id y cantidad'}), 400
+            items_para_validar.append({
+                'producto_id': item['producto_id'],
+                'cantidad': item['cantidad']
+            })
+        
+        stock_valido, errores_stock, productos_validos = database.validar_stock_carrito(items_para_validar)
+        
+        if not stock_valido:
+            return jsonify({
+                'error': 'Stock insuficiente',
+                'detalles': errores_stock
+            }), 400
+        
+        # Calcular total
+        total = 0
+        carrito_items = []
+        with get_db_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            for item in items:
+                producto_id = item['producto_id']
+                cantidad = item['cantidad']
+                
+                cursor.execute('''
+                    SELECT id, nombre, precio FROM productos 
+                    WHERE id = ? AND activo = 1
+                ''', (producto_id,))
+                producto = cursor.fetchone()
+                
+                if not producto:
+                    return jsonify({'error': f'Producto {producto_id} no encontrado'}), 404
+                
+                precio = producto['precio']
+                subtotal = precio * cantidad
+                total += subtotal
+                
+                carrito_items.append({
+                    'producto_id': producto_id,
+                    'cantidad': cantidad,
+                    'precio_unitario': precio,
+                    'subtotal': subtotal
+                })
+        
+        # Generar número de pedido
+        numero_pedido = f"PED-{datetime.now().strftime('%Y%m%d%H%M%S')}-{data['usuario_id']}"
+        
+        # Guardar pedido
+        pedido_id = database.guardar_pedido(
+            usuario_id=data['usuario_id'],
+            numero_pedido=numero_pedido,
+            total=total,
+            metodo_pago=data['metodo_pago'],
+            direccion_entrega=data['direccion_entrega'],
+            notas=data.get('notas', '')
+        )
+        
+        if not pedido_id:
+            return jsonify({'error': 'Error al crear el pedido'}), 500
+        
+        # Guardar items del pedido
+        items_db = []
+        for item in carrito_items:
+            items_db.append({
+                'producto_id': item['producto_id'],
+                'cantidad': item['cantidad'],
+                'precio_unitario': item['precio_unitario'],
+                'subtotal': item['subtotal']
+            })
+        
+        database.guardar_items_pedido(pedido_id, items_db)
+        
+        # Actualizar stock
+        stock_actualizado, resultados_stock, errores_stock = database.actualizar_stock_carrito(items_para_validar)
+        
+        if not stock_actualizado:
+            logger.error(f"Error actualizando stock después de compra: {errores_stock}")
+            # El pedido ya está guardado, pero registrar el error
+        
+        # Intentar enviar a Ticketera si está configurado
+        ticket_creado = None
+        try:
+            ticketera_url = os.getenv('TICKETERA_URL', '')
+            if ticketera_url:
+                # Obtener datos del usuario
+                with get_db_connection() as conn:
+                    conn.row_factory = sqlite3.Row
+                    cursor = conn.cursor()
+                    cursor.execute('SELECT * FROM usuarios WHERE id = ?', (data['usuario_id'],))
+                    usuario_row = cursor.fetchone()
+                    
+                    if usuario_row:
+                        usuario = dict(usuario_row)
+                        # Preparar datos para Ticketera
+                        productos_lista = []
+                        for item in carrito_items:
+                            cursor.execute('SELECT nombre FROM productos WHERE id = ?', (item['producto_id'],))
+                            prod = cursor.fetchone()
+                            productos_lista.append({
+                                'id': item['producto_id'],
+                                'nombre': prod['nombre'] if prod else 'Producto',
+                                'precio': item['precio_unitario'],
+                                'cantidad': item['cantidad']
+                            })
+                        
+                        # Enviar a Ticketera
+                        import requests
+                        ticket_data = {
+                            'numero': numero_pedido,
+                            'cliente_nombre': f"{usuario.get('nombre', '')} {usuario.get('apellido', '')}".strip() or usuario.get('email', 'Cliente'),
+                            'cliente_direccion': data['direccion_entrega'],
+                            'cliente_telefono': usuario.get('telefono', ''),
+                            'cliente_email': usuario.get('email', ''),
+                            'productos': json.dumps(productos_lista),
+                            'total': total,
+                            'estado': 'pendiente',
+                            'prioridad': 'normal'
+                        }
+                        
+                        response = requests.post(
+                            f"{ticketera_url.rstrip('/')}/api/tickets",
+                            json=ticket_data,
+                            headers={'Content-Type': 'application/json'},
+                            timeout=10
+                        )
+                        
+                        if response.status_code == 201:
+                            ticket_creado = response.json()
+                            logger.info(f"✅ Ticket creado en Ticketera para pedido {numero_pedido}")
+        except Exception as e:
+            logger.warning(f"⚠️ No se pudo enviar a Ticketera: {e}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Compra realizada exitosamente',
+            'data': {
+                'pedido_id': pedido_id,
+                'numero_pedido': numero_pedido,
+                'total': total,
+                'items': carrito_items,
+                'stock_actualizado': stock_actualizado,
+                'ticket_creado': ticket_creado is not None
+            },
+            'timestamp': datetime.now().isoformat()
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Error in api_crear_compra: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/compras/<int:pedido_id>', methods=['GET'])
+@require_api_key
+def api_obtener_compra(pedido_id):
+    """Obtener detalles de una compra"""
+    try:
+        with get_db_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # Obtener pedido
+            cursor.execute('''
+                SELECT p.*, u.email, u.nombre, u.apellido
+                FROM pedidos p
+                LEFT JOIN usuarios u ON p.usuario_id = u.id
+                WHERE p.id = ?
+            ''', (pedido_id,))
+            
+            pedido = cursor.fetchone()
+            if not pedido:
+                return jsonify({'error': 'Pedido no encontrado'}), 404
+            
+            # Obtener items del pedido
+            cursor.execute('''
+                SELECT pi.*, pr.nombre as producto_nombre
+                FROM pedido_items pi
+                LEFT JOIN productos pr ON pi.producto_id = pr.id
+                WHERE pi.pedido_id = ?
+            ''', (pedido_id,))
+            
+            items = [dict(row) for row in cursor.fetchall()]
+            
+            return jsonify({
+                'status': 'success',
+                'data': {
+                    'pedido': dict(pedido),
+                    'items': items
+                },
+                'timestamp': datetime.now().isoformat()
+            })
+            
+    except Exception as e:
+        logger.error(f"Error in api_obtener_compra: {e}")
+        return jsonify({'error': str(e)}), 500
+
 # Inicializar tablas al importar el módulo
 ensure_tables()

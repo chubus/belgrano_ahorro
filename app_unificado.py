@@ -1870,7 +1870,7 @@ def checkout():
 @app.route("/procesar_pago", methods=['POST'])
 def procesar_pago():
     """
-    RUTA PARA PROCESAR EL PAGO
+    RUTA PARA PROCESAR EL PAGO CON VALIDACIÓN DE STOCK
     """
     if not usuario_logueado():
         flash('Debes iniciar sesión para realizar una compra', 'warning')
@@ -1897,16 +1897,37 @@ def procesar_pago():
     carrito_items = []
     total = 0
     
+    # Preparar items del carrito con información completa
     for producto_id, cantidad in session['carrito'].items():
         producto = obtener_producto_por_id(producto_id)
         if producto:
             subtotal = producto['precio'] * cantidad
             carrito_items.append({
                 'producto': producto,
+                'producto_id': producto['id'],
                 'cantidad': cantidad,
                 'subtotal': subtotal
             })
             total += subtotal
+    
+    # VALIDAR STOCK ANTES DE PROCESAR LA COMPRA
+    items_para_validar = [
+        {
+            'producto_id': item['producto_id'],
+            'cantidad': item['cantidad'],
+            'producto': item['producto']
+        }
+        for item in carrito_items
+    ]
+    
+    stock_valido, errores_stock, productos_validos = database.validar_stock_carrito(items_para_validar)
+    
+    if not stock_valido:
+        # Mostrar errores de stock y redirigir al carrito
+        mensaje_error = 'No se puede procesar la compra debido a problemas de stock:\n' + '\n'.join(errores_stock)
+        flash(mensaje_error, 'danger')
+        logger.warning(f"⚠️ Compra rechazada por stock insuficiente: {errores_stock}")
+        return redirect(url_for('carrito'))
     
     # Guardar pedido en la base de datos
     pedido_id = database.guardar_pedido(
@@ -1930,6 +1951,17 @@ def procesar_pago():
             })
         
         database.guardar_items_pedido(pedido_id, items_db)
+        
+        # ACTUALIZAR STOCK DESPUÉS DE GUARDAR EL PEDIDO
+        stock_actualizado, resultados_stock, errores_stock = database.actualizar_stock_carrito(items_para_validar)
+        
+        if not stock_actualizado:
+            # Si falla la actualización de stock, registrar error pero no revertir el pedido
+            logger.error(f"❌ Error actualizando stock después de la compra: {errores_stock}")
+            # El pedido ya está guardado, pero el stock no se actualizó correctamente
+            flash('Pedido procesado, pero hubo un problema actualizando el stock. Contacta al administrador.', 'warning')
+        else:
+            logger.info(f"✅ Stock actualizado correctamente para pedido {numero_pedido}")
     
     # Limpiar carrito
     session.pop('carrito', None)
