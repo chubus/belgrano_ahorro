@@ -135,9 +135,10 @@ except Exception as e:
 
 # Función para obtener conexión a la base de datos
 def get_db_connection():
-    """Obtener conexión a la base de datos"""
+    """Obtener conexión a la base de datos (misma que usa DevOps)"""
     import sqlite3
-    conn = sqlite3.connect('belgrano_ahorro.db')
+    db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -370,29 +371,20 @@ def cargar_datos_completos():
 def obtener_negocios():
     """
     Obtener lista de negocios activos
-    Prioridad: Base de datos (DevOps) > JSON local
+    SOLO desde base de datos (DevOps) - TODOS los datos vienen de DevOps
     
     RETORNA:
     - Diccionario con todos los negocios del sistema
     """
-    # Primero intentar obtener desde base de datos (donde se guardan los creados desde DevOps)
+    # Obtener SOLO desde base de datos (donde se guardan los creados desde DevOps)
     negocios_db = obtener_negocios_desde_db()
     
-    # Luego obtener desde JSON local
-    datos = cargar_datos_completos()
-    negocios_json = datos.get('negocios', {})
-    
-    # Combinar: DB tiene prioridad, pero mantener los del JSON que no estén en DB
     if negocios_db:
-        negocios_combinados = negocios_db.copy()
-        if isinstance(negocios_json, dict):
-            for negocio_id, negocio_data in negocios_json.items():
-                if negocio_id not in negocios_combinados:
-                    negocios_combinados[negocio_id] = negocio_data
-        logger.info(f"✅ Negocios combinados: {len(negocios_db)} desde DB + {len(negocios_combinados) - len(negocios_db)} desde JSON")
-        return negocios_combinados
+        logger.info(f"✅ Negocios obtenidos desde DevOps (DB): {len(negocios_db)}")
+        return negocios_db
     else:
-        return negocios_json if isinstance(negocios_json, dict) else {}
+        logger.info("ℹ️ No hay negocios en la base de datos (DevOps)")
+        return {}
 
 def obtener_categorias():
     """
@@ -411,30 +403,96 @@ def obtener_categorias():
 def obtener_ofertas():
     """
     Obtener ofertas activas
+    SOLO desde base de datos (DevOps) - TODOS los datos vienen de DevOps
     
     RETORNA:
-    - Diccionario con todas las ofertas del sistema
-    
-    MANTENIMIENTO:
-    - Para agregar ofertas: editar sección "ofertas" en productos.json
-    - Para cambiar estado: modificar "activa": true/false en la oferta
+    - Diccionario con todas las ofertas del sistema organizadas por negocio
     """
-    datos = cargar_datos_completos()
-    return datos.get('ofertas', {})
+    # Obtener SOLO desde base de datos (donde se guardan las creadas desde DevOps)
+    ofertas_db = obtener_ofertas_desde_db()
+    
+    if ofertas_db:
+        total_ofertas = sum(len(ofertas) for ofertas in ofertas_db.values())
+        logger.info(f"✅ Ofertas obtenidas desde DevOps (DB): {total_ofertas} en {len(ofertas_db)} negocios")
+        return ofertas_db
+    else:
+        logger.info("ℹ️ No hay ofertas en la base de datos (DevOps)")
+        return {}
+
+def obtener_sucursales_desde_db():
+    """
+    Obtener sucursales desde la base de datos SQLite (donde se guardan las creadas desde DevOps)
+    Retorna diccionario con estructura {negocio_id: {sucursal_id: sucursal_data}} o {} si falla
+    """
+    try:
+        import sqlite3
+        db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT s.id, s.nombre, s.direccion, s.telefono, s.email, s.negocio_id, s.activo,
+                       s.fecha_creacion, s.fecha_actualizacion, n.nombre as negocio_nombre
+                FROM sucursales s
+                LEFT JOIN negocios n ON s.negocio_id = n.id
+                WHERE s.activo = 1
+                ORDER BY s.nombre
+            ''')
+            rows = cursor.fetchall()
+            sucursales_por_negocio = {}
+            
+            for row in rows:
+                negocio_id = str(row['negocio_id']) if row['negocio_id'] else 'sin_negocio'
+                sucursal_id = str(row['id'])
+                
+                if negocio_id not in sucursales_por_negocio:
+                    sucursales_por_negocio[negocio_id] = {}
+                
+                sucursales_por_negocio[negocio_id][sucursal_id] = {
+                    'id': sucursal_id,
+                    'nombre': row['nombre'],
+                    'direccion': row['direccion'] or '',
+                    'telefono': row['telefono'] or '',
+                    'email': row['email'] or '',
+                    'negocio_id': negocio_id,
+                    'negocio': row['negocio_nombre'] or 'Sin negocio',
+                    'activo': bool(row['activo']),
+                    'fecha_creacion': row['fecha_creacion'] or '',
+                    'fecha_actualizacion': row['fecha_actualizacion'] or ''
+                }
+            
+            if sucursales_por_negocio:
+                total_sucursales = sum(len(sucs) for sucs in sucursales_por_negocio.values())
+                logger.info(f"✅ Sucursales obtenidas desde base de datos: {total_sucursales} en {len(sucursales_por_negocio)} negocios")
+            else:
+                logger.info("ℹ️ No hay sucursales activas en la base de datos")
+            return sucursales_por_negocio
+    except FileNotFoundError:
+        logger.warning(f"⚠️ Base de datos no encontrada en: {db_path}")
+        return {}
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudieron obtener sucursales desde DB: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {}
 
 def obtener_sucursales():
     """
     Obtener todas las sucursales del sistema
+    SOLO desde base de datos (DevOps) - TODOS los datos vienen de DevOps
     
     RETORNA:
     - Diccionario con todas las sucursales organizadas por negocio
-    
-    MANTENIMIENTO:
-    - Para agregar sucursales: editar sección "sucursales" en productos.json
-    - Para cambiar estado: modificar "activo": true/false en la sucursal
     """
-    datos = cargar_datos_completos()
-    return datos.get('sucursales', {})
+    # Obtener SOLO desde base de datos (donde se guardan las creadas desde DevOps)
+    sucursales_db = obtener_sucursales_desde_db()
+    
+    if sucursales_db:
+        logger.info(f"✅ Sucursales obtenidas desde DevOps (DB): {len(sucursales_db)} negocios")
+        return sucursales_db
+    else:
+        logger.info("ℹ️ No hay sucursales en la base de datos (DevOps)")
+        return {}
 
 def obtener_sucursales_por_negocio(negocio_id):
     """
@@ -454,6 +512,7 @@ def obtener_sucursales_por_negocio(negocio_id):
 def obtener_productos_por_sucursal(negocio_id, sucursal_id):
     """
     Obtener productos disponibles en una sucursal específica
+    SOLO desde base de datos (DevOps) - TODOS los datos vienen de DevOps
     
     PARÁMETROS:
     - negocio_id: ID del negocio
@@ -462,97 +521,70 @@ def obtener_productos_por_sucursal(negocio_id, sucursal_id):
     RETORNA:
     - Lista de productos disponibles en la sucursal
     """
-    datos = cargar_datos_completos()
-    productos = datos.get('productos', [])
+    # Obtener productos del negocio desde DB
+    productos_negocio = obtener_productos_por_negocio(negocio_id)
     
-    productos_sucursal = []
-    for producto in productos:
-        if (producto.get('negocio') == negocio_id and 
-            producto.get('activo', True) and
-            'sucursales' in producto and
-            sucursal_id in producto['sucursales']):
-            productos_sucursal.append(producto)
-    
-    return productos_sucursal
+    # Por ahora, retornar todos los productos del negocio
+    # (la relación producto-sucursal se puede implementar después si es necesario)
+    return productos_negocio
 
 def obtener_productos_por_negocio(negocio_id):
-    """Obtener productos de un negocio específico"""
-    datos = cargar_datos_completos()
-    productos = datos.get('productos', [])
-    return [p for p in productos if p.get('negocio') == negocio_id and p.get('activo', True)]
+    """
+    Obtener productos de un negocio específico
+    SOLO desde base de datos (DevOps) - TODOS los datos vienen de DevOps
+    """
+    # Obtener todos los productos desde DB y filtrar por negocio
+    productos = obtener_productos_desde_db()
+    # Filtrar por negocio_id (puede ser string o número)
+    negocio_id_str = str(negocio_id)
+    return [p for p in productos if str(p.get('negocio_id', '')) == negocio_id_str and p.get('activo', True)]
 
 def obtener_productos_destacados():
-    """Obtener productos destacados de todos los negocios"""
-    datos = cargar_datos_completos()
-    productos = datos.get('productos', [])
+    """
+    Obtener productos destacados de todos los negocios
+    SOLO desde base de datos (DevOps) - TODOS los datos vienen de DevOps
+    """
+    # Obtener todos los productos desde DB y filtrar destacados
+    productos = obtener_productos_desde_db()
     return [p for p in productos if p.get('destacado', False) and p.get('activo', True)]
 
 def obtener_ofertas_activas():
-    """Obtener ofertas activas con información de productos desde APIs reales"""
+    """
+    Obtener ofertas activas
+    Prioridad: Base de datos (DevOps) > Ticketera > JSON local
+    """
     try:
-        # Intentar obtener datos desde APIs reales primero
         ofertas_activas = {}
         
-        # Cache simple en memoria para ofertas (respaldo ante timeouts/errores)
-        global _ofertas_cache, _ofertas_cache_ts
+        # PRIORIDAD 1: Obtener desde base de datos (DevOps) - FUENTE PRINCIPAL
         try:
-            _ofertas_cache
-        except NameError:
-            _ofertas_cache = {}
-            _ofertas_cache_ts = 0
-        ofertas_cache_ttl = int(os.environ.get('OFERTAS_CACHE_TTL_SECS', '300'))
+            ofertas_db = obtener_ofertas_desde_db()
+            if ofertas_db:
+                total_ofertas_db = sum(len(o) for o in ofertas_db.values())
+                logger.info(f"✅ Ofertas obtenidas desde DevOps (DB): {total_ofertas_db} ofertas en {len(ofertas_db)} negocios")
+                # Usar ofertas de DB como base
+                ofertas_activas = ofertas_db.copy()
+            else:
+                logger.info("ℹ️ No hay ofertas en la base de datos (DevOps)")
+        except Exception as e:
+            logger.warning(f"⚠️ Error obteniendo ofertas desde DB: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
         
-        # Variables de entorno para APIs
+        # PRIORIDAD 2: Intentar obtener ofertas adicionales desde Ticketera (opcional)
         ticketera_url = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com').rstrip('/')
-        belgrano_url = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com').rstrip('/')
         api_key = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
-        
-        # Timeout controlado (máx 10s para evitar bloqueos)
         api_timeout = HTTP_TIMEOUT_SECS
         
-        belgrano_fetch_url = belgrano_url
-        is_self_host = _is_self_host(belgrano_url)
-        if is_self_host:
-            internal_override = os.environ.get('BELGRANO_INTERNAL_URL')
-            if internal_override and _normalize_host(internal_override) != _normalize_host(belgrano_url):
-                belgrano_fetch_url = internal_override.rstrip('/')
-                logger.info(f"ℹ️ Usando URL interna para Belgrano Ahorro: {belgrano_fetch_url}")
-            else:
-                logger.info("ℹ️ Belgrano Ahorro apunta a esta instancia, se usarán datos internos (DB y APIs locales).")
-                belgrano_fetch_url = None
-                # Cuando es la misma instancia, obtener datos desde la base de datos (DevOps)
-                try:
-                    ofertas_db = obtener_ofertas_desde_db()
-                    if ofertas_db:
-                        total_ofertas_db = sum(len(o) for o in ofertas_db.values())
-                        logger.info(f"✅ Ofertas obtenidas desde base de datos (DevOps): {total_ofertas_db} ofertas en {len(ofertas_db)} negocios")
-                        # Combinar con ofertas ya obtenidas (de Ticketera si las hay)
-                        for negocio, ofertas_negocio in ofertas_db.items():
-                            if negocio not in ofertas_activas:
-                                ofertas_activas[negocio] = []
-                            # Agregar ofertas de DB (evitar duplicados por ID)
-                            ofertas_existentes_ids = {o.get('id') for o in ofertas_activas[negocio]}
-                            for oferta_db in ofertas_negocio:
-                                if oferta_db.get('id') not in ofertas_existentes_ids:
-                                    ofertas_activas[negocio].append(oferta_db)
-                        logger.info(f"✅ Ofertas combinadas (DB + Ticketera): {sum(len(o) for o in ofertas_activas.values())} totales")
-                    else:
-                        logger.info("ℹ️ No hay ofertas en la base de datos (puede que no se hayan creado desde DevOps aún)")
-                except Exception as e:
-                    logger.warning(f"⚠️ Error obteniendo ofertas desde DB: {e}")
-                    import traceback
-                    logger.error(traceback.format_exc())
-        
-        logger.info(f"🔍 Obteniendo ofertas desde APIs: Ticketera={ticketera_url}, Belgrano={belgrano_url}")
+        logger.info(f"🔍 Intentando obtener ofertas adicionales desde Ticketera: {ticketera_url}")
         session = HTTP_SESSION
-        
         headers = {
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json'
         }
         
         # Intentar obtener ofertas desde Ticketera (opcional, puede no tener este endpoint)
-        ticketera_paths = ['/api/ofertas', '/ofertas']  # Rutas alternativas de solo lectura
+        ticketera_paths = ['/api/ofertas', '/ofertas']
         ticketera_success = False
         for path in ticketera_paths:
             try:
@@ -564,37 +596,44 @@ def obtener_ofertas_activas():
                 if ticketera_response.status_code == 200:
                     try:
                         ticketera_ofertas = ticketera_response.json()
-                        # Si la respuesta tiene estructura de API estándar
                         if isinstance(ticketera_ofertas, dict) and 'data' in ticketera_ofertas:
                             ticketera_ofertas = ticketera_ofertas['data']
                         
                         logger.info(f"✅ Ofertas obtenidas desde Ticketera ({path}): {len(ticketera_ofertas) if isinstance(ticketera_ofertas, list) else 'N/A'}")
                         
-                        # Procesar ofertas de Ticketera - VALIDAR ESTRUCTURA
+                        # Combinar ofertas de Ticketera con las de DB (evitar duplicados)
                         if isinstance(ticketera_ofertas, list):
                             for oferta in ticketera_ofertas:
                                 if isinstance(oferta, dict):
                                     negocio = oferta.get('negocio', oferta.get('negocio_nombre', 'Sin negocio'))
                                     if negocio not in ofertas_activas:
                                         ofertas_activas[negocio] = []
-                                    ofertas_activas[negocio].append(oferta)
+                                    # Evitar duplicados por ID
+                                    ofertas_existentes_ids = {o.get('id') for o in ofertas_activas[negocio]}
+                                    if oferta.get('id') not in ofertas_existentes_ids:
+                                        ofertas_activas[negocio].append(oferta)
                         elif isinstance(ticketera_ofertas, dict):
-                            # Asegurar estructura consistente
                             for negocio, ofertas_negocio in ticketera_ofertas.items():
+                                if negocio not in ofertas_activas:
+                                    ofertas_activas[negocio] = []
                                 if isinstance(ofertas_negocio, list):
-                                    ofertas_activas[negocio] = ofertas_negocio
+                                    ofertas_existentes_ids = {o.get('id') for o in ofertas_activas[negocio]}
+                                    for oferta in ofertas_negocio:
+                                        if oferta.get('id') not in ofertas_existentes_ids:
+                                            ofertas_activas[negocio].append(oferta)
                                 else:
-                                    ofertas_activas[negocio] = [ofertas_negocio]
+                                    ofertas_existentes_ids = {o.get('id') for o in ofertas_activas[negocio]}
+                                    if ofertas_negocio.get('id') not in ofertas_existentes_ids:
+                                        ofertas_activas[negocio].append(ofertas_negocio)
                         ticketera_success = True
-                        break  # Salir si encontramos datos
+                        logger.info(f"✅ Ofertas combinadas (DB + Ticketera): {sum(len(o) for o in ofertas_activas.values())} totales")
+                        break
                     except Exception as e:
                         logger.warning(f"⚠️ Error procesando respuesta de Ticketera ({path}): {e}")
-                elif ticketera_response.status_code == 405:
-                    # Método no permitido, omitir sin ruido excesivo
-                    logger.info(f"ℹ️ Método no permitido en Ticketera {path}, omitiendo")
                 elif ticketera_response.status_code == 404:
-                    # 404 significa que la ruta no existe, intentar siguiente
                     continue
+                elif ticketera_response.status_code == 405:
+                    logger.info(f"ℹ️ Método no permitido en Ticketera {path}, omitiendo")
                 else:
                     logger.warning(f"⚠️ Ticketera respondió con código {ticketera_response.status_code} en {path}")
             except requests.exceptions.Timeout:
@@ -607,138 +646,31 @@ def obtener_ofertas_activas():
         if not ticketera_success:
             logger.info("ℹ️ No se pudieron obtener ofertas desde Ticketera (puede no tener este endpoint)")
         
-        # Intentar obtener ofertas desde Belgrano Ahorro (fuente principal) solo si no es la misma instancia
-        belgrano_success = False
-        if belgrano_fetch_url:
-            belgrano_paths = ['/api/ofertas', '/api/v1/ofertas']  # Intentar ambas rutas
-            for path in belgrano_paths:
-                try:
-                    belgrano_response = session.get(
-                        f"{belgrano_fetch_url}{path}", 
-                        headers=headers, 
-                        timeout=api_timeout
-                    )
-                    if belgrano_response.status_code == 200:
-                        try:
-                            belgrano_ofertas = belgrano_response.json()
-                            # Si la respuesta tiene estructura de API estándar
-                            if isinstance(belgrano_ofertas, dict) and 'data' in belgrano_ofertas:
-                                belgrano_ofertas = belgrano_ofertas['data']
-                            
-                            logger.info(f"✅ Ofertas obtenidas desde Belgrano Ahorro ({path}): {len(belgrano_ofertas) if isinstance(belgrano_ofertas, list) else 'N/A'}")
-                            
-                            # Procesar ofertas de Belgrano Ahorro - VALIDAR ESTRUCTURA
-                            if isinstance(belgrano_ofertas, list):
-                                for oferta in belgrano_ofertas:
-                                    if isinstance(oferta, dict):
-                                        negocio = oferta.get('negocio', oferta.get('negocio_nombre', 'Sin negocio'))
-                                        if negocio not in ofertas_activas:
-                                            ofertas_activas[negocio] = []
-                                        ofertas_activas[negocio].append(oferta)
-                            elif isinstance(belgrano_ofertas, dict):
-                                # Asegurar estructura consistente
-                                for negocio, ofertas_negocio in belgrano_ofertas.items():
-                                    if isinstance(ofertas_negocio, list):
-                                        ofertas_activas[negocio] = ofertas_negocio
-                                    else:
-                                        ofertas_activas[negocio] = [ofertas_negocio]
-                            belgrano_success = True
-                            # Actualizar cache de respaldo al tener datos válidos
-                            try:
-                                _ofertas_cache = ofertas_activas.copy()
-                                _ofertas_cache_ts = time.time()
-                            except Exception:
-                                pass
-                            break  # Salir si encontramos datos
-                        except Exception as e:
-                            logger.warning(f"⚠️ Error procesando respuesta de Belgrano Ahorro ({path}): {e}")
-                    elif belgrano_response.status_code == 502:
-                        # 502 Bad Gateway - puede ser temporal, intentar siguiente ruta
-                        logger.warning(f"⚠️ Belgrano Ahorro respondió con código 502 (Bad Gateway) en {path} - puede ser temporal")
-                        continue
-                    elif belgrano_response.status_code == 404:
-                        # 404 significa que la ruta no existe, intentar siguiente
-                        continue
-                    else:
-                        logger.warning(f"⚠️ Belgrano Ahorro respondió con código {belgrano_response.status_code} en {path}")
-                except requests.exceptions.Timeout:
-                    logger.warning(f"⚠️ Timeout obteniendo ofertas desde Belgrano Ahorro ({path}, {api_timeout}s) - usando cache si disponible")
-                    # Usar cache si está fresco
-                    try:
-                        if _ofertas_cache and (time.time() - _ofertas_cache_ts) < ofertas_cache_ttl:
-                            logger.info("📦 Usando ofertas cacheadas por timeout")
-                            return _ofertas_cache
-                    except Exception:
-                        pass
-                except requests.exceptions.RequestException as e:
-                    logger.warning(f"⚠️ Error de conexión con Belgrano Ahorro ({path}): {e}")
-                except Exception as e:
-                    logger.warning(f"⚠️ Error obteniendo ofertas desde Belgrano Ahorro ({path}): {e}")
-        else:
-            logger.debug("Belgrano Ahorro remoto omitido; se usarán datos almacenados/caché.")
-        
-        if not belgrano_success and belgrano_fetch_url:
-            logger.warning("⚠️ No se pudieron obtener ofertas desde Belgrano Ahorro - usando datos locales")
-        
-        # Si no se obtuvieron ofertas de las APIs, intentar desde base de datos como fallback
+        # PRIORIDAD 3: Si aún no hay ofertas, intentar desde JSON local (último recurso)
         if not ofertas_activas:
-            logger.info("📋 No se obtuvieron ofertas de APIs, intentando desde base de datos...")
-            try:
-                ofertas_db_fallback = obtener_ofertas_desde_db()
-                if ofertas_db_fallback:
-                    total_ofertas_db = sum(len(o) for o in ofertas_db_fallback.values())
-                    logger.info(f"✅ Ofertas obtenidas desde base de datos (fallback): {total_ofertas_db} ofertas")
-                    ofertas_activas = ofertas_db_fallback
-            except Exception as e:
-                logger.warning(f"⚠️ Error obteniendo ofertas desde DB (fallback): {e}")
-        
-        # Si aún no hay ofertas, intentar desde JSON local
-        if not ofertas_activas:
-            logger.info("📋 No se obtuvieron ofertas de APIs ni DB, cargando datos locales desde JSON...")
+            logger.info("📋 No se obtuvieron ofertas de DB ni Ticketera, intentando desde JSON local...")
             try:
                 datos = cargar_datos_completos()
                 ofertas = datos.get('ofertas', {})
                 
-                logger.info(f"📋 Tipo de ofertas locales: {type(ofertas)}")
-                
-                # Manejar tanto listas como diccionarios - SIEMPRE convertir a diccionario
                 if isinstance(ofertas, list):
-                    logger.info(f"📋 Ofertas locales como lista: {len(ofertas)} items")
-                    # Convertir lista a diccionario por negocio
                     for oferta in ofertas:
                         if isinstance(oferta, dict):
                             negocio = oferta.get('negocio', 'Sin negocio')
                             if negocio not in ofertas_activas:
                                 ofertas_activas[negocio] = []
                             ofertas_activas[negocio].append(oferta)
-                        else:
-                            logger.warning(f"⚠️ Oferta no es diccionario: {type(oferta)} - {oferta}")
-                            
                 elif isinstance(ofertas, dict):
-                    logger.info(f"📋 Ofertas locales como diccionario: {len(ofertas)} negocios")
-                    # Asegurar que cada negocio tenga lista de ofertas
                     for negocio, ofertas_negocio in ofertas.items():
                         if isinstance(ofertas_negocio, list):
                             ofertas_activas[negocio] = ofertas_negocio
                         elif isinstance(ofertas_negocio, dict):
                             ofertas_activas[negocio] = [ofertas_negocio]
-                        else:
-                            ofertas_activas[negocio] = []
-                else:
-                    logger.warning(f"⚠️ Ofertas locales en formato no reconocido: {type(ofertas)}")
-                    ofertas_activas = {}
             except Exception as e:
-                logger.error(f"❌ Error cargando ofertas locales: {e}")
-                ofertas_activas = {}
+                logger.error(f"❌ Error cargando ofertas desde JSON: {e}")
         
-        # Agregar información de productos a las ofertas
-        productos = []
-        try:
-            datos = cargar_datos_completos()
-            productos = datos.get('productos', [])
-        except Exception as e:
-            logger.warning(f"Error cargando datos completos: {e}")
-            productos = []
+        # Agregar información de productos a las ofertas (obtener desde DB)
+        productos = obtener_productos_desde_db()
         
         for negocio, ofertas_negocio in ofertas_activas.items():
             if isinstance(ofertas_negocio, list):
@@ -797,12 +729,12 @@ except Exception as e:
 
 def obtener_producto_por_id(producto_id):
     """
-    Busca un producto por su ID en la lista de productos
+    Obtener un producto por su ID
+    SOLO desde base de datos (DevOps) - TODOS los datos vienen de DevOps
     """
     try:
-        # Cargar productos dinámicamente para evitar problemas con variable global
-        datos = cargar_datos_completos()
-        productos_lista = datos.get('productos', [])
+        # Obtener productos desde DB
+        productos_lista = obtener_productos_desde_db()
         
         for producto in productos_lista:
             if str(producto.get('id', '')) == str(producto_id):
@@ -1528,58 +1460,24 @@ def index():
     # Obtener parámetro de búsqueda
     busqueda = request.args.get('busqueda', '').strip()
     
-    # Cargar datos completos
+    # TODOS los datos se obtienen SOLO desde DevOps (base de datos)
+    # Obtener negocios desde DevOps (DB)
+    negocios_raw = obtener_negocios()
+    
+    # Obtener productos desde DevOps (DB)
+    productos_db = obtener_productos()
+    
+    # Obtener ofertas desde DevOps (DB) y también intentar desde Ticketera
+    ofertas_activas = obtener_ofertas_activas()  # Esta función prioriza DB y luego Ticketera
+    
+    # Obtener categorías (solo desde JSON por ahora, no hay tabla en DB)
     datos = cargar_datos_completos()
-    
-    # Intentar obtener negocios desde la base de datos (donde se guardan los creados desde DevOps)
-    negocios_db = obtener_negocios_desde_db()
-    
-    # Combinar negocios: primero desde DB (tienen prioridad), luego desde JSON
-    negocios_raw = datos.get('negocios', {})
-    
-    # Si hay negocios en DB, usarlos como base y combinar con JSON
-    if negocios_db:
-        # Combinar: DB tiene prioridad, pero mantener los del JSON que no estén en DB
-        negocios_combinados = negocios_db.copy()
-        if isinstance(negocios_raw, dict):
-            for negocio_id, negocio_data in negocios_raw.items():
-                if negocio_id not in negocios_combinados:
-                    negocios_combinados[negocio_id] = negocio_data
-        negocios_raw = negocios_combinados
-        logger.info(f"✅ Negocios combinados: {len(negocios_db)} desde DB + {len(negocios_raw) - len(negocios_db)} desde JSON")
-    
-    # Obtener productos desde la base de datos y combinar con JSON
-    productos_db = obtener_productos_desde_db()
-    productos_json = datos.get('productos', [])
-    if productos_db:
-        # Combinar productos: DB tiene prioridad, agregar los del JSON que no estén en DB
-        productos_combinados = productos_db.copy()
-        # Agregar productos del JSON que no estén en DB (comparar por ID)
-        productos_db_ids = {p['id'] for p in productos_db}
-        for producto_json in productos_json:
-            if producto_json.get('id') not in productos_db_ids:
-                productos_combinados.append(producto_json)
-        datos['productos'] = productos_combinados
-        logger.info(f"✅ Productos combinados: {len(productos_db)} desde DB + {len(productos_combinados) - len(productos_db)} desde JSON")
-    
-    # Obtener ofertas desde la base de datos y combinar con JSON
-    ofertas_db = obtener_ofertas_desde_db()
-    ofertas_activas = obtener_ofertas_activas()  # Obtener del JSON/externos
-    if ofertas_db:
-        # Combinar ofertas: DB tiene prioridad
-        for negocio, ofertas_negocio in ofertas_db.items():
-            if negocio not in ofertas_activas:
-                ofertas_activas[negocio] = []
-            # Agregar ofertas de DB (evitar duplicados por ID)
-            ofertas_existentes_ids = {o.get('id') for o in ofertas_activas[negocio]}
-            for oferta_db in ofertas_negocio:
-                if oferta_db.get('id') not in ofertas_existentes_ids:
-                    ofertas_activas[negocio].append(oferta_db)
-        total_ofertas = sum(len(ofertas) for ofertas in ofertas_activas.values())
-        logger.info(f"✅ Ofertas combinadas: {total_ofertas} totales")
-    
     categorias_raw = datos.get('categorias', {})
-    sucursales_raw = datos.get('sucursales', {})
+    
+    # Obtener sucursales desde DevOps (DB)
+    sucursales_raw = obtener_sucursales()
+    
+    # Obtener productos destacados desde DevOps (DB)
     productos_destacados = obtener_productos_destacados()
     
     # Manejar negocios - puede ser lista o diccionario
