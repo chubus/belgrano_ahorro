@@ -1,13 +1,8 @@
 services:
   - type: web
-    name: devops-service
+    name: belgrano-ahorro
     env: python
-    buildCommand: |
-      pip install -r devops/requirements.txt
-      echo "✅ Build completado - Dependencias instaladas"
-      echo "📁 Verificando estructura..."
-      ls -la devops/ || dir devops
-      echo "✅ Estructura verificada"
+    buildCommand: pip install -r requirements.txt
     startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120 --keep-alive 5 wsgi:application
     envVars:
       - key: FLASK_ENV
@@ -16,3 +11,17 @@ services:
         fromService:
           type: web
           property: port
+      # IMPORTANTE: Configurar DATABASE_URL para persistencia
+      # Opción 1: PostgreSQL (RECOMENDADO - persistente)
+      # - key: DATABASE_URL
+      #   fromDatabase:
+      #     name: belgrano-ahorro-db
+      #     property: connectionString
+      # Opción 2: SQLite (NO PERSISTE - solo para desarrollo)
+      # Si no se configura DATABASE_URL, usará SQLite (datos se pierden en cada deploy)
+
+databases:
+  - name: belgrano-ahorro-db
+    databaseName: belgrano_ahorro
+    user: belgrano_ahorro_user
+    plan: free  # Plan gratuito de Render

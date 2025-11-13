@@ -7,6 +7,9 @@ Flask-SQLAlchemy==3.0.5
 Werkzeug==2.3.7
 SQLAlchemy==2.0.21
 
+# Base de datos PostgreSQL (para producción)
+psycopg2-binary>=2.9.0
+
 # Cliente HTTP y comunicación
 requests==2.31.0
 

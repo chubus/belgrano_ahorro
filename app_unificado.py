@@ -48,10 +48,10 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Cache simple en memoria para evitar recargas
+# Cache simple en memoria para evitar recargas (solo para datos JSON, NO para datos de DB)
 _data_cache = {}
 _cache_timestamp = None
-CACHE_DURATION = 300  # 5 minutos
+CACHE_DURATION = 0  # Deshabilitado - siempre obtener datos frescos desde DB
 
 def _limpiar_cache():
     """Limpiar cache global para forzar recarga de datos"""
@@ -317,11 +317,15 @@ def cargar_productos():
 
 def cargar_datos_completos():
     """
-    Cargar todos los datos del JSON incluyendo negocios, categorías y ofertas
-    CON CACHE para evitar recargas innecesarias
+    Cargar todos los datos del JSON (SOLO COMO FALLBACK)
+    
+    NOTA IMPORTANTE:
+    - Esta función solo se usa como fallback cuando no hay datos en la base de datos
+    - Los datos principales SIEMPRE vienen de la base de datos (DevOps)
+    - El cache está deshabilitado (CACHE_DURATION = 0) para asegurar datos frescos
     
     RETORNA:
-    - Diccionario completo con todos los datos del sistema
+    - Diccionario completo con todos los datos del sistema desde JSON
     
     MANTENIMIENTO:
     - Para agregar nuevas secciones: agregar en productos.json
@@ -371,12 +375,18 @@ def cargar_datos_completos():
 def obtener_negocios():
     """
     Obtener lista de negocios activos
-    SOLO desde base de datos (DevOps) - TODOS los datos vienen de DevOps
+    SIEMPRE desde base de datos (DevOps) - SIN CACHE para datos frescos
     
     RETORNA:
     - Diccionario con todos los negocios del sistema
+    
+    NOTA:
+    - Esta función SIEMPRE consulta la base de datos directamente
+    - No usa cache para asegurar datos frescos desde DevOps
+    - Los cambios en DevOps se reflejan inmediatamente
     """
-    # Obtener SOLO desde base de datos (donde se guardan los creados desde DevOps)
+    # Obtener SIEMPRE desde base de datos (donde se guardan los creados desde DevOps)
+    # Sin cache para asegurar datos actualizados en tiempo real
     negocios_db = obtener_negocios_desde_db()
     
     if negocios_db:
@@ -436,31 +446,42 @@ def obtener_categorias_desde_db():
 def obtener_categorias():
     """
     Obtener todas las categorías del sistema
-    Prioriza datos desde DevOps (base de datos), luego fallback a JSON local
+    SIEMPRE desde base de datos (DevOps) - SIN CACHE para datos frescos
     
     RETORNA:
     - Diccionario con todas las categorías del sistema
+    
+    NOTA:
+    - Esta función SIEMPRE consulta la base de datos directamente
+    - No usa cache para asegurar datos frescos desde DevOps
+    - Los cambios en DevOps se reflejan inmediatamente
+    - Si no hay categorías en DB, retorna diccionario vacío
     """
-    # Intentar obtener desde DevOps (DB)
+    # Obtener SIEMPRE desde base de datos (donde se guardan las creadas desde DevOps)
+    # Sin cache para asegurar datos actualizados en tiempo real
     categorias_db = obtener_categorias_desde_db()
     if categorias_db:
-        logger.info(f"✅ Categorías obtenidas desde DevOps (DB): {len(categorias_db)}")
+        logger.info(f"✅ Categorías obtenidas desde DevOps (DB): {len(categorias_db) // 2} categorías")  # Dividido por 2 porque se indexan por ID y nombre
         return categorias_db
     
-    # Fallback: cargar desde JSON local
-    logger.info("ℹ️ No hay categorías en la base de datos (DevOps), usando datos locales")
-    datos = cargar_datos_completos()
-    return datos.get('categorias', {})
+    logger.info("ℹ️ No hay categorías en la base de datos (DevOps)")
+    return {}
 
 def obtener_ofertas():
     """
     Obtener ofertas activas
-    SOLO desde base de datos (DevOps) - TODOS los datos vienen de DevOps
+    SIEMPRE desde base de datos (DevOps) - SIN CACHE para datos frescos
     
     RETORNA:
     - Diccionario con todas las ofertas del sistema organizadas por negocio
+    
+    NOTA:
+    - Esta función SIEMPRE consulta la base de datos directamente
+    - No usa cache para asegurar datos frescos desde DevOps
+    - Los cambios en DevOps se reflejan inmediatamente
     """
-    # Obtener SOLO desde base de datos (donde se guardan las creadas desde DevOps)
+    # Obtener SIEMPRE desde base de datos (donde se guardan las creadas desde DevOps)
+    # Sin cache para asegurar datos actualizados en tiempo real
     ofertas_db = obtener_ofertas_desde_db()
     
     if ofertas_db:
@@ -531,12 +552,18 @@ def obtener_sucursales_desde_db():
 def obtener_sucursales():
     """
     Obtener todas las sucursales del sistema
-    SOLO desde base de datos (DevOps) - TODOS los datos vienen de DevOps
+    SIEMPRE desde base de datos (DevOps) - SIN CACHE para datos frescos
     
     RETORNA:
     - Diccionario con todas las sucursales organizadas por negocio
+    
+    NOTA:
+    - Esta función SIEMPRE consulta la base de datos directamente
+    - No usa cache para asegurar datos frescos desde DevOps
+    - Los cambios en DevOps se reflejan inmediatamente
     """
-    # Obtener SOLO desde base de datos (donde se guardan las creadas desde DevOps)
+    # Obtener SIEMPRE desde base de datos (donde se guardan las creadas desde DevOps)
+    # Sin cache para asegurar datos actualizados en tiempo real
     sucursales_db = obtener_sucursales_desde_db()
     
     if sucursales_db:
@@ -1511,16 +1538,27 @@ def obtener_ofertas_desde_db():
 
 def obtener_productos():
     """
-    Obtener lista de productos priorizando la base de datos SQLite.
-    Si la DB no tiene datos, caer al cache local (productos.json).
+    Obtener lista de productos
+    SIEMPRE desde base de datos (DevOps) - SIN CACHE para datos frescos
+    
+    RETORNA:
+    - Lista de productos activos
+    
+    NOTA:
+    - Esta función SIEMPRE consulta la base de datos directamente
+    - No usa cache para asegurar datos frescos desde DevOps
+    - Los cambios en DevOps se reflejan inmediatamente
+    - Si no hay productos en DB, retorna lista vacía (no fallback a JSON)
     """
+    # Obtener SIEMPRE desde base de datos (donde se guardan los creados desde DevOps)
+    # Sin cache para asegurar datos actualizados en tiempo real
     productos_db = obtener_productos_desde_db()
     if productos_db:
+        logger.info(f"✅ Productos obtenidos desde DevOps (DB): {len(productos_db)}")
         return productos_db
-
-    logger.info("ℹ️ Sin productos en DB, usando datos locales")
-    datos = cargar_datos_completos()
-    return datos.get('productos', [])
+    
+    logger.info("ℹ️ No hay productos en la base de datos (DevOps)")
+    return []
 
 @app.route("/", methods=['GET', 'HEAD'])
 def index():
