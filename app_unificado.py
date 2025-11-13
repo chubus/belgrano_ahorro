@@ -1452,6 +1452,20 @@ def obtener_ofertas_desde_db():
         logger.error(traceback.format_exc())
         return {}
 
+
+def obtener_productos():
+    """
+    Obtener lista de productos priorizando la base de datos SQLite.
+    Si la DB no tiene datos, caer al cache local (productos.json).
+    """
+    productos_db = obtener_productos_desde_db()
+    if productos_db:
+        return productos_db
+
+    logger.info("ℹ️ Sin productos en DB, usando datos locales")
+    datos = cargar_datos_completos()
+    return datos.get('productos', [])
+
 @app.route("/", methods=['GET', 'HEAD'])
 def index():
     """
