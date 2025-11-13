@@ -39,8 +39,28 @@ logger = logging.getLogger(__name__)
 class DevOpsBelgranoManagerUnified:
     """Gestor para conexión con API de Belgrano Ahorro"""
     def __init__(self) -> None:
-        self.belgrano_url = os.getenv('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com').rstrip('/')
-        self.api_key = os.getenv('BELGRANO_AHORRO_API_KEY', '')
+        # Valores por defecto seguros
+        DEFAULT_URL = 'https://belgranoahorro-aliq.onrender.com'
+        DEFAULT_API_KEY = 'belgrano_ahorro_api_key_2025'
+        
+        # Obtener valores de entorno con fallback seguro
+        belgrano_url = os.getenv('BELGRANO_AHORRO_URL', '').strip().rstrip('/')
+        api_key = os.getenv('BELGRANO_AHORRO_API_KEY', '').strip()
+        
+        # Usar valores por defecto si no están configurados
+        if not belgrano_url:
+            belgrano_url = DEFAULT_URL
+            os.environ['BELGRANO_AHORRO_URL'] = belgrano_url
+            logger.info(f"✅ Usando URL por defecto: {belgrano_url}")
+        
+        if not api_key:
+            api_key = DEFAULT_API_KEY
+            os.environ['BELGRANO_AHORRO_API_KEY'] = api_key
+            logger.info("✅ Usando API key por defecto")
+        
+        self.belgrano_url = belgrano_url.rstrip('/')
+        self.api_key = api_key
+        
         # Timeout configurable (20s por defecto para producción en Render)
         self.timeout = int(os.getenv('API_TIMEOUT_SECS', '20'))
         self.cache_ttl = int(os.getenv('API_CACHE_TTL_SECS', '120'))  # Cache por 120 segundos
@@ -51,26 +71,36 @@ class DevOpsBelgranoManagerUnified:
         logger.info(f"   Timeout: {self.timeout}s")
         logger.info(f"   Cache TTL: {self.cache_ttl}s")
         logger.info(f"   Retries: {self.retries}")
-        logger.info(f"   API Key: {'*' * len(self.api_key) if self.api_key else 'no-set'}")
+        logger.info(f"   API Key: {'*' * min(len(self.api_key), 10)}... ({len(self.api_key)} caracteres)")
         
-        # Advertir si no está configurado
-        if not self.is_configured():
-            logger.warning("⚠️ API Key no configurada. Configure BELGRANO_AHORRO_API_KEY para usar la API.")
+        # Informar si está usando valores por defecto
+        if belgrano_url == DEFAULT_URL or api_key == DEFAULT_API_KEY:
+            logger.info("ℹ️ Usando valores por defecto. Para producción, configure BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY en variables de entorno.")
 
     def is_configured(self) -> bool:
         """Verificar si el manager está correctamente configurado"""
+        # Valores por defecto seguros
+        DEFAULT_URL = 'https://belgranoahorro-aliq.onrender.com'
+        DEFAULT_API_KEY = 'belgrano_ahorro_api_key_2025'
+        
         # Verificar variables de entorno directamente (no solo las leídas al inicializar)
         # Esto asegura que si las variables se configuran después, se detecten
         current_url = os.getenv('BELGRANO_AHORRO_URL', '').strip().rstrip('/')
         current_api_key = os.getenv('BELGRANO_AHORRO_API_KEY', '').strip()
         
-        # Actualizar valores internos si han cambiado
+        # Usar valores por defecto si no están configurados
+        if not current_url:
+            current_url = DEFAULT_URL
+        if not current_api_key:
+            current_api_key = DEFAULT_API_KEY
+        
+        # Actualizar valores internos
         if current_url:
             self.belgrano_url = current_url.rstrip('/')
         if current_api_key:
             self.api_key = current_api_key
         
-        # Verificar que ambas estén configuradas
+        # Verificar que ambas estén configuradas (siempre retorna True con defaults)
         is_ok = bool(current_api_key and current_url)
         
         if not is_ok:

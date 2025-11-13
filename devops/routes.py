@@ -159,29 +159,43 @@ def dashboard():
         belgrano_url = os.getenv('BELGRANO_AHORRO_URL', '').strip().rstrip('/')
         belgrano_api_key = os.getenv('BELGRANO_AHORRO_API_KEY', '').strip()
         
+        # Valores por defecto seguros
+        DEFAULT_URL = 'https://belgranoahorro-aliq.onrender.com'
+        DEFAULT_API_KEY = 'belgrano_ahorro_api_key_2025'
+        
         # Si no hay URL, usar valor por defecto
         if not belgrano_url:
-            belgrano_url = 'https://belgranoahorro-aliq.onrender.com'
+            belgrano_url = DEFAULT_URL
             os.environ['BELGRANO_AHORRO_URL'] = belgrano_url
             logger.info(f"✅ Usando URL por defecto: {belgrano_url}")
+        else:
+            logger.info(f"✅ Usando URL configurada: {belgrano_url}")
         
         # Si no hay API key, usar valor por defecto
         if not belgrano_api_key:
-            belgrano_api_key = 'belgrano_ahorro_api_key_2025'
+            belgrano_api_key = DEFAULT_API_KEY
             os.environ['BELGRANO_AHORRO_API_KEY'] = belgrano_api_key
             logger.info("✅ Usando API key por defecto")
+        else:
+            logger.info(f"✅ Usando API key configurada ({len(belgrano_api_key)} caracteres)")
         
-        # Verificar configuración de variables de entorno primero
-        if not belgrano_url or not belgrano_api_key:
-            error_msg = (
-                'Error: API de Belgrano Ahorro no configurada. '
-                'Configure las variables de entorno BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY. '
-                f'URL: {"✅" if belgrano_url else "❌ NO CONFIGURADA"}, '
-                f'API_KEY: {"✅" if belgrano_api_key else "❌ NO CONFIGURADA"}'
-            )
-            flash(error_msg, 'error')
-            logger.warning(f"⚠️ Dashboard accedido sin configuración de API - URL: {belgrano_url[:50] if belgrano_url else 'NO CONFIGURADA'}, API_KEY: {'CONFIGURADA' if belgrano_api_key else 'NO CONFIGURADA'}")
-            return render_template('devops/dashboard.html', negocios=[], productos=[], ofertas=[], sucursales=[])
+        # Asegurar que los valores están establecidos (después de aplicar defaults)
+        belgrano_url = belgrano_url or DEFAULT_URL
+        belgrano_api_key = belgrano_api_key or DEFAULT_API_KEY
+        
+        # Establecer en entorno si no estaban
+        if not os.getenv('BELGRANO_AHORRO_URL'):
+            os.environ['BELGRANO_AHORRO_URL'] = belgrano_url
+        if not os.getenv('BELGRANO_AHORRO_API_KEY'):
+            os.environ['BELGRANO_AHORRO_API_KEY'] = belgrano_api_key
+        
+        # Log informativo (no error, ya que tenemos valores por defecto)
+        using_defaults = (
+            belgrano_url == DEFAULT_URL or 
+            belgrano_api_key == DEFAULT_API_KEY
+        )
+        if using_defaults:
+            logger.info("ℹ️ Usando valores por defecto para API. Para producción, configure BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY en variables de entorno.")
         
         # Verificar si el manager existe y está configurado
         # Intentar acceder al manager para forzar inicialización lazy

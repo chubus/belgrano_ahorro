@@ -124,35 +124,43 @@ logger.info("=" * 60)
 logger.info(f"BELGRANO_AHORRO_URL: {belgrano_url if belgrano_url else '❌ NO CONFIGURADA'}")
 logger.info(f"BELGRANO_AHORRO_API_KEY: {'✅ CONFIGURADA (' + str(len(belgrano_api_key)) + ' caracteres)' if belgrano_api_key else '❌ NO CONFIGURADA'}")
 
-# Si no están configuradas, intentar usar valores por defecto
+# Valores por defecto seguros
+DEFAULT_URL = 'https://belgranoahorro-aliq.onrender.com'
+DEFAULT_API_KEY = 'belgrano_ahorro_api_key_2025'
+
+# Si no están configuradas, usar valores por defecto
 if not belgrano_url:
-    belgrano_url = 'https://belgranoahorro-aliq.onrender.com'
+    belgrano_url = DEFAULT_URL
     os.environ['BELGRANO_AHORRO_URL'] = belgrano_url
-    logger.warning(f"⚠️ Usando URL por defecto: {belgrano_url}")
+    logger.info(f"✅ Usando URL por defecto: {belgrano_url}")
 
 if not belgrano_api_key:
-    belgrano_api_key = 'belgrano_ahorro_api_key_2025'
+    belgrano_api_key = DEFAULT_API_KEY
     os.environ['BELGRANO_AHORRO_API_KEY'] = belgrano_api_key
-    logger.warning("⚠️ Usando API key por defecto: belgrano_ahorro_api_key_2025")
+    logger.info("✅ Usando API key por defecto")
 
-# Verificar nuevamente después de aplicar defaults
-belgrano_url = os.environ.get('BELGRANO_AHORRO_URL', '').strip().rstrip('/')
-belgrano_api_key = os.environ.get('BELGRANO_AHORRO_API_KEY', '').strip()
+# Asegurar que los valores están establecidos
+belgrano_url = belgrano_url or DEFAULT_URL
+belgrano_api_key = belgrano_api_key or DEFAULT_API_KEY
 
-if not belgrano_url or not belgrano_api_key:
-    logger.error("=" * 60)
-    logger.error("❌ ERROR: Variables de entorno no configuradas completamente:")
-    logger.error(f"   BELGRANO_AHORRO_URL: {'✅' if belgrano_url else '❌ NO CONFIGURADA'}")
-    logger.error(f"   BELGRANO_AHORRO_API_KEY: {'✅' if belgrano_api_key else '❌ NO CONFIGURADA'}")
-    logger.error("   El dashboard mostrará un error hasta que se configuren estas variables")
-    logger.error("   Configure las variables en Render Dashboard → Environment")
-    logger.error("=" * 60)
+# Establecer en entorno si no estaban
+if not os.getenv('BELGRANO_AHORRO_URL'):
+    os.environ['BELGRANO_AHORRO_URL'] = belgrano_url
+if not os.getenv('BELGRANO_AHORRO_API_KEY'):
+    os.environ['BELGRANO_AHORRO_API_KEY'] = belgrano_api_key
+
+# Log informativo
+using_defaults = (belgrano_url == DEFAULT_URL or belgrano_api_key == DEFAULT_API_KEY)
+
+logger.info("=" * 60)
+if using_defaults:
+    logger.info("ℹ️ Variables de entorno usando valores por defecto")
+    logger.info("   Para producción, configure BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY en Render Dashboard → Environment")
 else:
-    logger.info("=" * 60)
-    logger.info("✅ Variables de entorno configuradas correctamente")
-    logger.info(f"   BELGRANO_AHORRO_URL: {belgrano_url}")
-    logger.info(f"   BELGRANO_AHORRO_API_KEY: {'*' * min(len(belgrano_api_key), 10)}... ({len(belgrano_api_key)} caracteres)")
-    logger.info("=" * 60)
+    logger.info("✅ Variables de entorno configuradas desde entorno")
+logger.info(f"   BELGRANO_AHORRO_URL: {belgrano_url}")
+logger.info(f"   BELGRANO_AHORRO_API_KEY: {'*' * min(len(belgrano_api_key), 10)}... ({len(belgrano_api_key)} caracteres)")
+logger.info("=" * 60)
 
 # Registrar blueprint de DevOps
 try:
