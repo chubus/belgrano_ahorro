@@ -3205,16 +3205,18 @@ def _sync_to_external_services(endpoint, method='GET', data=None, item_id=None):
     elif _is_self_host(ticketera_url):
         logger.debug("Ticketera URL apunta a esta instancia, se omite sincronización interna.")
     
-    # Agregar DevOps (puede ser la misma URL de Belgrano Ahorro)
-    devops_url = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com').rstrip('/')
+    # Agregar DevOps solo si tiene una URL específica diferente a Belgrano Ahorro
+    # DevOps normalmente está en la misma instancia que Belgrano Ahorro, así que no se sincroniza externamente
+    devops_url = os.environ.get('DEVOPS_API_URL', '').strip().rstrip('/')
     if devops_url and not _is_self_host(devops_url):
+        # Solo agregar DevOps si tiene una URL específica y diferente
         external_services.append({
             'name': 'DevOps',
             'base_url': devops_url,
-            'api_key': os.environ.get('BELGRANO_AHORRO_API_KEY', '')
+            'api_key': os.environ.get('DEVOPS_API_KEY', os.environ.get('BELGRANO_AHORRO_API_KEY', ''))
         })
-    elif _is_self_host(devops_url):
-        logger.debug("DevOps URL coincide con la instancia actual; no se realiza request HTTP.")
+    else:
+        logger.debug("DevOps está en la misma instancia que Belgrano Ahorro; no se realiza sincronización externa.")
     
     success_count = 0
     session = HTTP_SESSION
@@ -3229,7 +3231,8 @@ def _sync_to_external_services(endpoint, method='GET', data=None, item_id=None):
             headers = {
                 'Content-Type': 'application/json',
                 'Authorization': f"Bearer {service['api_key']}",
-                'X-API-Key': service['api_key']
+                'X-API-Key': service['api_key'],
+                'X-Origin': 'belgrano_ahorro'  # Siempre marcar origen como belgrano_ahorro
             }
             
             # Realizar petición con timeout corto

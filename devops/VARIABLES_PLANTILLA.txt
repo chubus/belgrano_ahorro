@@ -1,37 +1,39 @@
 # ============================================================
-# VARIABLES DE ENTORNO PARA RENDER DASHBOARD
-# Copia y pega estas variables en Render → Environment
+# PLANTILLA DE VARIABLES DE ENTORNO PARA RENDER DASHBOARD
+# Reemplaza los valores con tus credenciales reales
 # ============================================================
 
 # ============================================================
 # OBLIGATORIAS - Sin estas el dashboard NO funcionará
 # ============================================================
 BELGRANO_AHORRO_URL=https://belgranoahorro-aliq.onrender.com
-BELGRANO_AHORRO_API_KEY=belgrano_ahorro_api_key_2025
+BELGRANO_AHORRO_API_KEY=[TU_API_KEY_AQUI]
+DEVOPS_USERNAME=[TU_USUARIO]
+DEVOPS_PASSWORD=[TU_CONTRASEÑA]
+SECRET_KEY=[TU_SECRET_KEY_SEGURA]
+FLASK_ENV=production
 
 # ============================================================
-# RECOMENDADAS - Para mejor funcionamiento en producción
+# CONFIGURACIÓN DE API (Optimizado para Render)
 # ============================================================
 API_TIMEOUT_SECS=20
 API_RETRY_TOTAL=3
 API_RETRY_BACKOFF=1.0
+API_CACHE_TTL_SECS=120
 
 # ============================================================
-# OPCIONALES - Para integración con Ticketera
+# SEGURIDAD / COOKIES
 # ============================================================
-TICKETERA_URL=https://ticketerabelgrano.onrender.com
-TICKETS_API_URL=https://ticketerabelgrano.onrender.com
-TICKETS_API_USERNAME=admin@belgranoahorro.com
-TICKETS_API_PASSWORD=admin123
-
-# ============================================================
-# SEGURIDAD - Cambiar en producción
-# ============================================================
-DEVOPS_USERNAME=devops
-DEVOPS_PASSWORD=devops_password
-SECRET_KEY=devops_secret_key_2025_prod_segura_cambiar_en_produccion
-FLASK_ENV=production
+SESSION_COOKIE_SECURE=true
 SESSION_COOKIE_SAMESITE=Lax
-SESSION_COOKIE_SECURE=false
-REMEMBER_COOKIE_SECURE=false
+REMEMBER_COOKIE_SECURE=true
+
+# ============================================================
+# TICKETERA (Opcional)
+# ============================================================
+TICKETS_API_URL=https://ticketerabelgrano.onrender.com
+TICKETERA_URL=https://ticketerabelgrano.onrender.com
+TICKETS_API_KEY=[TU_TICKETERA_API_KEY]
+TICKETS_API_USERNAME=[TU_USUARIO_TICKETERA]
+TICKETS_API_PASSWORD=[TU_CONTRASEÑA_TICKETERA]
 

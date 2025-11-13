@@ -5,11 +5,30 @@ Gestor DevOps Unificado - Conecta con Belgrano Ahorro y Ticketera
 Soporta operaciones CRUD, sincronización bidireccional y sincronización masiva
 """
 import os
+import sys
 import logging
 import time
 from datetime import datetime
 from typing import Any, Dict, Tuple, List, Optional
-from devops.api_helpers import cached_request, clear_cache
+
+# Asegurar que el directorio padre esté en sys.path para imports absolutos
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+if _parent_dir not in sys.path:
+    sys.path.insert(0, _parent_dir)
+
+# Importar api_helpers con múltiples métodos
+try:
+    from devops.api_helpers import cached_request, clear_cache
+except ImportError:
+    try:
+        from .api_helpers import cached_request, clear_cache
+    except ImportError:
+        # Fallback: import directo
+        if _current_dir not in sys.path:
+            sys.path.insert(0, _current_dir)
+        from api_helpers import cached_request, clear_cache
+
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -40,7 +59,24 @@ class DevOpsBelgranoManagerUnified:
 
     def is_configured(self) -> bool:
         """Verificar si el manager está correctamente configurado"""
-        return bool(self.api_key and self.api_key.strip() and self.belgrano_url)
+        # Verificar variables de entorno directamente (no solo las leídas al inicializar)
+        # Esto asegura que si las variables se configuran después, se detecten
+        current_url = os.getenv('BELGRANO_AHORRO_URL', '').strip().rstrip('/')
+        current_api_key = os.getenv('BELGRANO_AHORRO_API_KEY', '').strip()
+        
+        # Actualizar valores internos si han cambiado
+        if current_url:
+            self.belgrano_url = current_url.rstrip('/')
+        if current_api_key:
+            self.api_key = current_api_key
+        
+        # Verificar que ambas estén configuradas
+        is_ok = bool(current_api_key and current_url)
+        
+        if not is_ok:
+            logger.debug(f"⚠️ Manager no configurado - URL: {'✅' if current_url else '❌'}, API_KEY: {'✅' if current_api_key else '❌'}")
+        
+        return is_ok
 
     def _headers(self) -> Dict[str, str]:
         headers = {"Content-Type": "application/json"}

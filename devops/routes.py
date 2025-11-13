@@ -24,37 +24,64 @@ devops_bp = Blueprint(
 # Importar managers - se inicializan cuando se importa el módulo
 # Las variables de entorno DEBEN estar cargadas antes de importar este módulo
 # (app.py carga las variables antes de importar routes)
+devops_manager = None
+devops_ticketera_manager = None
+devops_sync_manager = None
+
+# Intentar múltiples métodos de importación
+import sys
+import os
+
+# Asegurar que el directorio padre esté en sys.path para imports absolutos
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+if _parent_dir not in sys.path:
+    sys.path.insert(0, _parent_dir)
+
 try:
-    # Intentar import relativo (cuando se usa como paquete)
+    # Método 1: Import relativo (cuando se usa como paquete devops)
     from .manager_unified import (
         devops_manager_unified,
         devops_ticketera_manager,
         devops_sync_manager
     )
-    # Acceder a los managers para forzar inicialización lazy
-    # Esto asegura que las variables de entorno estén cargadas
     devops_manager = devops_manager_unified
-    logger.info("✅ Gestor DevOps unificado importado (paquete devops)")
-except ImportError:
+    logger.info("✅ Gestor DevOps unificado importado (import relativo)")
+except ImportError as e1:
     try:
-        # Intentar import absoluto (si estamos en el directorio devops)
-        from manager_unified import (
+        # Método 2: Import absoluto desde devops.manager_unified
+        from devops.manager_unified import (
             devops_manager_unified,
             devops_ticketera_manager,
             devops_sync_manager
         )
         devops_manager = devops_manager_unified
-        logger.info("✅ Gestor DevOps unificado importado (directorio)")
-    except ImportError as e:
-        logger.error(f"❌ No se pudo importar manager_unified: {e}")
-        devops_manager = None
-        devops_ticketera_manager = None
-        devops_sync_manager = None
+        logger.info("✅ Gestor DevOps unificado importado (import absoluto devops.manager_unified)")
+    except ImportError as e2:
+        try:
+            # Método 3: Import directo desde el directorio actual
+            # Asegurar que el directorio actual esté en sys.path
+            if _current_dir not in sys.path:
+                sys.path.insert(0, _current_dir)
+            from manager_unified import (
+                devops_manager_unified,
+                devops_ticketera_manager,
+                devops_sync_manager
+            )
+            devops_manager = devops_manager_unified
+            logger.info("✅ Gestor DevOps unificado importado (import directo)")
+        except ImportError as e3:
+            logger.error(f"❌ No se pudo importar manager_unified")
+            logger.error(f"   Intentado import relativo: {e1}")
+            logger.error(f"   Intentado import absoluto: {e2}")
+            logger.error(f"   Intentado import directo: {e3}")
+            logger.error(f"   sys.path: {sys.path[:5]}")
+            logger.error(f"   Directorio actual: {_current_dir}")
+            logger.error(f"   Directorio padre: {_parent_dir}")
 except Exception as e:
     logger.error(f"❌ Error inesperado importando manager_unified: {e}")
-    devops_manager = None
-    devops_ticketera_manager = None
-    devops_sync_manager = None
+    import traceback
+    logger.error(traceback.format_exc())
 
 # ================================
 # Helpers de conectividad externa
@@ -128,18 +155,91 @@ def devops_logout():
 @devops_login_required
 def dashboard():
     try:
-        # Verificar si el manager existe y está configurado
-        # Acceder al manager para forzar inicialización lazy
-        manager = devops_manager if devops_manager else None
-        if not manager or not manager.is_configured():
+        # Verificar variables de entorno directamente primero
+        belgrano_url = os.getenv('BELGRANO_AHORRO_URL', '').strip().rstrip('/')
+        belgrano_api_key = os.getenv('BELGRANO_AHORRO_API_KEY', '').strip()
+        
+        # Si no hay URL, usar valor por defecto
+        if not belgrano_url:
+            belgrano_url = 'https://belgranoahorro-aliq.onrender.com'
+            os.environ['BELGRANO_AHORRO_URL'] = belgrano_url
+            logger.info(f"✅ Usando URL por defecto: {belgrano_url}")
+        
+        # Si no hay API key, usar valor por defecto
+        if not belgrano_api_key:
+            belgrano_api_key = 'belgrano_ahorro_api_key_2025'
+            os.environ['BELGRANO_AHORRO_API_KEY'] = belgrano_api_key
+            logger.info("✅ Usando API key por defecto")
+        
+        # Verificar configuración de variables de entorno primero
+        if not belgrano_url or not belgrano_api_key:
             error_msg = (
                 'Error: API de Belgrano Ahorro no configurada. '
                 'Configure las variables de entorno BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY. '
-                'Verifique la documentación en devops/env/env.example'
+                f'URL: {"✅" if belgrano_url else "❌ NO CONFIGURADA"}, '
+                f'API_KEY: {"✅" if belgrano_api_key else "❌ NO CONFIGURADA"}'
             )
             flash(error_msg, 'error')
-            logger.warning("⚠️ Dashboard accedido sin configuración de API")
+            logger.warning(f"⚠️ Dashboard accedido sin configuración de API - URL: {belgrano_url[:50] if belgrano_url else 'NO CONFIGURADA'}, API_KEY: {'CONFIGURADA' if belgrano_api_key else 'NO CONFIGURADA'}")
             return render_template('devops/dashboard.html', negocios=[], productos=[], ofertas=[], sucursales=[])
+        
+        # Verificar si el manager existe y está configurado
+        # Intentar acceder al manager para forzar inicialización lazy
+        manager = None
+        manager_error = None
+        try:
+            if devops_manager is None:
+                manager_error = "devops_manager es None - verificar logs de importación"
+                logger.error("❌ devops_manager es None")
+            else:
+                # Si es un LazyManager, acceder para forzar inicialización
+                if hasattr(devops_manager, '_ensure_instance'):
+                    try:
+                        manager = devops_manager._ensure_instance()
+                        logger.info("✅ Manager inicializado correctamente")
+                    except Exception as e:
+                        manager_error = f"Error inicializando manager: {str(e)}"
+                        logger.error(f"❌ {manager_error}")
+                        import traceback
+                        logger.error(traceback.format_exc())
+                else:
+                    manager = devops_manager
+                    logger.info("✅ Manager obtenido directamente")
+        except Exception as e:
+            manager_error = f"Error accediendo al manager: {str(e)}"
+            logger.error(f"❌ {manager_error}")
+            import traceback
+            logger.error(traceback.format_exc())
+        
+        # Verificar también el manager
+        if not manager:
+            error_msg = (
+                'Error: El manager de DevOps no pudo inicializarse. '
+                f'{manager_error if manager_error else "Verifique los logs del servidor para más detalles."}'
+            )
+            flash(error_msg, 'error')
+            logger.error(f"❌ Manager no disponible - {manager_error}")
+            return render_template('devops/dashboard.html', negocios=[], productos=[], ofertas=[], sucursales=[])
+        
+        # Verificar si el manager está configurado
+        try:
+            if hasattr(manager, 'is_configured'):
+                if not manager.is_configured():
+                    error_msg = (
+                        'Error: API de Belgrano Ahorro no configurada correctamente. '
+                        f'URL: {"✅" if belgrano_url else "❌"}, '
+                        f'API_KEY: {"✅" if belgrano_api_key else "❌"}. '
+                        'Verifique las variables de entorno.'
+                    )
+                    flash(error_msg, 'error')
+                    logger.warning(f"⚠️ Manager no configurado - URL: {belgrano_url}, API_KEY: {'CONFIGURADA' if belgrano_api_key else 'NO CONFIGURADA'}")
+                    return render_template('devops/dashboard.html', negocios=[], productos=[], ofertas=[], sucursales=[])
+            else:
+                logger.warning("⚠️ Manager no tiene método is_configured()")
+        except Exception as e:
+            logger.error(f"❌ Error verificando configuración del manager: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
         negocios = devops_manager.get_negocios()
         productos = devops_manager.get_productos()
         ofertas = devops_manager.get_ofertas()
@@ -702,7 +802,13 @@ def integrations_health():
     try:
         base = _ahorro_base_url()
         if base:
-            from devops.api_helpers import cached_request
+            try:
+                from devops.api_helpers import cached_request
+            except ImportError:
+                try:
+                    from .api_helpers import cached_request
+                except ImportError:
+                    from api_helpers import cached_request
             resp_data = cached_request(f"{base}/api/health", timeout=20, cache_ttl=60, headers=_ahorro_headers())
             # cached_request devuelve dict, simular response para compatibilidad
             class MockResponse:
@@ -730,7 +836,13 @@ def integrations_health():
             # Intentar health estándar
             for path in ('/api/health', '/health', '/status'):
                 try:
-                    from devops.api_helpers import cached_request
+                    try:
+                        from devops.api_helpers import cached_request
+                    except ImportError:
+                        try:
+                            from .api_helpers import cached_request
+                        except ImportError:
+                            from api_helpers import cached_request
                     resp_data = cached_request(f"{base_t}{path}", timeout=20, cache_ttl=60, headers=_ticketera_headers())
                     # cached_request devuelve dict, simular response para compatibilidad
                     class MockResponse:
