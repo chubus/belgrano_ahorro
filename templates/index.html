@@ -144,7 +144,7 @@
                         </div>
             <div class="card-body d-flex flex-column">
                             <h6 class="card-title">{{ producto.nombre }}</h6>
-                            <small class="text-muted">{{ negocios[producto.negocio].nombre }} - {{ categorias[producto.categoria].nombre }}</small>
+                            <small class="text-muted">{{ negocios[producto.negocio].nombre }} - {% set cat_key = producto.categoria|string|lower if producto.categoria else 'general' %}{{ categorias[cat_key].nombre if cat_key in categorias else (categorias[producto.categoria].nombre if producto.categoria in categorias else producto.categoria or 'General') }}</small>
                             <div class="mt-auto">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
@@ -216,7 +216,7 @@
                                 </div>
                                 <div class="card-body d-flex flex-column">
                                     <h6 class="card-title">{{ producto.nombre }}</h6>
-                                    <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
+                                    <small class="text-muted">{% set cat_key = producto.categoria|string|lower if producto.categoria else 'general' %}{{ categorias[cat_key].nombre if cat_key in categorias else (categorias[producto.categoria].nombre if producto.categoria in categorias else producto.categoria or 'General') }}</small>
                                     <div class="mt-auto">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
@@ -281,7 +281,7 @@
                                 </div>
                                 <div class="card-body d-flex flex-column">
                                     <h6 class="card-title">{{ producto.nombre }}</h6>
-                                    <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
+                                    <small class="text-muted">{% set cat_key = producto.categoria|string|lower if producto.categoria else 'general' %}{{ categorias[cat_key].nombre if cat_key in categorias else (categorias[producto.categoria].nombre if producto.categoria in categorias else producto.categoria or 'General') }}</small>
                                     <div class="mt-auto">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
@@ -346,7 +346,7 @@
                                 </div>
                                 <div class="card-body d-flex flex-column">
                                     <h6 class="card-title">{{ producto.nombre }}</h6>
-                                    <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
+                                    <small class="text-muted">{% set cat_key = producto.categoria|string|lower if producto.categoria else 'general' %}{{ categorias[cat_key].nombre if cat_key in categorias else (categorias[producto.categoria].nombre if producto.categoria in categorias else producto.categoria or 'General') }}</small>
                                     <div class="mt-auto">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
@@ -411,7 +411,7 @@
                                 </div>
                                 <div class="card-body d-flex flex-column">
                                     <h6 class="card-title">{{ producto.nombre }}</h6>
-                                    <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
+                                    <small class="text-muted">{% set cat_key = producto.categoria|string|lower if producto.categoria else 'general' %}{{ categorias[cat_key].nombre if cat_key in categorias else (categorias[producto.categoria].nombre if producto.categoria in categorias else producto.categoria or 'General') }}</small>
                                     <div class="mt-auto">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
@@ -476,7 +476,7 @@
                                 </div>
                                 <div class="card-body d-flex flex-column">
                                     <h6 class="card-title">{{ producto.nombre }}</h6>
-                                    <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
+                                    <small class="text-muted">{% set cat_key = producto.categoria|string|lower if producto.categoria else 'general' %}{{ categorias[cat_key].nombre if cat_key in categorias else (categorias[producto.categoria].nombre if producto.categoria in categorias else producto.categoria or 'General') }}</small>
                                     <div class="mt-auto">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
@@ -541,7 +541,7 @@
                                 </div>
                                 <div class="card-body d-flex flex-column">
                                     <h6 class="card-title">{{ producto.nombre }}</h6>
-                                    <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
+                                    <small class="text-muted">{% set cat_key = producto.categoria|string|lower if producto.categoria else 'general' %}{{ categorias[cat_key].nombre if cat_key in categorias else (categorias[producto.categoria].nombre if producto.categoria in categorias else producto.categoria or 'General') }}</small>
                                     <div class="mt-auto">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
@@ -662,7 +662,7 @@
                                         </div>
                                         <div class="card-body d-flex flex-column">
                                             <h6 class="card-title">{{ producto.nombre }}</h6>
-                                            <small class="text-muted">{{ categorias[producto.categoria].nombre }}</small>
+                                            <small class="text-muted">{% set cat_key = producto.categoria|string|lower if producto.categoria else 'general' %}{{ categorias[cat_key].nombre if cat_key in categorias else (categorias[producto.categoria].nombre if producto.categoria in categorias else producto.categoria or 'General') }}</small>
                                             <div class="mt-auto">
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <div>

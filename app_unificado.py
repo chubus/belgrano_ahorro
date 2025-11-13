@@ -386,17 +386,69 @@ def obtener_negocios():
         logger.info("ℹ️ No hay negocios en la base de datos (DevOps)")
         return {}
 
+def obtener_categorias_desde_db():
+    """
+    Obtener categorías desde la base de datos SQLite (donde se guardan las creadas desde DevOps)
+    Retorna diccionario con estructura {categoria_id: categoria_data} y también {nombre: categoria_data}
+    para permitir búsqueda por ID o por nombre
+    """
+    try:
+        import sqlite3
+        db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, nombre, descripcion, activa, fecha_creacion
+                FROM categorias 
+                WHERE activa = 1
+                ORDER BY nombre
+            ''')
+            rows = cursor.fetchall()
+            categorias = {}
+            for row in rows:
+                categoria_id = str(row['id'])
+                categoria_nombre = row['nombre']
+                categoria_data = {
+                    'id': categoria_id,
+                    'nombre': categoria_nombre,
+                    'descripcion': row['descripcion'] or '',
+                    'activa': bool(row['activa']),
+                    'icono': '📦',  # Icono por defecto
+                    'fecha_creacion': row['fecha_creacion'] or ''
+                }
+                # Indexar por ID
+                categorias[categoria_id] = categoria_data
+                # También indexar por nombre (en minúsculas para búsqueda case-insensitive)
+                categorias[categoria_nombre.lower()] = categoria_data
+            if categorias:
+                logger.info(f"✅ Categorías obtenidas desde base de datos: {len(rows)} categorías")
+            else:
+                logger.info("ℹ️ No hay categorías activas en la base de datos")
+            return categorias
+    except FileNotFoundError:
+        logger.warning(f"⚠️ Base de datos no encontrada en: {db_path}")
+        return {}
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudieron obtener categorías desde DB: {e}")
+        return {}
+
 def obtener_categorias():
     """
-    Obtener lista de categorías
+    Obtener todas las categorías del sistema
+    Prioriza datos desde DevOps (base de datos), luego fallback a JSON local
     
     RETORNA:
     - Diccionario con todas las categorías del sistema
-    
-    MANTENIMIENTO:
-    - Para agregar categorías: editar sección "categorias" en productos.json
-    - Para cambiar iconos: modificar campo "icono" en la categoría
     """
+    # Intentar obtener desde DevOps (DB)
+    categorias_db = obtener_categorias_desde_db()
+    if categorias_db:
+        logger.info(f"✅ Categorías obtenidas desde DevOps (DB): {len(categorias_db)}")
+        return categorias_db
+    
+    # Fallback: cargar desde JSON local
+    logger.info("ℹ️ No hay categorías en la base de datos (DevOps), usando datos locales")
     datos = cargar_datos_completos()
     return datos.get('categorias', {})
 
@@ -1338,13 +1390,17 @@ def obtener_productos_desde_db():
             rows = cursor.fetchall()
             productos = []
             for row in rows:
+                # Normalizar categoría: intentar buscar por ID primero, luego por nombre
+                categoria_raw = row['categoria'] or 'General'
+                producto_categoria = categoria_raw  # Por defecto usar el valor tal cual
+                
                 producto = {
                     'id': str(row['id']),
                     'nombre': row['nombre'],
                     'descripcion': row['descripcion'] or '',
                     'precio': float(row['precio']),
                     'precio_original': float(row['original_price']) if row['original_price'] else float(row['precio']),
-                    'categoria': row['categoria'] or 'General',
+                    'categoria': producto_categoria,
                     'imagen': row['imagen'] or '/static/images/producto-default.jpg',
                     'stock': int(row['stock']) if row['stock'] else 0,
                     'negocio_id': str(row['negocio_id']) if row['negocio_id'] else '1',
@@ -1484,9 +1540,8 @@ def index():
     # Obtener ofertas desde DevOps (DB) y también intentar desde Ticketera
     ofertas_activas = obtener_ofertas_activas()  # Esta función prioriza DB y luego Ticketera
     
-    # Obtener categorías (solo desde JSON por ahora, no hay tabla en DB)
-    datos = cargar_datos_completos()
-    categorias_raw = datos.get('categorias', {})
+    # Obtener categorías desde DevOps (DB)
+    categorias_raw = obtener_categorias()
     
     # Obtener sucursales desde DevOps (DB)
     sucursales_raw = obtener_sucursales()
