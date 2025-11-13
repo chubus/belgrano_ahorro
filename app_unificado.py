@@ -53,6 +53,13 @@ _data_cache = {}
 _cache_timestamp = None
 CACHE_DURATION = 300  # 5 minutos
 
+def _limpiar_cache():
+    """Limpiar cache global para forzar recarga de datos"""
+    global _data_cache, _cache_timestamp
+    _data_cache = {}
+    _cache_timestamp = None
+    logger.debug("Cache limpiado")
+
 
 def _normalize_host(candidate: str) -> str:
     """Normalizar host para comparar URLs locales vs externas."""
@@ -363,16 +370,29 @@ def cargar_datos_completos():
 def obtener_negocios():
     """
     Obtener lista de negocios activos
+    Prioridad: Base de datos (DevOps) > JSON local
     
     RETORNA:
     - Diccionario con todos los negocios del sistema
-    
-    MANTENIMIENTO:
-    - Para agregar negocios: editar sección "negocios" en productos.json
-    - Para cambiar estado: modificar "activo": true/false en el negocio
     """
+    # Primero intentar obtener desde base de datos (donde se guardan los creados desde DevOps)
+    negocios_db = obtener_negocios_desde_db()
+    
+    # Luego obtener desde JSON local
     datos = cargar_datos_completos()
-    return datos.get('negocios', {})
+    negocios_json = datos.get('negocios', {})
+    
+    # Combinar: DB tiene prioridad, pero mantener los del JSON que no estén en DB
+    if negocios_db:
+        negocios_combinados = negocios_db.copy()
+        if isinstance(negocios_json, dict):
+            for negocio_id, negocio_data in negocios_json.items():
+                if negocio_id not in negocios_combinados:
+                    negocios_combinados[negocio_id] = negocio_data
+        logger.info(f"✅ Negocios combinados: {len(negocios_db)} desde DB + {len(negocios_combinados) - len(negocios_db)} desde JSON")
+        return negocios_combinados
+    else:
+        return negocios_json if isinstance(negocios_json, dict) else {}
 
 def obtener_categorias():
     """
@@ -491,14 +511,37 @@ def obtener_ofertas_activas():
         api_timeout = HTTP_TIMEOUT_SECS
         
         belgrano_fetch_url = belgrano_url
-        if _is_self_host(belgrano_url):
+        is_self_host = _is_self_host(belgrano_url)
+        if is_self_host:
             internal_override = os.environ.get('BELGRANO_INTERNAL_URL')
             if internal_override and _normalize_host(internal_override) != _normalize_host(belgrano_url):
                 belgrano_fetch_url = internal_override.rstrip('/')
                 logger.info(f"ℹ️ Usando URL interna para Belgrano Ahorro: {belgrano_fetch_url}")
             else:
-                logger.info("ℹ️ Belgrano Ahorro apunta a esta instancia, se omite petición HTTP y se usarán datos internos.")
+                logger.info("ℹ️ Belgrano Ahorro apunta a esta instancia, se usarán datos internos (DB y APIs locales).")
                 belgrano_fetch_url = None
+                # Cuando es la misma instancia, obtener datos desde la base de datos (DevOps)
+                try:
+                    ofertas_db = obtener_ofertas_desde_db()
+                    if ofertas_db:
+                        total_ofertas_db = sum(len(o) for o in ofertas_db.values())
+                        logger.info(f"✅ Ofertas obtenidas desde base de datos (DevOps): {total_ofertas_db} ofertas en {len(ofertas_db)} negocios")
+                        # Combinar con ofertas ya obtenidas (de Ticketera si las hay)
+                        for negocio, ofertas_negocio in ofertas_db.items():
+                            if negocio not in ofertas_activas:
+                                ofertas_activas[negocio] = []
+                            # Agregar ofertas de DB (evitar duplicados por ID)
+                            ofertas_existentes_ids = {o.get('id') for o in ofertas_activas[negocio]}
+                            for oferta_db in ofertas_negocio:
+                                if oferta_db.get('id') not in ofertas_existentes_ids:
+                                    ofertas_activas[negocio].append(oferta_db)
+                        logger.info(f"✅ Ofertas combinadas (DB + Ticketera): {sum(len(o) for o in ofertas_activas.values())} totales")
+                    else:
+                        logger.info("ℹ️ No hay ofertas en la base de datos (puede que no se hayan creado desde DevOps aún)")
+                except Exception as e:
+                    logger.warning(f"⚠️ Error obteniendo ofertas desde DB: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
         
         logger.info(f"🔍 Obteniendo ofertas desde APIs: Ticketera={ticketera_url}, Belgrano={belgrano_url}")
         session = HTTP_SESSION
@@ -634,12 +677,24 @@ def obtener_ofertas_activas():
         else:
             logger.debug("Belgrano Ahorro remoto omitido; se usarán datos almacenados/caché.")
         
-        if not belgrano_success:
+        if not belgrano_success and belgrano_fetch_url:
             logger.warning("⚠️ No se pudieron obtener ofertas desde Belgrano Ahorro - usando datos locales")
         
-        # Si no se obtuvieron ofertas de las APIs, intentar desde datos locales UNA SOLA VEZ
+        # Si no se obtuvieron ofertas de las APIs, intentar desde base de datos como fallback
         if not ofertas_activas:
-            logger.info("📋 No se obtuvieron ofertas de APIs, cargando datos locales...")
+            logger.info("📋 No se obtuvieron ofertas de APIs, intentando desde base de datos...")
+            try:
+                ofertas_db_fallback = obtener_ofertas_desde_db()
+                if ofertas_db_fallback:
+                    total_ofertas_db = sum(len(o) for o in ofertas_db_fallback.values())
+                    logger.info(f"✅ Ofertas obtenidas desde base de datos (fallback): {total_ofertas_db} ofertas")
+                    ofertas_activas = ofertas_db_fallback
+            except Exception as e:
+                logger.warning(f"⚠️ Error obteniendo ofertas desde DB (fallback): {e}")
+        
+        # Si aún no hay ofertas, intentar desde JSON local
+        if not ofertas_activas:
+            logger.info("📋 No se obtuvieron ofertas de APIs ni DB, cargando datos locales desde JSON...")
             try:
                 datos = cargar_datos_completos()
                 ofertas = datos.get('ofertas', {})
@@ -1315,9 +1370,16 @@ def obtener_negocios_desde_db():
                 }
             if negocios:
                 logger.info(f"✅ Negocios obtenidos desde base de datos: {len(negocios)}")
+            else:
+                logger.info("ℹ️ No hay negocios activos en la base de datos")
             return negocios
+    except FileNotFoundError:
+        logger.warning(f"⚠️ Base de datos no encontrada en: {db_path}")
+        return {}
     except Exception as e:
         logger.warning(f"⚠️ No se pudieron obtener negocios desde DB: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return {}
 
 def obtener_productos_desde_db():
@@ -1363,9 +1425,16 @@ def obtener_productos_desde_db():
                 productos.append(producto)
             if productos:
                 logger.info(f"✅ Productos obtenidos desde base de datos: {len(productos)}")
+            else:
+                logger.info("ℹ️ No hay productos activos en la base de datos")
             return productos
+    except FileNotFoundError:
+        logger.warning(f"⚠️ Base de datos no encontrada en: {db_path}")
+        return []
     except Exception as e:
         logger.warning(f"⚠️ No se pudieron obtener productos desde DB: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return []
 
 def obtener_ofertas_desde_db():
@@ -1439,9 +1508,16 @@ def obtener_ofertas_desde_db():
             if ofertas_por_negocio:
                 total_ofertas = sum(len(ofertas) for ofertas in ofertas_por_negocio.values())
                 logger.info(f"✅ Ofertas obtenidas desde base de datos: {total_ofertas} en {len(ofertas_por_negocio)} negocios")
+            else:
+                logger.info("ℹ️ No hay ofertas activas en la base de datos")
             return ofertas_por_negocio
+    except FileNotFoundError:
+        logger.warning(f"⚠️ Base de datos no encontrada en: {db_path}")
+        return {}
     except Exception as e:
         logger.warning(f"⚠️ No se pudieron obtener ofertas desde DB: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return {}
 
 @app.route("/", methods=['GET', 'HEAD'])
@@ -2936,10 +3012,228 @@ def guardar_datos_json(datos):
         import json
         with open('productos.json', 'w', encoding='utf-8') as f:
             json.dump(datos, f, ensure_ascii=False, indent=2)
+        # Limpiar cache después de guardar
+        _limpiar_cache()
         return True
     except Exception as e:
         logger.error(f"Error guardando JSON: {e}")
         return False
+
+def _guardar_negocio_en_db(negocio_data):
+    """Guardar negocio en la base de datos SQLite"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Asegurar que la tabla existe
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS negocios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL,
+                descripcion TEXT,
+                direccion TEXT,
+                telefono TEXT,
+                email TEXT,
+                activo BOOLEAN DEFAULT 1,
+                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        activo = 1 if negocio_data.get('activo', True) else 0
+        cursor.execute('''
+            INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            negocio_data.get('nombre', ''),
+            negocio_data.get('descripcion', ''),
+            negocio_data.get('direccion', ''),
+            negocio_data.get('telefono', ''),
+            negocio_data.get('email', ''),
+            activo
+        ))
+        
+        negocio_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        logger.info(f"✅ Negocio guardado en DB: ID {negocio_id}")
+        return negocio_id
+    except Exception as e:
+        logger.error(f"Error guardando negocio en DB: {e}")
+        return None
+
+def _guardar_producto_en_db(producto_data):
+    """Guardar producto en la base de datos SQLite"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Asegurar que la tabla existe
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS productos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL,
+                store TEXT,
+                precio REAL NOT NULL,
+                original_price REAL,
+                categoria TEXT,
+                imagen TEXT,
+                stock INTEGER DEFAULT 0,
+                stock_minimo INTEGER DEFAULT 5,
+                negocio_id INTEGER DEFAULT 1,
+                activo BOOLEAN DEFAULT 1,
+                destacado BOOLEAN DEFAULT 0,
+                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        activo = 1 if producto_data.get('activo', True) else 0
+        destacado = 1 if producto_data.get('destacado', False) else 0
+        
+        # Mapear campos
+        store = producto_data.get('descripcion', producto_data.get('store', ''))
+        negocio_id = producto_data.get('negocio_id', producto_data.get('negocio', 1))
+        if isinstance(negocio_id, str):
+            # Si es string, intentar convertir a int o usar 1 por defecto
+            try:
+                negocio_id = int(negocio_id)
+            except:
+                negocio_id = 1
+        
+        cursor.execute('''
+            INSERT INTO productos (nombre, store, precio, original_price, categoria, imagen,
+                                 stock, stock_minimo, negocio_id, activo, destacado)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            producto_data.get('nombre', ''),
+            store,
+            float(producto_data.get('precio', 0)),
+            float(producto_data.get('original_price', producto_data.get('precio', 0))),
+            producto_data.get('categoria', ''),
+            producto_data.get('imagen', ''),
+            int(producto_data.get('stock', 0)),
+            int(producto_data.get('stock_minimo', 5)),
+            negocio_id,
+            activo,
+            destacado
+        ))
+        
+        producto_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        logger.info(f"✅ Producto guardado en DB: ID {producto_id}")
+        return producto_id
+    except Exception as e:
+        logger.error(f"Error guardando producto en DB: {e}")
+        return None
+
+def _guardar_sucursal_en_db(sucursal_data):
+    """Guardar sucursal en la base de datos SQLite"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Asegurar que la tabla existe
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sucursales (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL,
+                direccion TEXT,
+                telefono TEXT,
+                email TEXT,
+                negocio_id INTEGER NOT NULL,
+                activo BOOLEAN DEFAULT 1,
+                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+            )
+        ''')
+        
+        negocio_id = sucursal_data.get('negocio_id', sucursal_data.get('negocio', 1))
+        if isinstance(negocio_id, str):
+            try:
+                negocio_id = int(negocio_id)
+            except:
+                negocio_id = 1
+        
+        activo = 1 if sucursal_data.get('activo', True) else 0
+        
+        cursor.execute('''
+            INSERT INTO sucursales (nombre, direccion, telefono, email, negocio_id, activo)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            sucursal_data.get('nombre', ''),
+            sucursal_data.get('direccion', ''),
+            sucursal_data.get('telefono', ''),
+            sucursal_data.get('email', ''),
+            negocio_id,
+            activo
+        ))
+        
+        sucursal_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        logger.info(f"✅ Sucursal guardada en DB: ID {sucursal_id}")
+        return sucursal_id
+    except Exception as e:
+        logger.error(f"Error guardando sucursal en DB: {e}")
+        return None
+
+def _guardar_oferta_en_db(oferta_data):
+    """Guardar oferta en la base de datos SQLite"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Asegurar que la tabla existe
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ofertas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL,
+                descripcion TEXT,
+                descuento REAL,
+                fecha_inicio TEXT,
+                fecha_fin TEXT,
+                activa BOOLEAN DEFAULT 1,
+                negocio_id INTEGER,
+                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+            )
+        ''')
+        
+        activa = 1 if oferta_data.get('activa', oferta_data.get('activo', True)) else 0
+        negocio_id = oferta_data.get('negocio_id', oferta_data.get('negocio', None))
+        if isinstance(negocio_id, str):
+            try:
+                negocio_id = int(negocio_id) if negocio_id else None
+            except:
+                negocio_id = None
+        
+        nombre = oferta_data.get('titulo', oferta_data.get('nombre', ''))
+        
+        cursor.execute('''
+            INSERT INTO ofertas (nombre, descripcion, descuento, fecha_inicio, fecha_fin, activa, negocio_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            nombre,
+            oferta_data.get('descripcion', ''),
+            float(oferta_data.get('descuento', 0)),
+            oferta_data.get('fecha_inicio', ''),
+            oferta_data.get('fecha_fin', ''),
+            activa,
+            negocio_id
+        ))
+        
+        oferta_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        logger.info(f"✅ Oferta guardada en DB: ID {oferta_id}")
+        return oferta_id
+    except Exception as e:
+        logger.error(f"Error guardando oferta en DB: {e}")
+        return None
 
 @app.route('/admin/agregar_producto', methods=['POST'])
 @admin_required
@@ -3375,14 +3669,19 @@ def api_create_negocio():
             datos['negocios'] = {}
         datos['negocios'][negocio_id] = nuevo_negocio
         
-        # Guardar localmente primero
+        # Guardar en base de datos SQLite (persistencia permanente)
+        db_id = _guardar_negocio_en_db(nuevo_negocio)
+        if db_id:
+            nuevo_negocio['db_id'] = db_id  # Agregar ID de DB al objeto
+        
+        # Guardar en JSON (backup/compatibilidad)
         if not guardar_datos_json(datos):
-            return jsonify({'error': 'Error al guardar el negocio localmente'}), 500
+            logger.warning("⚠️ Error guardando en JSON, pero guardado en DB")
         
         # Intentar sincronizar con servicios externos
         _sync_to_external_services('/api/v1/negocios', 'POST', nuevo_negocio)
         
-        logger.info(f"✅ Negocio creado via API: {nuevo_negocio['nombre']}")
+        logger.info(f"✅ Negocio creado via API: {nuevo_negocio['nombre']} (DB ID: {db_id})")
         return jsonify(nuevo_negocio), 201
             
     except Exception as e:
@@ -3551,11 +3850,18 @@ def api_create_sucursal():
         if 'sucursales' not in datos:
             datos['sucursales'] = {}
         datos['sucursales'][sucursal_id] = nueva_sucursal
+        
+        # Guardar en base de datos SQLite (persistencia permanente)
+        db_id = _guardar_sucursal_en_db(nueva_sucursal)
+        if db_id:
+            nueva_sucursal['db_id'] = db_id  # Agregar ID de DB al objeto
+        
+        # Guardar en JSON (backup/compatibilidad)
         if not guardar_datos_json(datos):
-            return jsonify({'error': 'Error al guardar la sucursal localmente'}), 500
+            logger.warning("⚠️ Error guardando en JSON, pero guardado en DB")
         
         _sync_to_external_services('/api/v1/sucursales', 'POST', nueva_sucursal)
-        logger.info(f"✅ Sucursal creada via API: {nueva_sucursal['nombre']}")
+        logger.info(f"✅ Sucursal creada via API: {nueva_sucursal['nombre']} (DB ID: {db_id})")
         return jsonify(nueva_sucursal), 201
     except Exception as e:
         logger.error(f"Error creando sucursal via API: {e}")
@@ -3687,14 +3993,19 @@ def api_create_oferta():
             datos['ofertas'] = {}
         datos['ofertas'][oferta_id] = nueva_oferta
         
-        # Guardar localmente primero
+        # Guardar en base de datos SQLite (persistencia permanente)
+        db_id = _guardar_oferta_en_db(nueva_oferta)
+        if db_id:
+            nueva_oferta['db_id'] = db_id  # Agregar ID de DB al objeto
+        
+        # Guardar en JSON (backup/compatibilidad)
         if not guardar_datos_json(datos):
-            return jsonify({'error': 'Error al guardar la oferta localmente'}), 500
+            logger.warning("⚠️ Error guardando en JSON, pero guardado en DB")
         
         # Intentar sincronizar con servicios externos
         _sync_to_external_services('/api/v1/ofertas', 'POST', nueva_oferta)
         
-        logger.info(f"✅ Oferta creada via API: {nueva_oferta['titulo']}")
+        logger.info(f"✅ Oferta creada via API: {nueva_oferta['titulo']} (DB ID: {db_id})")
         return jsonify(nueva_oferta), 201
             
     except Exception as e:
@@ -3813,11 +4124,18 @@ def api_create_producto():
         if 'productos' not in datos:
             datos['productos'] = []
         datos['productos'].append(nuevo_producto)
+        
+        # Guardar en base de datos SQLite (persistencia permanente)
+        db_id = _guardar_producto_en_db(nuevo_producto)
+        if db_id:
+            nuevo_producto['db_id'] = db_id  # Agregar ID de DB al objeto
+        
+        # Guardar en JSON (backup/compatibilidad)
         if not guardar_datos_json(datos):
-            return jsonify({'error': 'Error al guardar el producto localmente'}), 500
+            logger.warning("⚠️ Error guardando en JSON, pero guardado en DB")
         
         _sync_to_external_services('/api/v1/productos', 'POST', nuevo_producto)
-        logger.info(f"✅ Producto creado via API: {nuevo_producto['nombre']}")
+        logger.info(f"✅ Producto creado via API: {nuevo_producto['nombre']} (DB ID: {db_id})")
         return jsonify(nuevo_producto), 201
     except Exception as e:
         logger.error(f"Error creando producto via API: {e}")
