@@ -14,53 +14,118 @@ try:
     from config import DATABASE_URL
 except ImportError:
     import os
-    DATABASE_URL = os.getenv('DATABASE_URL', '')
+    DATABASE_URL = os.getenv('DATABASE_URL', '') or os.getenv('POSTGRES_URL', '')
     if not DATABASE_URL:
-        raise ValueError("[DB] ERROR: DATABASE_URL no configurada. Configure DATABASE_URL en Render Dashboard.")
+        # No hacer raise aquí - permitir que la app inicie sin DB (lazy initialization)
+        DATABASE_URL = None
+        logger.warning("[DB] ⚠️ DATABASE_URL no configurada. La conexión se intentará más tarde.")
 
 logger = logging.getLogger(__name__)
 
-# SIEMPRE usar PostgreSQL - NO hay fallback
-try:
-    from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, String, Float, Boolean, DateTime, ForeignKey, DECIMAL, TEXT
-    from sqlalchemy.orm import sessionmaker, declarative_base
-    from sqlalchemy.pool import NullPool
-    from sqlalchemy.dialects.postgresql import insert
-    import urllib.parse
+# Variables globales para lazy initialization
+engine = None
+SessionLocal = None
+Base = None
+USE_SQLALCHEMY = False
+USE_POSTGRESQL = False
+
+def _validate_and_setup_database():
+    """
+    Validar DATABASE_URL y configurar el engine de PostgreSQL
+    Solo se ejecuta cuando se necesita la conexión (lazy initialization)
+    """
+    global engine, SessionLocal, Base, USE_SQLALCHEMY, USE_POSTGRESQL, DATABASE_URL
     
-    # Parsear DATABASE_URL (Render puede venir con postgres:// que necesita convertirse)
-    if DATABASE_URL.startswith('postgres://'):
-        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    if engine is not None:
+        return  # Ya está configurado
     
-    # Crear engine de SQLAlchemy con pool_pre_ping para mantener conexiones vivas
-    engine = create_engine(
-        DATABASE_URL,
-        echo=False,
-        pool_pre_ping=True,  # Verificar conexiones antes de usarlas
-        connect_args={"connect_timeout": 10}
-    )
+    # Obtener DATABASE_URL si no está disponible
+    if not DATABASE_URL:
+        try:
+            from config import DATABASE_URL as config_db_url
+            DATABASE_URL = config_db_url
+        except ImportError:
+            import os
+            DATABASE_URL = os.getenv('DATABASE_URL', '') or os.getenv('POSTGRES_URL', '')
     
-    SessionLocal = sessionmaker(bind=engine)
-    Base = declarative_base()
+    if not DATABASE_URL:
+        error_msg = "[DB] ERROR: DATABASE_URL no configurada. Configure DATABASE_URL o POSTGRES_URL en Render Dashboard."
+        logger.error(error_msg)
+        raise ValueError(error_msg)
     
-    # Probar conexión
-    with engine.connect() as conn:
-        result = conn.execute(text("SELECT 1"))
-        result.fetchone()
+    # Validar formato de la URL
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(DATABASE_URL)
+        if not parsed.hostname:
+            raise ValueError("[DB] ERROR: DATABASE_URL no tiene un hostname válido")
+        
+        # Verificar que el hostname sea completo
+        if parsed.hostname.startswith('dpg-') and '.' not in parsed.hostname:
+            raise ValueError(f"[DB] ERROR: Hostname incompleto: '{parsed.hostname}'. La URL debe incluir el dominio completo (ej: dpg-xxx.frankfurt-postgres.render.com)")
+    except Exception as e:
+        logger.error(f"[DB] ERROR validando DATABASE_URL: {e}")
+        raise
     
-    logger.info("[DB] ✅ Conectado a PostgreSQL correctamente")
-    USE_SQLALCHEMY = True
-    USE_POSTGRESQL = True
-except ImportError as e:
-    logger.error(f"[DB] ❌ SQLAlchemy no disponible: {e}")
-    import traceback
-    logger.error(traceback.format_exc())
-    raise
-except Exception as e:
-    logger.error(f"[DB] ❌ Error configurando PostgreSQL: {e}")
-    import traceback
-    logger.error(traceback.format_exc())
-    raise
+    # SIEMPRE usar PostgreSQL - NO hay fallback
+    try:
+        from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, String, Float, Boolean, DateTime, ForeignKey, DECIMAL, TEXT
+        from sqlalchemy.orm import sessionmaker, declarative_base
+        from sqlalchemy.pool import NullPool
+        from sqlalchemy.dialects.postgresql import insert
+        from sqlalchemy.exc import OperationalError
+        import urllib.parse
+        
+        # Parsear DATABASE_URL (Render puede venir con postgres:// que necesita convertirse)
+        if DATABASE_URL.startswith('postgres://'):
+            DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+        
+        # Asegurar que la URL tenga sslmode=require para Render
+        if 'sslmode' not in DATABASE_URL:
+            separator = '&' if '?' in DATABASE_URL else '?'
+            DATABASE_URL = f"{DATABASE_URL}{separator}sslmode=require"
+        
+        # Crear engine de SQLAlchemy con pool_pre_ping para mantener conexiones vivas
+        engine = create_engine(
+            DATABASE_URL,
+            echo=False,
+            pool_pre_ping=True,  # Verificar conexiones antes de usarlas
+            connect_args={"connect_timeout": 10}
+        )
+        
+        SessionLocal = sessionmaker(bind=engine)
+        Base = declarative_base()
+        
+        # Probar conexión con manejo de errores mejorado
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT 1"))
+                result.fetchone()
+            logger.info("[DB] ✅ Conectado a PostgreSQL correctamente")
+        except OperationalError as e:
+            error_msg = str(e)
+            if "could not translate host name" in error_msg or "Name or service not known" in error_msg:
+                logger.error("[DB] ❌ ERROR: No se puede resolver el hostname de la base de datos")
+                logger.error(f"[DB]    Error: {error_msg}")
+                logger.error("[DB]    Verifique que DATABASE_URL tenga el formato correcto:")
+                logger.error("[DB]    postgresql://user:password@hostname:port/database?sslmode=require")
+                logger.error("[DB]    El hostname debe ser completo (ej: dpg-xxx.frankfurt-postgres.render.com)")
+                raise ValueError("[DB] ERROR: Hostname de base de datos no resuelto. Verifique DATABASE_URL en Render Dashboard.")
+            else:
+                raise
+        
+        USE_SQLALCHEMY = True
+        USE_POSTGRESQL = True
+    except ImportError as e:
+        logger.error(f"[DB] ❌ SQLAlchemy no disponible: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise
+    except Exception as e:
+        logger.error(f"[DB] ❌ Error configurando PostgreSQL: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise
 
 def get_db_connection():
     """
@@ -68,7 +133,12 @@ def get_db_connection():
     Retorna una Session de SQLAlchemy que debe cerrarse con .close()
     
     SIEMPRE usa PostgreSQL - NO hay fallback a SQLite
+    Lazy initialization: configura el engine solo cuando se necesita
     """
+    # Lazy initialization: configurar el engine solo cuando se necesita
+    if engine is None:
+        _validate_and_setup_database()
+    
     if not USE_POSTGRESQL or not USE_SQLALCHEMY:
         raise RuntimeError("[DB] ERROR: PostgreSQL no está configurado correctamente")
     

@@ -45,18 +45,62 @@ except Exception as e:
     logger.warning(f"[INIT] ⚠️ Error cargando .env: {e}")
 
 # Inicializar base de datos PostgreSQL PRIMERO
+# Solo si DATABASE_URL está correctamente configurada
+_db_initialized = False
 try:
-    from init_db import init_db
-    logger.info("[INIT] Inicializando base de datos PostgreSQL...")
-    init_db()
-    logger.info("[INIT] ✅ Base de datos inicializada correctamente")
-except ImportError as e:
-    logger.warning(f"[INIT] ⚠️ No se pudo importar init_db: {e}")
+    # Verificar que DATABASE_URL esté configurada antes de intentar conectar
+    database_url = os.getenv('DATABASE_URL', '') or os.getenv('POSTGRES_URL', '')
+    
+    if not database_url:
+        logger.warning("[INIT] ⚠️ DATABASE_URL no configurada. La aplicación puede no funcionar correctamente.")
+        logger.warning("[INIT] ⚠️ Configure DATABASE_URL o POSTGRES_URL en Render Dashboard.")
+    else:
+        # Validar formato básico de la URL
+        from urllib.parse import urlparse
+        try:
+            parsed = urlparse(database_url)
+            if not parsed.hostname:
+                logger.error("[INIT] ❌ DATABASE_URL no tiene un hostname válido")
+                raise ValueError("DATABASE_URL inválida: falta hostname")
+            
+            # Verificar que el hostname sea completo
+            if parsed.hostname.startswith('dpg-') and '.' not in parsed.hostname:
+                logger.error(f"[INIT] ❌ Hostname incompleto en DATABASE_URL: '{parsed.hostname}'")
+                logger.error("[INIT] ❌ La URL debe incluir el dominio completo (ej: dpg-xxx.frankfurt-postgres.render.com)")
+                raise ValueError(f"Hostname incompleto: {parsed.hostname}")
+            
+            # Intentar inicializar la base de datos
+            from init_db import init_db
+            logger.info("[INIT] Inicializando base de datos PostgreSQL...")
+            init_db()
+            _db_initialized = True
+            logger.info("[INIT] ✅ Base de datos inicializada correctamente")
+        except ValueError as ve:
+            logger.error(f"[INIT] ❌ Error de validación: {ve}")
+            logger.error("[INIT] ❌ La aplicación no puede iniciar sin una DATABASE_URL válida")
+            # No hacer raise para evitar que gunicorn crashee
+        except Exception as e:
+            error_msg = str(e)
+            if "could not translate host name" in error_msg or "Name or service not known" in error_msg:
+                logger.error("[INIT] ❌ ERROR: No se puede resolver el hostname de la base de datos")
+                logger.error(f"[INIT]    Error: {error_msg}")
+                logger.error("[INIT]    Verifique que DATABASE_URL tenga el formato correcto en Render Dashboard")
+                logger.error("[INIT]    Formato esperado: postgresql://user:password@hostname:port/database?sslmode=require")
+                # No hacer raise para evitar que gunicorn crashee
+            else:
+                logger.error(f"[INIT] ❌ Error inicializando base de datos: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                # No hacer raise para evitar que gunicorn crashee
+except ImportError as ie:
+    logger.warning(f"[INIT] ⚠️ No se pudo importar init_db: {ie}")
+    logger.warning("[INIT] ⚠️ La aplicación puede no funcionar correctamente sin la base de datos")
 except Exception as e:
-    logger.error(f"[INIT] ❌ Error inicializando base de datos: {e}")
+    logger.error(f"[INIT] ❌ Error crítico inicializando base de datos: {e}")
     import traceback
     logger.error(traceback.format_exc())
-    # No fallar completamente, pero registrar el error
+    # No hacer raise para evitar que gunicorn crashee
+    logger.warning("[INIT] ⚠️ Continuando sin inicialización de base de datos (funcionalidad limitada)")
 
 # Ruta absoluta a devops/app.py
 app_py_path = os.path.join(current_dir, "app.py")
