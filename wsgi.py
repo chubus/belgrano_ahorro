@@ -7,6 +7,11 @@ Carga la aplicación Flask de DevOps de forma robusta
 import os
 import sys
 import importlib.util
+import logging
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Obtener directorio actual (raíz del proyecto)
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -16,6 +21,20 @@ app_py_path = os.path.join(devops_dir, 'app.py')
 # Asegurar que la raíz esté en PYTHONPATH
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
+
+# Inicializar base de datos PostgreSQL PRIMERO
+try:
+    from init_db import init_db
+    logger.info("[INIT] Inicializando base de datos PostgreSQL...")
+    init_db()
+    logger.info("[INIT] ✅ Base de datos inicializada correctamente")
+except ImportError as e:
+    logger.warning(f"[INIT] ⚠️ No se pudo importar init_db: {e}")
+except Exception as e:
+    logger.error(f"[INIT] ❌ Error inicializando base de datos: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
+    # No fallar completamente, pero registrar el error
 
 # Intentar cargar la aplicación de múltiples formas
 application = None

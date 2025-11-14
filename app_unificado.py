@@ -43,9 +43,12 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from urllib.parse import urlparse
 
-# Configurar logging PRIMERO
+# Configurar logging PRIMERO con prefijos estandarizados
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s:%(name)s:%(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # Cache simple en memoria para evitar recargas (solo para datos JSON, NO para datos de DB)
@@ -117,20 +120,32 @@ def _build_http_session() -> requests.Session:
 HTTP_SESSION = _build_http_session()
 HTTP_TIMEOUT_SECS = max(1, min(int(os.environ.get('API_TIMEOUT_SECS', '10')), 10))
 
+# Inicializar base de datos PostgreSQL PRIMERO
+try:
+    from init_db import init_db
+    logger.info("[INIT] Inicializando base de datos PostgreSQL...")
+    init_db()
+    logger.info("[INIT] ✅ Base de datos inicializada correctamente")
+except Exception as e:
+    logger.error(f"[INIT] ❌ Error inicializando base de datos: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
+    raise  # Detén la app si no se puede inicializar la DB
+
 # Importar base de datos con manejo de errores
 try:
     import db as database
-    logger.info("✅ Módulo db importado correctamente")
+    logger.info("[INIT] ✅ Módulo db importado correctamente")
 except Exception as e:
-    logger.error(f"❌ Error importando db: {e}")
+    logger.error(f"[INIT] ❌ Error importando db: {e}")
     raise  # Detén la app si el import falla
 
 # Importar API RESTful
 try:
     from api_belgrano_ahorro import api_bp
-    logger.info("✅ API RESTful importada correctamente")
+    logger.info("[INIT] ✅ API RESTful importada correctamente")
 except Exception as e:
-    logger.error(f"❌ Error importando API: {e}")
+    logger.error(f"[INIT] ❌ Error importando API: {e}")
     api_bp = None
 
 # Función para obtener conexión a la base de datos
@@ -179,60 +194,42 @@ app.secret_key = 'belgrano_ahorro_secret_key_2025'  # Clave secreta para sesione
 # Configurar API_KEY para auth_middleware
 app.config['API_KEY'] = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
 
-# Registrar API RESTful
+# Registrar API RESTful (solo una vez)
 if api_bp:
-    try:
-        app.register_blueprint(api_bp)
-        logger.info("✅ API RESTful registrada en /api/*")
-    except Exception as e:
-        if "already registered" in str(e).lower():
-            logger.info("✅ API RESTful ya estaba registrada")
-        else:
-            logger.warning(f"⚠️ Error registrando API RESTful: {e}")
+    blueprint_name = api_bp.name
+    if blueprint_name not in [bp.name for bp in app.blueprints.values()]:
+        try:
+            app.register_blueprint(api_bp)
+            logger.info("[INIT] ✅ API RESTful registrada en /api/*")
+        except Exception as e:
+            logger.error(f"[INIT] ❌ Error registrando API RESTful: {e}")
+            raise
+    else:
+        logger.info("[INIT] ✅ API RESTful ya estaba registrada (omitiendo duplicado)")
 
-# Configurar entorno
-# Configurar variables de entorno por defecto
-if 'FLASK_ENV' not in os.environ:
-    os.environ['FLASK_ENV'] = 'development'
-if 'BELGRANO_AHORRO_URL' not in os.environ:
-    os.environ['BELGRANO_AHORRO_URL'] = 'https://belgranoahorro-aliq.onrender.com'
-if 'BELGRANO_AHORRO_API_KEY' not in os.environ:
-    os.environ['BELGRANO_AHORRO_API_KEY'] = 'belgrano_ahorro_api_key_2025'
-if 'TICKETERA_URL' not in os.environ:
-    os.environ['TICKETERA_URL'] = 'https://ticketerabelgrano.onrender.com'
-if 'TICKETERA_API_KEY' not in os.environ:
-    os.environ['TICKETERA_API_KEY'] = 'ticketera_api_key_2025'
+# Importar configuración centralizada
+try:
+    from config import (
+        BELGRANO_AHORRO_URL, BELGRANO_AHORRO_API_KEY,
+        TICKETERA_URL, FLASK_ENV, SECRET_KEY
+    )
+    logger.info("[INIT] ✅ Configuración centralizada cargada")
+except ImportError:
+    logger.warning("[INIT] ⚠️ No se pudo importar config.py, usando variables de entorno directamente")
+    BELGRANO_AHORRO_URL = os.environ.get('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com')
+    BELGRANO_AHORRO_API_KEY = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
+    TICKETERA_URL = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com')
+    FLASK_ENV = os.environ.get('FLASK_ENV', 'production')
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'belgrano_ahorro_secret_key_2025')
 
-app.config['ENV'] = os.environ.get('FLASK_ENV', 'development')
+app.config['ENV'] = FLASK_ENV
+app.secret_key = SECRET_KEY
+app.config['API_KEY'] = BELGRANO_AHORRO_API_KEY
 
 # Registrar manejadores de errores
 register_error_handlers(app)
 
-# Configurar variables de entorno para DevOps
-os.environ.setdefault("BELGRANO_AHORRO_URL", "https://belgranoahorro-hp30.onrender.com")
-os.environ.setdefault("BELGRANO_AHORRO_API_KEY", "belgrano_ahorro_api_key_2025")
-
-# Importar y registrar blueprint de DevOps
-try:
-    try:
-        from devops_routes import devops_bp
-    except ImportError:
-        logger.warning("⚠️ Módulo devops_routes no encontrado, continuando sin DevOps")
-        devops_bp = None
-    if devops_bp:
-        try:
-            app.register_blueprint(devops_bp)
-            logger.info("✅ Blueprint de DevOps registrado correctamente")
-        except Exception as e:
-            if "already registered" in str(e).lower():
-                logger.info("✅ Blueprint de DevOps ya estaba registrado")
-            else:
-                logger.warning(f"⚠️ Error registrando Blueprint de DevOps: {e}")
-    else:
-        logger.warning("⚠️ Blueprint de DevOps no disponible")
-except Exception as e:
-    logger.error(f"❌ Error importando devops_routes: {e}")
-    # No es crítico, continúa sin las rutas de DevOps
+# NO registrar blueprint de DevOps aquí - DevOps es una app separada
 
 # ==========================================
 # CONFIGURACIÓN DE COMUNICACIÓN API
@@ -398,49 +395,49 @@ def obtener_negocios():
 
 def obtener_categorias_desde_db():
     """
-    Obtener categorías desde la base de datos SQLite (donde se guardan las creadas desde DevOps)
+    Obtener categorías desde la base de datos PostgreSQL (donde se guardan las creadas desde DevOps)
     Retorna diccionario con estructura {categoria_id: categoria_data} y también {nombre: categoria_data}
     para permitir búsqueda por ID o por nombre
     """
     try:
-        import sqlite3
-        db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
-        with sqlite3.connect(db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute('''
+        from sqlalchemy import text
+        session = get_db_connection()
+        try:
+            result = session.execute(text('''
                 SELECT id, nombre, descripcion, activa, fecha_creacion
                 FROM categorias 
-                WHERE activa = 1
+                WHERE activa = TRUE
                 ORDER BY nombre
-            ''')
-            rows = cursor.fetchall()
+            '''))
+            rows = result.fetchall()
             categorias = {}
             for row in rows:
-                categoria_id = str(row['id'])
-                categoria_nombre = row['nombre']
+                categoria_id = str(row[0])
+                categoria_nombre = row[1] or ''
                 categoria_data = {
                     'id': categoria_id,
                     'nombre': categoria_nombre,
-                    'descripcion': row['descripcion'] or '',
-                    'activa': bool(row['activa']),
+                    'descripcion': row[2] or '',
+                    'activa': bool(row[3]),
                     'icono': '📦',  # Icono por defecto
-                    'fecha_creacion': row['fecha_creacion'] or ''
+                    'fecha_creacion': str(row[4]) if row[4] else ''
                 }
                 # Indexar por ID
                 categorias[categoria_id] = categoria_data
                 # También indexar por nombre (en minúsculas para búsqueda case-insensitive)
-                categorias[categoria_nombre.lower()] = categoria_data
+                if categoria_nombre:
+                    categorias[categoria_nombre.lower()] = categoria_data
             if categorias:
-                logger.info(f"✅ Categorías obtenidas desde base de datos: {len(rows)} categorías")
+                logger.info(f"[DB] ✅ Categorías obtenidas desde PostgreSQL: {len(rows)} categorías")
             else:
-                logger.info("ℹ️ No hay categorías activas en la base de datos")
+                logger.info("[DB] ℹ️ No hay categorías activas en la base de datos")
             return categorias
-    except FileNotFoundError:
-        logger.warning(f"⚠️ Base de datos no encontrada en: {db_path}")
-        return {}
+        finally:
+            session.close()
     except Exception as e:
-        logger.warning(f"⚠️ No se pudieron obtener categorías desde DB: {e}")
+        logger.error(f"[DB] ❌ No se pudieron obtener categorías desde DB: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return {}
 
 def obtener_categorias():
@@ -494,57 +491,54 @@ def obtener_ofertas():
 
 def obtener_sucursales_desde_db():
     """
-    Obtener sucursales desde la base de datos SQLite (donde se guardan las creadas desde DevOps)
+    Obtener sucursales desde la base de datos PostgreSQL (donde se guardan las creadas desde DevOps)
     Retorna diccionario con estructura {negocio_id: {sucursal_id: sucursal_data}} o {} si falla
     """
     try:
-        import sqlite3
-        db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
-        with sqlite3.connect(db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute('''
+        from sqlalchemy import text
+        session = get_db_connection()
+        try:
+            result = session.execute(text('''
                 SELECT s.id, s.nombre, s.direccion, s.telefono, s.email, s.negocio_id, s.activo,
                        s.fecha_creacion, s.fecha_actualizacion, n.nombre as negocio_nombre
                 FROM sucursales s
                 LEFT JOIN negocios n ON s.negocio_id = n.id
-                WHERE s.activo = 1
+                WHERE s.activo = TRUE
                 ORDER BY s.nombre
-            ''')
-            rows = cursor.fetchall()
+            '''))
+            rows = result.fetchall()
             sucursales_por_negocio = {}
             
             for row in rows:
-                negocio_id = str(row['negocio_id']) if row['negocio_id'] else 'sin_negocio'
-                sucursal_id = str(row['id'])
+                negocio_id = str(row[5]) if row[5] else 'sin_negocio'
+                sucursal_id = str(row[0])
                 
                 if negocio_id not in sucursales_por_negocio:
                     sucursales_por_negocio[negocio_id] = {}
                 
                 sucursales_por_negocio[negocio_id][sucursal_id] = {
                     'id': sucursal_id,
-                    'nombre': row['nombre'],
-                    'direccion': row['direccion'] or '',
-                    'telefono': row['telefono'] or '',
-                    'email': row['email'] or '',
+                    'nombre': row[1] or '',
+                    'direccion': row[2] or '',
+                    'telefono': row[3] or '',
+                    'email': row[4] or '',
                     'negocio_id': negocio_id,
-                    'negocio': row['negocio_nombre'] or 'Sin negocio',
-                    'activo': bool(row['activo']),
-                    'fecha_creacion': row['fecha_creacion'] or '',
-                    'fecha_actualizacion': row['fecha_actualizacion'] or ''
+                    'negocio': row[9] or 'Sin negocio',
+                    'activo': bool(row[6]),
+                    'fecha_creacion': str(row[7]) if row[7] else '',
+                    'fecha_actualizacion': str(row[8]) if row[8] else ''
                 }
             
             if sucursales_por_negocio:
                 total_sucursales = sum(len(sucs) for sucs in sucursales_por_negocio.values())
-                logger.info(f"✅ Sucursales obtenidas desde base de datos: {total_sucursales} en {len(sucursales_por_negocio)} negocios")
+                logger.info(f"[DB] ✅ Sucursales obtenidas desde PostgreSQL: {total_sucursales} en {len(sucursales_por_negocio)} negocios")
             else:
-                logger.info("ℹ️ No hay sucursales activas en la base de datos")
+                logger.info("[DB] ℹ️ No hay sucursales activas en la base de datos")
             return sucursales_por_negocio
-    except FileNotFoundError:
-        logger.warning(f"⚠️ Base de datos no encontrada en: {db_path}")
-        return {}
+        finally:
+            session.close()
     except Exception as e:
-        logger.warning(f"⚠️ No se pudieron obtener sucursales desde DB: {e}")
+        logger.error(f"[DB] ❌ No se pudieron obtener sucursales desde DB: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return {}
@@ -1346,125 +1340,114 @@ def contacto_soporte():
 
 def obtener_negocios_desde_db():
     """
-    Obtener negocios desde la base de datos SQLite (donde se guardan los creados desde DevOps)
+    Obtener negocios desde la base de datos PostgreSQL (donde se guardan los creados desde DevOps)
     Retorna diccionario con estructura {negocio_id: negocio_data} o {} si falla
     """
     try:
-        import sqlite3
-        db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
-        with sqlite3.connect(db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute('''
+        from sqlalchemy import text
+        session = get_db_connection()
+        try:
+            result = session.execute(text('''
                 SELECT id, nombre, descripcion, direccion, telefono, email, activo,
                        fecha_creacion, fecha_actualizacion
                 FROM negocios 
-                WHERE activo = 1
+                WHERE activo = TRUE
                 ORDER BY nombre
-            ''')
-            rows = cursor.fetchall()
+            '''))
+            rows = result.fetchall()
             negocios = {}
             for row in rows:
-                negocio_id = str(row['id'])
+                negocio_id = str(row[0])  # id es la primera columna
                 negocios[negocio_id] = {
                     'id': negocio_id,
-                    'nombre': row['nombre'],
-                    'descripcion': row['descripcion'] or '',
-                    'direccion': row['direccion'] or '',
-                    'telefono': row['telefono'] or '',
-                    'email': row['email'] or '',
-                    'activo': bool(row['activo']),
+                    'nombre': row[1] or '',
+                    'descripcion': row[2] or '',
+                    'direccion': row[3] or '',
+                    'telefono': row[4] or '',
+                    'email': row[5] or '',
+                    'activo': bool(row[6]),
                     'categoria': 'General',  # Valor por defecto
                     'color': '#007bff',  # Color por defecto
-                    'fecha_creacion': row['fecha_creacion'] or '',
-                    'fecha_actualizacion': row['fecha_actualizacion'] or ''
+                    'fecha_creacion': str(row[7]) if row[7] else '',
+                    'fecha_actualizacion': str(row[8]) if row[8] else ''
                 }
             if negocios:
-                logger.info(f"✅ Negocios obtenidos desde base de datos: {len(negocios)}")
+                logger.info(f"[DB] ✅ Negocios obtenidos desde PostgreSQL: {len(negocios)}")
             else:
-                logger.info("ℹ️ No hay negocios activos en la base de datos")
+                logger.info("[DB] ℹ️ No hay negocios activos en la base de datos")
             return negocios
-    except FileNotFoundError:
-        logger.warning(f"⚠️ Base de datos no encontrada en: {db_path}")
-        return {}
+        finally:
+            session.close()
     except Exception as e:
-        logger.warning(f"⚠️ No se pudieron obtener negocios desde DB: {e}")
+        logger.error(f"[DB] ❌ No se pudieron obtener negocios desde DB: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return {}
 
 def obtener_productos_desde_db():
     """
-    Obtener productos desde la base de datos SQLite (donde se guardan los creados desde DevOps)
+    Obtener productos desde la base de datos PostgreSQL (donde se guardan los creados desde DevOps)
     Retorna lista de productos o [] si falla
     """
     try:
-        import sqlite3
-        db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
-        with sqlite3.connect(db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute('''
+        from sqlalchemy import text
+        session = get_db_connection()
+        try:
+            result = session.execute(text('''
                 SELECT p.id, p.nombre, p.store as descripcion, p.precio, p.original_price, 
                        p.categoria, p.imagen, p.stock, p.stock_minimo, p.negocio_id, 
                        p.activo, p.destacado, p.fecha_creacion, p.fecha_actualizacion,
                        n.nombre as negocio_nombre
                 FROM productos p
                 LEFT JOIN negocios n ON p.negocio_id = n.id
-                WHERE p.activo = 1
+                WHERE p.activo = TRUE
                 ORDER BY p.destacado DESC, p.nombre
-            ''')
-            rows = cursor.fetchall()
+            '''))
+            rows = result.fetchall()
             productos = []
             for row in rows:
-                # Normalizar categoría: intentar buscar por ID primero, luego por nombre
-                categoria_raw = row['categoria'] or 'General'
-                producto_categoria = categoria_raw  # Por defecto usar el valor tal cual
-                
+                categoria_raw = row[5] or 'General'
                 producto = {
-                    'id': str(row['id']),
-                    'nombre': row['nombre'],
-                    'descripcion': row['descripcion'] or '',
-                    'precio': float(row['precio']),
-                    'precio_original': float(row['original_price']) if row['original_price'] else float(row['precio']),
-                    'categoria': producto_categoria,
-                    'imagen': row['imagen'] or '/static/images/producto-default.jpg',
-                    'stock': int(row['stock']) if row['stock'] else 0,
-                    'negocio_id': str(row['negocio_id']) if row['negocio_id'] else '1',
-                    'negocio': row['negocio_nombre'] or 'Sin negocio',
-                    'activo': bool(row['activo']),
-                    'destacado': bool(row['destacado']),
-                    'fecha_creacion': row['fecha_creacion'] or '',
-                    'fecha_actualizacion': row['fecha_actualizacion'] or ''
+                    'id': str(row[0]),
+                    'nombre': row[1] or '',
+                    'descripcion': row[2] or '',
+                    'precio': float(row[3]) if row[3] else 0.0,
+                    'precio_original': float(row[4]) if row[4] else float(row[3]) if row[3] else 0.0,
+                    'categoria': categoria_raw,
+                    'imagen': row[6] or '/static/images/producto-default.jpg',
+                    'stock': int(row[7]) if row[7] else 0,
+                    'negocio_id': str(row[9]) if row[9] else '1',
+                    'negocio': row[14] or 'Sin negocio',
+                    'activo': bool(row[10]),
+                    'destacado': bool(row[11]),
+                    'fecha_creacion': str(row[12]) if row[12] else '',
+                    'fecha_actualizacion': str(row[13]) if row[13] else ''
                 }
                 productos.append(producto)
             if productos:
-                logger.info(f"✅ Productos obtenidos desde base de datos: {len(productos)}")
+                logger.info(f"[DB] ✅ Productos obtenidos desde PostgreSQL: {len(productos)}")
             else:
-                logger.info("ℹ️ No hay productos activos en la base de datos")
+                logger.info("[DB] ℹ️ No hay productos activos en la base de datos")
             return productos
-    except FileNotFoundError:
-        logger.warning(f"⚠️ Base de datos no encontrada en: {db_path}")
-        return []
+        finally:
+            session.close()
     except Exception as e:
-        logger.warning(f"⚠️ No se pudieron obtener productos desde DB: {e}")
+        logger.error(f"[DB] ❌ No se pudieron obtener productos desde DB: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return []
 
 def obtener_ofertas_desde_db():
     """
-    Obtener ofertas desde la base de datos SQLite (donde se guardan las creadas desde DevOps)
+    Obtener ofertas desde la base de datos PostgreSQL (donde se guardan las creadas desde DevOps)
     Retorna diccionario con estructura {negocio: [ofertas]} o {} si falla
     """
     try:
-        import sqlite3
+        from sqlalchemy import text
         from datetime import datetime
-        db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
-        with sqlite3.connect(db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute('''
+        session = get_db_connection()
+        try:
+            result = session.execute(text('''
                 SELECT o.id, o.nombre as titulo, o.descripcion, o.descuento, 
                        o.fecha_inicio, o.fecha_fin, o.producto_id, o.negocio_id, 
                        o.activo, o.fecha_creacion, o.fecha_actualizacion,
@@ -1472,10 +1455,10 @@ def obtener_ofertas_desde_db():
                 FROM ofertas o
                 LEFT JOIN negocios n ON o.negocio_id = n.id
                 LEFT JOIN productos p ON o.producto_id = p.id
-                WHERE o.activo = 1
+                WHERE o.activo = TRUE
                 ORDER BY o.fecha_creacion DESC
-            ''')
-            rows = cursor.fetchall()
+            '''))
+            rows = result.fetchall()
             ofertas_por_negocio = {}
             fecha_actual = datetime.now().date()
             
@@ -1483,14 +1466,14 @@ def obtener_ofertas_desde_db():
                 # Verificar si la oferta está activa por fechas
                 fecha_inicio = None
                 fecha_fin = None
-                if row['fecha_inicio']:
+                if row[4]:  # fecha_inicio
                     try:
-                        fecha_inicio = datetime.strptime(row['fecha_inicio'], '%Y-%m-%d').date()
+                        fecha_inicio = row[4].date() if hasattr(row[4], 'date') else datetime.strptime(str(row[4]), '%Y-%m-%d').date()
                     except:
                         pass
-                if row['fecha_fin']:
+                if row[5]:  # fecha_fin
                     try:
-                        fecha_fin = datetime.strptime(row['fecha_fin'], '%Y-%m-%d').date()
+                        fecha_fin = row[5].date() if hasattr(row[5], 'date') else datetime.strptime(str(row[5]), '%Y-%m-%d').date()
                     except:
                         pass
                 
@@ -1500,37 +1483,36 @@ def obtener_ofertas_desde_db():
                 if fecha_fin and fecha_actual > fecha_fin:
                     continue
                 
-                negocio_nombre = row['negocio_nombre'] or 'Sin negocio'
+                negocio_nombre = row[11] or 'Sin negocio'
                 if negocio_nombre not in ofertas_por_negocio:
                     ofertas_por_negocio[negocio_nombre] = []
                 
                 oferta = {
-                    'id': str(row['id']),
-                    'titulo': row['titulo'],
-                    'descripcion': row['descripcion'] or '',
-                    'descuento': float(row['descuento']),
-                    'producto_id': str(row['producto_id']) if row['producto_id'] else '',
-                    'producto_nombre': row['producto_nombre'] or '',
-                    'negocio_id': str(row['negocio_id']) if row['negocio_id'] else '',
+                    'id': str(row[0]),
+                    'titulo': row[1] or '',
+                    'descripcion': row[2] or '',
+                    'descuento': float(row[3]) if row[3] else 0.0,
+                    'producto_id': str(row[6]) if row[6] else '',
+                    'producto_nombre': row[12] or '',
+                    'negocio_id': str(row[7]) if row[7] else '',
                     'negocio': negocio_nombre,
-                    'fecha_inicio': row['fecha_inicio'] or '',
-                    'fecha_fin': row['fecha_fin'] or '',
-                    'activa': bool(row['activo']),
-                    'fecha_creacion': row['fecha_creacion'] or ''
+                    'fecha_inicio': str(row[4]) if row[4] else '',
+                    'fecha_fin': str(row[5]) if row[5] else '',
+                    'activa': bool(row[8]),
+                    'fecha_creacion': str(row[9]) if row[9] else ''
                 }
                 ofertas_por_negocio[negocio_nombre].append(oferta)
             
             if ofertas_por_negocio:
                 total_ofertas = sum(len(ofertas) for ofertas in ofertas_por_negocio.values())
-                logger.info(f"✅ Ofertas obtenidas desde base de datos: {total_ofertas} en {len(ofertas_por_negocio)} negocios")
+                logger.info(f"[DB] ✅ Ofertas obtenidas desde PostgreSQL: {total_ofertas} en {len(ofertas_por_negocio)} negocios")
             else:
-                logger.info("ℹ️ No hay ofertas activas en la base de datos")
+                logger.info("[DB] ℹ️ No hay ofertas activas en la base de datos")
             return ofertas_por_negocio
-    except FileNotFoundError:
-        logger.warning(f"⚠️ Base de datos no encontrada en: {db_path}")
-        return {}
+        finally:
+            session.close()
     except Exception as e:
-        logger.warning(f"⚠️ No se pudieron obtener ofertas desde DB: {e}")
+        logger.error(f"[DB] ❌ No se pudieron obtener ofertas desde DB: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return {}
@@ -3057,219 +3039,189 @@ def guardar_datos_json(datos):
         return False
 
 def _guardar_negocio_en_db(negocio_data):
-    """Guardar negocio en la base de datos SQLite"""
+    """Guardar negocio en la base de datos PostgreSQL"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Asegurar que la tabla existe
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS negocios (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT NOT NULL,
-                descripcion TEXT,
-                direccion TEXT,
-                telefono TEXT,
-                email TEXT,
-                activo BOOLEAN DEFAULT 1,
-                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        activo = 1 if negocio_data.get('activo', True) else 0
-        cursor.execute('''
-            INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (
-            negocio_data.get('nombre', ''),
-            negocio_data.get('descripcion', ''),
-            negocio_data.get('direccion', ''),
-            negocio_data.get('telefono', ''),
-            negocio_data.get('email', ''),
-            activo
-        ))
-        
-        negocio_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        logger.info(f"✅ Negocio guardado en DB: ID {negocio_id}")
-        return negocio_id
+        from sqlalchemy import text
+        session = get_db_connection()
+        try:
+            activo = negocio_data.get('activo', True)
+            result = session.execute(text('''
+                INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo)
+                VALUES (:nombre, :descripcion, :direccion, :telefono, :email, :activo)
+                RETURNING id
+            '''), {
+                'nombre': negocio_data.get('nombre', ''),
+                'descripcion': negocio_data.get('descripcion', ''),
+                'direccion': negocio_data.get('direccion', ''),
+                'telefono': negocio_data.get('telefono', ''),
+                'email': negocio_data.get('email', ''),
+                'activo': activo
+            })
+            row = result.fetchone()
+            negocio_id = row[0] if row else None
+            session.commit()
+            logger.info(f"[DB] ✅ Negocio guardado en PostgreSQL: ID {negocio_id}")
+            return negocio_id
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[DB] ❌ Error guardando negocio en DB: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+        finally:
+            session.close()
     except Exception as e:
-        logger.error(f"Error guardando negocio en DB: {e}")
+        logger.error(f"[DB] ❌ Error guardando negocio en DB: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return None
 
 def _guardar_producto_en_db(producto_data):
-    """Guardar producto en la base de datos SQLite"""
+    """Guardar producto en la base de datos PostgreSQL"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Asegurar que la tabla existe
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS productos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT NOT NULL,
-                store TEXT,
-                precio REAL NOT NULL,
-                original_price REAL,
-                categoria TEXT,
-                imagen TEXT,
-                stock INTEGER DEFAULT 0,
-                stock_minimo INTEGER DEFAULT 5,
-                negocio_id INTEGER DEFAULT 1,
-                activo BOOLEAN DEFAULT 1,
-                destacado BOOLEAN DEFAULT 0,
-                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        activo = 1 if producto_data.get('activo', True) else 0
-        destacado = 1 if producto_data.get('destacado', False) else 0
-        
-        # Mapear campos
-        store = producto_data.get('descripcion', producto_data.get('store', ''))
-        negocio_id = producto_data.get('negocio_id', producto_data.get('negocio', 1))
-        if isinstance(negocio_id, str):
-            # Si es string, intentar convertir a int o usar 1 por defecto
-            try:
-                negocio_id = int(negocio_id)
-            except:
-                negocio_id = 1
-        
-        cursor.execute('''
-            INSERT INTO productos (nombre, store, precio, original_price, categoria, imagen,
-                                 stock, stock_minimo, negocio_id, activo, destacado)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            producto_data.get('nombre', ''),
-            store,
-            float(producto_data.get('precio', 0)),
-            float(producto_data.get('original_price', producto_data.get('precio', 0))),
-            producto_data.get('categoria', ''),
-            producto_data.get('imagen', ''),
-            int(producto_data.get('stock', 0)),
-            int(producto_data.get('stock_minimo', 5)),
-            negocio_id,
-            activo,
-            destacado
-        ))
-        
-        producto_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        logger.info(f"✅ Producto guardado en DB: ID {producto_id}")
-        return producto_id
+        from sqlalchemy import text
+        session = get_db_connection()
+        try:
+            activo = producto_data.get('activo', True)
+            destacado = producto_data.get('destacado', False)
+            store = producto_data.get('descripcion', producto_data.get('store', ''))
+            negocio_id = producto_data.get('negocio_id', producto_data.get('negocio', 1))
+            if isinstance(negocio_id, str):
+                try:
+                    negocio_id = int(negocio_id)
+                except:
+                    negocio_id = 1
+            
+            result = session.execute(text('''
+                INSERT INTO productos (nombre, store, precio, original_price, categoria, imagen,
+                                     stock, stock_minimo, negocio_id, activo, destacado)
+                VALUES (:nombre, :store, :precio, :original_price, :categoria, :imagen,
+                       :stock, :stock_minimo, :negocio_id, :activo, :destacado)
+                RETURNING id
+            '''), {
+                'nombre': producto_data.get('nombre', ''),
+                'store': store,
+                'precio': float(producto_data.get('precio', 0)),
+                'original_price': float(producto_data.get('original_price', producto_data.get('precio', 0))),
+                'categoria': producto_data.get('categoria', ''),
+                'imagen': producto_data.get('imagen', ''),
+                'stock': int(producto_data.get('stock', 0)),
+                'stock_minimo': int(producto_data.get('stock_minimo', 5)),
+                'negocio_id': negocio_id,
+                'activo': activo,
+                'destacado': destacado
+            })
+            row = result.fetchone()
+            producto_id = row[0] if row else None
+            session.commit()
+            logger.info(f"[DB] ✅ Producto guardado en PostgreSQL: ID {producto_id}")
+            return producto_id
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[DB] ❌ Error guardando producto en DB: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+        finally:
+            session.close()
     except Exception as e:
-        logger.error(f"Error guardando producto en DB: {e}")
+        logger.error(f"[DB] ❌ Error guardando producto en DB: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return None
 
 def _guardar_sucursal_en_db(sucursal_data):
-    """Guardar sucursal en la base de datos SQLite"""
+    """Guardar sucursal en la base de datos PostgreSQL"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Asegurar que la tabla existe
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS sucursales (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT NOT NULL,
-                direccion TEXT,
-                telefono TEXT,
-                email TEXT,
-                negocio_id INTEGER NOT NULL,
-                activo BOOLEAN DEFAULT 1,
-                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-            )
-        ''')
-        
-        negocio_id = sucursal_data.get('negocio_id', sucursal_data.get('negocio', 1))
-        if isinstance(negocio_id, str):
-            try:
-                negocio_id = int(negocio_id)
-            except:
-                negocio_id = 1
-        
-        activo = 1 if sucursal_data.get('activo', True) else 0
-        
-        cursor.execute('''
-            INSERT INTO sucursales (nombre, direccion, telefono, email, negocio_id, activo)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (
-            sucursal_data.get('nombre', ''),
-            sucursal_data.get('direccion', ''),
-            sucursal_data.get('telefono', ''),
-            sucursal_data.get('email', ''),
-            negocio_id,
-            activo
-        ))
-        
-        sucursal_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        logger.info(f"✅ Sucursal guardada en DB: ID {sucursal_id}")
-        return sucursal_id
+        from sqlalchemy import text
+        session = get_db_connection()
+        try:
+            negocio_id = sucursal_data.get('negocio_id', sucursal_data.get('negocio', 1))
+            if isinstance(negocio_id, str):
+                try:
+                    negocio_id = int(negocio_id)
+                except:
+                    negocio_id = 1
+            
+            activo = sucursal_data.get('activo', True)
+            
+            result = session.execute(text('''
+                INSERT INTO sucursales (nombre, direccion, telefono, email, negocio_id, activo)
+                VALUES (:nombre, :direccion, :telefono, :email, :negocio_id, :activo)
+                RETURNING id
+            '''), {
+                'nombre': sucursal_data.get('nombre', ''),
+                'direccion': sucursal_data.get('direccion', ''),
+                'telefono': sucursal_data.get('telefono', ''),
+                'email': sucursal_data.get('email', ''),
+                'negocio_id': negocio_id,
+                'activo': activo
+            })
+            row = result.fetchone()
+            sucursal_id = row[0] if row else None
+            session.commit()
+            logger.info(f"[DB] ✅ Sucursal guardada en PostgreSQL: ID {sucursal_id}")
+            return sucursal_id
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[DB] ❌ Error guardando sucursal en DB: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+        finally:
+            session.close()
     except Exception as e:
-        logger.error(f"Error guardando sucursal en DB: {e}")
+        logger.error(f"[DB] ❌ Error guardando sucursal en DB: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return None
 
 def _guardar_oferta_en_db(oferta_data):
-    """Guardar oferta en la base de datos SQLite"""
+    """Guardar oferta en la base de datos PostgreSQL"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Asegurar que la tabla existe
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS ofertas (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT NOT NULL,
-                descripcion TEXT,
-                descuento REAL,
-                fecha_inicio TEXT,
-                fecha_fin TEXT,
-                activa BOOLEAN DEFAULT 1,
-                negocio_id INTEGER,
-                fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-            )
-        ''')
-        
-        activa = 1 if oferta_data.get('activa', oferta_data.get('activo', True)) else 0
-        negocio_id = oferta_data.get('negocio_id', oferta_data.get('negocio', None))
-        if isinstance(negocio_id, str):
-            try:
-                negocio_id = int(negocio_id) if negocio_id else None
-            except:
-                negocio_id = None
-        
-        nombre = oferta_data.get('titulo', oferta_data.get('nombre', ''))
-        
-        cursor.execute('''
-            INSERT INTO ofertas (nombre, descripcion, descuento, fecha_inicio, fecha_fin, activa, negocio_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            nombre,
-            oferta_data.get('descripcion', ''),
-            float(oferta_data.get('descuento', 0)),
-            oferta_data.get('fecha_inicio', ''),
-            oferta_data.get('fecha_fin', ''),
-            activa,
-            negocio_id
-        ))
-        
-        oferta_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        logger.info(f"✅ Oferta guardada en DB: ID {oferta_id}")
-        return oferta_id
+        from sqlalchemy import text
+        session = get_db_connection()
+        try:
+            activa = oferta_data.get('activa', oferta_data.get('activo', True))
+            negocio_id = oferta_data.get('negocio_id', oferta_data.get('negocio', None))
+            if isinstance(negocio_id, str):
+                try:
+                    negocio_id = int(negocio_id) if negocio_id else None
+                except:
+                    negocio_id = None
+            
+            nombre = oferta_data.get('titulo', oferta_data.get('nombre', ''))
+            
+            result = session.execute(text('''
+                INSERT INTO ofertas (nombre, descripcion, descuento, fecha_inicio, fecha_fin, activo, negocio_id)
+                VALUES (:nombre, :descripcion, :descuento, :fecha_inicio, :fecha_fin, :activo, :negocio_id)
+                RETURNING id
+            '''), {
+                'nombre': nombre,
+                'descripcion': oferta_data.get('descripcion', ''),
+                'descuento': float(oferta_data.get('descuento', 0)),
+                'fecha_inicio': oferta_data.get('fecha_inicio', ''),
+                'fecha_fin': oferta_data.get('fecha_fin', ''),
+                'activo': activa,
+                'negocio_id': negocio_id
+            })
+            row = result.fetchone()
+            oferta_id = row[0] if row else None
+            session.commit()
+            logger.info(f"[DB] ✅ Oferta guardada en PostgreSQL: ID {oferta_id}")
+            return oferta_id
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[DB] ❌ Error guardando oferta en DB: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+        finally:
+            session.close()
     except Exception as e:
-        logger.error(f"Error guardando oferta en DB: {e}")
+        logger.error(f"[DB] ❌ Error guardando oferta en DB: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return None
 
 @app.route('/admin/agregar_producto', methods=['POST'])

@@ -162,7 +162,7 @@ logger.info(f"   BELGRANO_AHORRO_URL: {belgrano_url}")
 logger.info(f"   BELGRANO_AHORRO_API_KEY: {'*' * min(len(belgrano_api_key), 10)}... ({len(belgrano_api_key)} caracteres)")
 logger.info("=" * 60)
 
-# Registrar blueprint de DevOps
+# Registrar blueprint de DevOps (solo una vez)
 try:
     # Intentar importar desde diferentes ubicaciones posibles
     try:
@@ -171,10 +171,15 @@ try:
         # Si estamos dentro del directorio devops, importar directamente
         from routes import devops_bp
     
-    app.register_blueprint(devops_bp)
-    logger.info("✅ Blueprint de DevOps registrado correctamente")
+    # Verificar que no esté ya registrado
+    blueprint_name = devops_bp.name if hasattr(devops_bp, 'name') else 'devops'
+    if blueprint_name not in [bp.name for bp in app.blueprints.values()]:
+        app.register_blueprint(devops_bp)
+        logger.info("[DEVOPS] ✅ Blueprint de DevOps registrado correctamente")
+    else:
+        logger.info("[DEVOPS] ✅ Blueprint de DevOps ya estaba registrado (omitiendo duplicado)")
 except Exception as e:
-    logger.error(f"❌ Error registrando blueprint de DevOps: {e}")
+    logger.error(f"[DEVOPS] ❌ Error registrando blueprint de DevOps: {e}")
     import traceback
     logger.error(traceback.format_exc())
     raise

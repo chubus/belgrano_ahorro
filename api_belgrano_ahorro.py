@@ -8,16 +8,25 @@ Soporte bilingüe: español e inglés
 
 import os
 import json
-import sqlite3
 import logging
 from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 from functools import wraps
 from contextlib import contextmanager
+from sqlalchemy import text
 
-# Configurar logging
+# Configurar logging con prefijo [API]
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Importar configuración centralizada
+try:
+    from config import DATABASE_URL, BELGRANO_AHORRO_API_KEY
+except ImportError:
+    DATABASE_URL = os.getenv('DATABASE_URL', '')
+    BELGRANO_AHORRO_API_KEY = os.getenv('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
+    if not DATABASE_URL:
+        raise ValueError("[API] ERROR: DATABASE_URL no configurada")
 
 # Crear blueprint para la API
 api_bp = Blueprint('belgrano_api', __name__, url_prefix='/api')
@@ -34,7 +43,7 @@ def require_api_key(f):
     """Decorator mejorado para requerir API key válida con múltiples métodos"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        expected_api_key = os.getenv('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
+        expected_api_key = BELGRANO_AHORRO_API_KEY
         api_key = None
         
         # Método 1: Bearer token en Authorization header
@@ -62,17 +71,9 @@ def require_api_key(f):
     return decorated_function
 
 def get_db_connection():
-    """Obtener conexión a la base de datos (SQLite o PostgreSQL)"""
-    # Intentar usar abstracción de base de datos
-    try:
-        from db_abstraction import get_db_connection as get_db_conn_abstracted
-        return get_db_conn_abstracted()
-    except ImportError:
-        # Fallback a SQLite tradicional
-        db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+    """Obtener conexión a la base de datos PostgreSQL"""
+    from db_abstraction import get_db_connection as get_db_conn_abstracted
+    return get_db_conn_abstracted()
 
 @contextmanager
 def db_connection():
@@ -89,7 +90,7 @@ def db_connection():
 def execute_insert_returning_id(query: str, params: tuple, table_name: str = None):
     """
     Ejecutar INSERT y retornar el ID del registro insertado
-    Compatible con SQLite y PostgreSQL
+    SIEMPRE usa PostgreSQL
     
     Args:
         query: Query INSERT (puede usar ? para parámetros)
@@ -99,62 +100,45 @@ def execute_insert_returning_id(query: str, params: tuple, table_name: str = Non
     Returns:
         ID del registro insertado
     """
-    database_url = os.getenv('DATABASE_URL', '')
-    use_postgres = database_url and (database_url.startswith('postgresql://') or database_url.startswith('postgres://'))
-    
-    conn = get_db_connection()
+    session = get_db_connection()
     try:
-        if use_postgres:
-            # PostgreSQL: usar RETURNING para obtener ID
-            from sqlalchemy import text
+        # Convertir ? a :param para PostgreSQL
+        adapted_query = query
+        param_dict = {}
+        if '?' in query and params:
+            for i, param in enumerate(params):
+                param_name = f'p{i}'
+                adapted_query = adapted_query.replace('?', f':{param_name}', 1)
+                param_dict[param_name] = param
+        
+        # Agregar RETURNING si no está
+        if 'RETURNING' not in adapted_query.upper():
+            # Extraer nombre de tabla del query si no se proporciona
+            if not table_name:
+                # Intentar extraer de "INSERT INTO tabla"
+                import re
+                match = re.search(r'INSERT\s+INTO\s+(\w+)', adapted_query, re.IGNORECASE)
+                if match:
+                    table_name = match.group(1)
             
-            # Convertir ? a :param para PostgreSQL
-            adapted_query = query
-            param_dict = {}
-            if '?' in query and params:
-                for i, param in enumerate(params):
-                    param_name = f'p{i}'
-                    adapted_query = adapted_query.replace('?', f':{param_name}', 1)
-                    param_dict[param_name] = param
-            
-            # Agregar RETURNING si no está
-            if 'RETURNING' not in adapted_query.upper():
-                # Extraer nombre de tabla del query si no se proporciona
-                if not table_name:
-                    # Intentar extraer de "INSERT INTO tabla"
-                    import re
-                    match = re.search(r'INSERT\s+INTO\s+(\w+)', adapted_query, re.IGNORECASE)
-                    if match:
-                        table_name = match.group(1)
-                
-                if table_name:
-                    adapted_query = adapted_query.rstrip(';') + f' RETURNING {table_name}.id'
-            
-            result = conn.execute(text(adapted_query), param_dict)
-            row = result.fetchone()
-            if row:
-                inserted_id = row[0] if hasattr(row, '__getitem__') else row.id
-                conn.commit()
-                return inserted_id
-            else:
-                conn.commit()
-                return None
-        else:
-            # SQLite: usar cursor tradicional
-            cursor = conn.cursor()
-            cursor.execute(query, params)
-            inserted_id = cursor.lastrowid
-            conn.commit()
+            if table_name:
+                adapted_query = adapted_query.rstrip(';') + f' RETURNING {table_name}.id'
+        
+        result = session.execute(text(adapted_query), param_dict)
+        row = result.fetchone()
+        if row:
+            inserted_id = row[0] if hasattr(row, '__getitem__') else row.id
+            session.commit()
             return inserted_id
-    except Exception as e:
-        if use_postgres:
-            conn.rollback()
         else:
-            conn.rollback()
-        logger.error(f"Error en execute_insert_returning_id: {e}")
+            session.commit()
+            return None
+    except Exception as e:
+        session.rollback()
+        logger.error(f"[API] Error en execute_insert_returning_id: {e}")
         raise
     finally:
-        conn.close()
+        session.close()
 
 def execute_select(query: str, params: tuple = None):
     """
@@ -242,197 +226,19 @@ def execute_update_delete(query: str, params: tuple = None):
         conn.close()
 
 def ensure_tables():
-    """Crear tablas requeridas si no existen (compatible SQLite y PostgreSQL)"""
+    """
+    Crear tablas requeridas si no existen en PostgreSQL
+    DEPRECATED: Usar init_db() de init_db.py en su lugar
+    """
+    logger.warning("[API] ensure_tables() está deprecado. Use init_db() de init_db.py")
     try:
-        # Detectar si estamos usando PostgreSQL
-        database_url = os.getenv('DATABASE_URL', '')
-        use_postgres = database_url and (database_url.startswith('postgresql://') or database_url.startswith('postgres://'))
-        
-        conn = get_db_connection()
-        
-        if use_postgres:
-            # PostgreSQL: usar SQL adaptado
-            from sqlalchemy import text
-            
-            # Tabla negocios
-            conn.execute(text('''
-                CREATE TABLE IF NOT EXISTS negocios (
-                    id SERIAL PRIMARY KEY,
-                    nombre TEXT NOT NULL,
-                    descripcion TEXT,
-                    direccion TEXT,
-                    telefono TEXT,
-                    email TEXT,
-                    activo BOOLEAN DEFAULT TRUE,
-                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            '''))
-            
-            # Tabla categorías (crear antes de productos)
-            conn.execute(text('''
-                CREATE TABLE IF NOT EXISTS categorias (
-                    id SERIAL PRIMARY KEY,
-                    nombre TEXT NOT NULL UNIQUE,
-                    descripcion TEXT,
-                    activa BOOLEAN DEFAULT TRUE,
-                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            '''))
-            
-            # Tabla productos
-            conn.execute(text('''
-                CREATE TABLE IF NOT EXISTS productos (
-                    id SERIAL PRIMARY KEY,
-                    nombre TEXT NOT NULL,
-                    store TEXT,
-                    precio DECIMAL(10,2) NOT NULL,
-                    original_price DECIMAL(10,2),
-                    categoria TEXT,
-                    imagen TEXT,
-                    stock INTEGER DEFAULT 0,
-                    stock_minimo INTEGER DEFAULT 5,
-                    negocio_id INTEGER DEFAULT 1,
-                    activo BOOLEAN DEFAULT TRUE,
-                    destacado BOOLEAN DEFAULT FALSE,
-                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-                )
-            '''))
-            
-            # Tabla sucursales
-            conn.execute(text('''
-                CREATE TABLE IF NOT EXISTS sucursales (
-                    id SERIAL PRIMARY KEY,
-                    nombre TEXT NOT NULL,
-                    direccion TEXT,
-                    telefono TEXT,
-                    email TEXT,
-                    negocio_id INTEGER NOT NULL,
-                    activo BOOLEAN DEFAULT TRUE,
-                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-                )
-            '''))
-            
-            # Tabla ofertas
-            conn.execute(text('''
-                CREATE TABLE IF NOT EXISTS ofertas (
-                    id SERIAL PRIMARY KEY,
-                    nombre TEXT NOT NULL,
-                    descripcion TEXT,
-                    descuento DECIMAL(10,2) NOT NULL,
-                    fecha_inicio TIMESTAMP,
-                    fecha_fin TIMESTAMP,
-                    producto_id INTEGER,
-                    negocio_id INTEGER,
-                    activo BOOLEAN DEFAULT TRUE,
-                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (producto_id) REFERENCES productos(id),
-                    FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-                )
-            '''))
-            
-            conn.commit()
-            logger.info("✅ Tablas de API verificadas/creadas en PostgreSQL")
-        else:
-            # SQLite: usar queries tradicionales
-            cursor = conn.cursor()
-            
-            # Tabla negocios
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS negocios (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nombre TEXT NOT NULL,
-                    descripcion TEXT,
-                    direccion TEXT,
-                    telefono TEXT,
-                    email TEXT,
-                    activo BOOLEAN DEFAULT 1,
-                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            # Tabla categorías
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS categorias (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nombre TEXT NOT NULL UNIQUE,
-                    descripcion TEXT,
-                    activa BOOLEAN DEFAULT 1,
-                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            # Tabla sucursales
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS sucursales (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nombre TEXT NOT NULL,
-                    direccion TEXT,
-                    telefono TEXT,
-                    email TEXT,
-                    negocio_id INTEGER NOT NULL,
-                    activo BOOLEAN DEFAULT 1,
-                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-                )
-            ''')
-            
-            # Tabla productos
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS productos (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nombre TEXT NOT NULL,
-                    store TEXT,
-                    precio REAL NOT NULL,
-                    original_price REAL,
-                    categoria TEXT,
-                    imagen TEXT,
-                    stock INTEGER DEFAULT 0,
-                    stock_minimo INTEGER DEFAULT 5,
-                    negocio_id INTEGER DEFAULT 1,
-                    activo BOOLEAN DEFAULT 1,
-                    destacado BOOLEAN DEFAULT 0,
-                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-                )
-            ''')
-            
-            # Tabla ofertas
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS ofertas (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nombre TEXT NOT NULL,
-                    descripcion TEXT,
-                    descuento REAL NOT NULL,
-                    fecha_inicio TIMESTAMP,
-                    fecha_fin TIMESTAMP,
-                    producto_id INTEGER,
-                    negocio_id INTEGER,
-                    activo BOOLEAN DEFAULT 1,
-                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (producto_id) REFERENCES productos(id),
-                    FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-                )
-            ''')
-            
-            conn.commit()
-            logger.info("✅ Tablas de API verificadas/creadas en SQLite")
-        
-        conn.close()
-            
+        from init_db import init_db
+        init_db()
+        logger.info("[API] ✅ Tablas verificadas/creadas usando init_db()")
+    except ImportError:
+        logger.error("[API] ❌ No se pudo importar init_db. Las tablas deben crearse manualmente.")
     except Exception as e:
-        logger.error(f"Error creando tablas: {e}")
+        logger.error(f"[API] ❌ Error en ensure_tables: {e}")
         import traceback
         logger.error(traceback.format_exc())
 
@@ -1606,5 +1412,18 @@ def api_obtener_compra(pedido_id):
         logger.error(f"Error in api_obtener_compra: {e}")
         return jsonify({'error': str(e)}), 500
 
-# Inicializar tablas al importar el módulo
-ensure_tables()
+# Inicializar tablas al importar el módulo usando init_db() centralizada
+try:
+    from init_db import init_db
+    # Solo inicializar si no se ha inicializado antes
+    _db_initialized = False
+    if not _db_initialized:
+        try:
+            init_db()
+            _db_initialized = True
+            logger.info("[API] ✅ Base de datos inicializada correctamente")
+        except Exception as e:
+            logger.error(f"[API] ❌ Error inicializando base de datos: {e}")
+            # No fallar la app, pero registrar el error
+except ImportError:
+    logger.warning("[API] ⚠️ No se pudo importar init_db. Las tablas deben crearse manualmente.")

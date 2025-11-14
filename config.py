@@ -1,54 +1,56 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Configuración simple y segura para variables de entorno.
-No detiene la app si faltan variables críticas; emite warnings y usa valores por defecto.
+Configuración centralizada del proyecto
+Lee variables de entorno UNA SOLA VEZ al inicio
 """
 
 import os
 import logging
 
+# Configurar logger con prefijo [CONFIG]
 logger = logging.getLogger(__name__)
 
-# Valores por defecto seguros para desarrollo
-BELGRANO_AHORRO_API_KEY = os.getenv("BELGRANO_AHORRO_API_KEY", "dev_key_placeholder")
-DEVOPS_API_KEY = os.getenv("DEVOPS_API_KEY", "devops_key_placeholder")
+# ==========================================
+# VARIABLES DE ENTORNO - LECTURA ÚNICA
+# ==========================================
 
-BELGRANO_AHORRO_URL = os.getenv("BELGRANO_AHORRO_URL", "https://belgranoahorro-hp30.onrender.com")
-DEVOPS_API_URL = os.getenv("DEVOPS_API_URL", os.getenv("TICKETERA_URL", "http://localhost:5002"))
+# PostgreSQL - OBLIGATORIO
+DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
+if not DATABASE_URL:
+    raise ValueError("[CONFIG] ERROR: DATABASE_URL no configurada. Configure DATABASE_URL en Render Dashboard.")
 
+# Convertir postgres:// a postgresql:// si es necesario
+if DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-def load_env_defaults() -> None:
-    """Asegura que existan variables mínimas con valores por defecto y emite warnings.
+# Belgrano Ahorro
+BELGRANO_AHORRO_URL = os.getenv('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com').strip().rstrip('/')
+BELGRANO_AHORRO_API_KEY = os.getenv('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025').strip()
 
-    No levanta excepciones: la app debe poder iniciar en entornos de dev/test sin bloquearse.
-    """
-    defaults = {
-        "BELGRANO_AHORRO_API_KEY": BELGRANO_AHORRO_API_KEY,
-        "DEVOPS_API_KEY": DEVOPS_API_KEY,
-        "BELGRANO_AHORRO_URL": BELGRANO_AHORRO_URL,
-        "DEVOPS_API_URL": DEVOPS_API_URL,
-    }
+# Ticketera
+TICKETERA_URL = os.getenv('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com').strip().rstrip('/')
+TICKETS_API_URL = os.getenv('TICKETS_API_URL', TICKETERA_URL).strip().rstrip('/')
 
-    for key, value in defaults.items():
-        if not os.getenv(key):
-            os.environ[key] = value
-            logger.warning(f"ENV {key} no configurada, usando valor por defecto: {value}")
+# DevOps
+DEVOPS_USERNAME = os.getenv('DEVOPS_USERNAME', 'devops').strip()
+DEVOPS_PASSWORD = os.getenv('DEVOPS_PASSWORD', 'devops_password').strip()
+DEVOPS_API_URL = os.getenv('DEVOPS_API_URL', '').strip().rstrip('/')
 
+# Flask
+FLASK_ENV = os.getenv('FLASK_ENV', 'production').strip()
+SECRET_KEY = os.getenv('SECRET_KEY', 'belgrano_ahorro_secret_key_2025').strip()
+PORT = int(os.getenv('PORT', '5000'))
+HOST = os.getenv('HOST', '0.0.0.0')
 
-def validate_env_non_blocking() -> None:
-    """Valida variables críticas y emite warnings si faltan o parecen inválidas."""
-    checks = [
-        ("BELGRANO_AHORRO_URL", os.getenv("BELGRANO_AHORRO_URL")),
-        ("BELGRANO_AHORRO_API_KEY", os.getenv("BELGRANO_AHORRO_API_KEY")),
-        ("DEVOPS_API_URL", os.getenv("DEVOPS_API_URL")),
-        ("DEVOPS_API_KEY", os.getenv("DEVOPS_API_KEY")),
-    ]
+# API Configuration
+API_TIMEOUT_SECS = int(os.getenv('API_TIMEOUT_SECS', '20'))
+API_RETRY_TOTAL = int(os.getenv('API_RETRY_TOTAL', '3'))
+API_RETRY_BACKOFF = float(os.getenv('API_RETRY_BACKOFF', '1.0'))
 
-    for name, val in checks:
-        if not val or str(val).strip() == "":
-            logger.warning(f"ENV {name} ausente; ciertas funciones externas podrían fallar")
-
-
-
-
+# Log configuración una sola vez
+logger.info("[CONFIG] ✅ Variables de entorno cargadas:")
+logger.info(f"[CONFIG]    DATABASE_URL: {DATABASE_URL[:50]}...")
+logger.info(f"[CONFIG]    BELGRANO_AHORRO_URL: {BELGRANO_AHORRO_URL}")
+logger.info(f"[CONFIG]    TICKETERA_URL: {TICKETERA_URL}")
+logger.info(f"[CONFIG]    FLASK_ENV: {FLASK_ENV}")

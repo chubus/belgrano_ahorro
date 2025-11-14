@@ -19,6 +19,11 @@ parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
+# Configurar logging
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Cargar variables de entorno desde .env ANTES de importar la app
 try:
     from dotenv import load_dotenv
@@ -31,13 +36,27 @@ try:
     for env_path in env_paths:
         if os.path.exists(env_path):
             load_dotenv(env_path, override=False)  # No sobrescribir variables ya existentes
-            print(f"✅ Variables de entorno cargadas desde: {env_path}")
+            logger.info(f"[INIT] ✅ Variables de entorno cargadas desde: {env_path}")
             break
 except ImportError:
     # python-dotenv no está instalado, usar solo variables de entorno del sistema
     pass
 except Exception as e:
-    print(f"⚠️ Error cargando .env: {e}")
+    logger.warning(f"[INIT] ⚠️ Error cargando .env: {e}")
+
+# Inicializar base de datos PostgreSQL PRIMERO
+try:
+    from init_db import init_db
+    logger.info("[INIT] Inicializando base de datos PostgreSQL...")
+    init_db()
+    logger.info("[INIT] ✅ Base de datos inicializada correctamente")
+except ImportError as e:
+    logger.warning(f"[INIT] ⚠️ No se pudo importar init_db: {e}")
+except Exception as e:
+    logger.error(f"[INIT] ❌ Error inicializando base de datos: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
+    # No fallar completamente, pero registrar el error
 
 # Ruta absoluta a devops/app.py
 app_py_path = os.path.join(current_dir, "app.py")
