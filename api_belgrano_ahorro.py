@@ -13,6 +13,7 @@ import logging
 from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 from functools import wraps
+from contextlib import contextmanager
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
