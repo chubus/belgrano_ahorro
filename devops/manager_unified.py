@@ -172,7 +172,17 @@ class DevOpsBelgranoManagerUnified:
         # Limpiar cache del tipo de item creado para forzar refresh
         if ok:
             clear_cache(f"GET:{self.belgrano_url}/api/{kind}")
-        return (True, 'ok') if ok else (False, str(data))
+            return (True, 'ok')
+        else:
+            # Mejorar el manejo de errores para mostrar el mensaje correcto
+            if isinstance(data, dict):
+                error_msg = data.get('error', data.get('message', 'Error desconocido'))
+                status_code = data.get('status_code', 0)
+                if status_code:
+                    error_msg = f"{error_msg} (código: {status_code})"
+                return (False, error_msg)
+            else:
+                return (False, str(data))
 
     def update_item(self, kind: str, item_id: Any, payload: Dict[str, Any]):
         ok, data = self._req('PUT', f"/api/{kind}/{item_id}", json_data=payload)

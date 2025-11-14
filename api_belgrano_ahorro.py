@@ -496,6 +496,9 @@ def api_negocios():
 def api_negocio_create():
     """Crear nuevo negocio"""
     try:
+        # Asegurar que las tablas existan antes de insertar
+        ensure_tables()
+        
         data = request.get_json()
         if not data or 'nombre' not in data:
             return jsonify({'error': 'Nombre es requerido'}), 400
@@ -505,24 +508,39 @@ def api_negocio_create():
         if 'activo' in data:
             activo = 1 if (data['activo'] is True or data['activo'] == 1 or str(data['activo']).lower() == 'true') else 0
         
+        # Validar que los campos no sean None
+        nombre = str(data['nombre']).strip() if data.get('nombre') else ''
+        if not nombre:
+            return jsonify({'error': 'Nombre no puede estar vacío'}), 400
+        
         # Usar función helper compatible con SQLite y PostgreSQL
-        negocio_id = execute_insert_returning_id(
-            '''
-            INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ''',
-            (
-                data['nombre'],
-                data.get('descripcion', ''),
-                data.get('direccion', ''),
-                data.get('telefono', ''),
-                data.get('email', ''),
-                activo
-            ),
-            table_name='negocios'
-        )
+        try:
+            negocio_id = execute_insert_returning_id(
+                '''
+                INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ''',
+                (
+                    nombre,
+                    str(data.get('descripcion', '')).strip(),
+                    str(data.get('direccion', '')).strip(),
+                    str(data.get('telefono', '')).strip(),
+                    str(data.get('email', '')).strip(),
+                    activo
+                ),
+                table_name='negocios'
+            )
+        except Exception as db_error:
+            logger.error(f"Error en execute_insert_returning_id: {db_error}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return jsonify({
+                'error': f'Error al insertar en base de datos: {str(db_error)}',
+                'status_code': 500
+            }), 500
         
         if negocio_id:
+            logger.info(f"✅ Negocio creado exitosamente: ID {negocio_id}, Nombre: {nombre}")
             return jsonify({
                 'status': 'success',
                 'message': 'Negocio creado exitosamente',
@@ -530,13 +548,20 @@ def api_negocio_create():
                 'timestamp': datetime.now().isoformat()
             }), 201
         else:
-            return jsonify({'error': 'Error al crear negocio'}), 500
+            logger.error("❌ Error: execute_insert_returning_id retornó None")
+            return jsonify({
+                'error': 'Error al crear negocio: No se pudo obtener el ID del registro insertado',
+                'status_code': 500
+            }), 500
             
     except Exception as e:
         logger.error(f"Error in api_negocio_create: {e}")
         import traceback
         logger.error(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'error': str(e),
+            'status_code': 500
+        }), 500
 
 @api_bp.route('/negocios/<int:negocio_id>', methods=['GET'])
 @require_api_key

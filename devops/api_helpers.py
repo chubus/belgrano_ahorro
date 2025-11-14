@@ -95,16 +95,27 @@ def cached_request(
         else:
             return {"error": f"Método {method} no soportado"}
         
-        response.raise_for_status()
+        # Verificar status code
+        status_code = response.status_code
         
         # Intentar parsear JSON
         try:
             data = response.json()
         except:
-            data = {"text": response.text, "status_code": response.status_code}
+            data = {"text": response.text, "status_code": status_code}
+        
+        # Si hay un error HTTP (status >= 400), retornar el error en formato estándar
+        if status_code >= 400:
+            error_msg = data.get('error', data.get('message', f'HTTP {status_code} Error'))
+            logger.warning(f"⚠️ Error HTTP {status_code} en {url}: {error_msg}")
+            return {
+                'error': error_msg,
+                'status_code': status_code,
+                'message': error_msg
+            }
         
         # Guardar en cache solo para GET requests exitosos
-        if use_cache and 200 <= response.status_code < 300:
+        if use_cache and 200 <= status_code < 300:
             CACHE[cache_key] = {"data": data, "time": time.time()}
             logger.debug(f"✅ Request exitoso y cacheado: {url}")
         
