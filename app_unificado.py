@@ -148,14 +148,11 @@ except Exception as e:
     logger.error(f"[INIT] ❌ Error importando API: {e}")
     api_bp = None
 
-# Función para obtener conexión a la base de datos
+# Función para obtener conexión a la base de datos PostgreSQL
 def get_db_connection():
-    """Obtener conexión a la base de datos (misma que usa DevOps)"""
-    import sqlite3
-    db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Obtener conexión a la base de datos PostgreSQL"""
+    from db_abstraction import get_db_connection as get_db_conn
+    return get_db_conn()
 
 # Importar middleware de autenticación y manejo de errores
 try:
@@ -768,7 +765,7 @@ def obtener_ofertas_activas():
 # ==========================================
 # BASE DE DATOS SIMPLE (USUARIOS Y PEDIDOS)
 # ==========================================
-# En una aplicación real, usarías una base de datos como SQLite o MySQL
+# Base de datos PostgreSQL para persistencia
 # Por ahora usamos diccionarios en memoria para simplicidad
 
 # usuarios = {
@@ -3658,7 +3655,7 @@ def api_create_negocio():
             datos['negocios'] = {}
         datos['negocios'][negocio_id] = nuevo_negocio
         
-        # Guardar en base de datos SQLite (persistencia permanente)
+        # Guardar en base de datos PostgreSQL (persistencia permanente)
         db_id = _guardar_negocio_en_db(nuevo_negocio)
         if db_id:
             nuevo_negocio['db_id'] = db_id  # Agregar ID de DB al objeto
@@ -3840,7 +3837,7 @@ def api_create_sucursal():
             datos['sucursales'] = {}
         datos['sucursales'][sucursal_id] = nueva_sucursal
         
-        # Guardar en base de datos SQLite (persistencia permanente)
+        # Guardar en base de datos PostgreSQL (persistencia permanente)
         db_id = _guardar_sucursal_en_db(nueva_sucursal)
         if db_id:
             nueva_sucursal['db_id'] = db_id  # Agregar ID de DB al objeto
@@ -3982,7 +3979,7 @@ def api_create_oferta():
             datos['ofertas'] = {}
         datos['ofertas'][oferta_id] = nueva_oferta
         
-        # Guardar en base de datos SQLite (persistencia permanente)
+        # Guardar en base de datos PostgreSQL (persistencia permanente)
         db_id = _guardar_oferta_en_db(nueva_oferta)
         if db_id:
             nueva_oferta['db_id'] = db_id  # Agregar ID de DB al objeto
@@ -4114,7 +4111,7 @@ def api_create_producto():
             datos['productos'] = []
         datos['productos'].append(nuevo_producto)
         
-        # Guardar en base de datos SQLite (persistencia permanente)
+        # Guardar en base de datos PostgreSQL (persistencia permanente)
         db_id = _guardar_producto_en_db(nuevo_producto)
         if db_id:
             nuevo_producto['db_id'] = db_id  # Agregar ID de DB al objeto

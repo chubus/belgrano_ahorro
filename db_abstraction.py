@@ -32,25 +32,34 @@ try:
     if DATABASE_URL.startswith('postgres://'):
         DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
     
-    # Crear engine de SQLAlchemy
+    # Crear engine de SQLAlchemy con pool_pre_ping para mantener conexiones vivas
     engine = create_engine(
         DATABASE_URL,
-        poolclass=NullPool,  # Sin pool para evitar problemas de conexión
         echo=False,
+        pool_pre_ping=True,  # Verificar conexiones antes de usarlas
         connect_args={"connect_timeout": 10}
     )
     
     SessionLocal = sessionmaker(bind=engine)
     Base = declarative_base()
     
-    logger.info("[DB] ✅ Configurado para usar PostgreSQL (obligatorio)")
+    # Probar conexión
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT 1"))
+        result.fetchone()
+    
+    logger.info("[DB] ✅ Conectado a PostgreSQL correctamente")
     USE_SQLALCHEMY = True
     USE_POSTGRESQL = True
 except ImportError as e:
     logger.error(f"[DB] ❌ SQLAlchemy no disponible: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
     raise
 except Exception as e:
     logger.error(f"[DB] ❌ Error configurando PostgreSQL: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
     raise
 
 def get_db_connection():
@@ -158,20 +167,12 @@ def execute_many(query: str, params_list: list):
 
 def get_lastrowid(cursor_or_result):
     """
-    Obtener el último ID insertado
-    Compatible con SQLite y PostgreSQL
+    Obtener el último ID insertado de PostgreSQL
+    Requiere que la query use RETURNING id
     """
-    if USE_POSTGRESQL and USE_SQLALCHEMY:
-        # En PostgreSQL, usar RETURNING o lastrowid del resultado
-        if hasattr(cursor_or_result, 'lastrowid'):
-            return cursor_or_result.lastrowid
-        # Si no, necesitamos obtenerlo de otra forma
-        return None
-    else:
-        # SQLite
-        if hasattr(cursor_or_result, 'lastrowid'):
-            return cursor_or_result.lastrowid
-        return None
+    if hasattr(cursor_or_result, 'lastrowid'):
+        return cursor_or_result.lastrowid
+    return None
 
 def ensure_tables():
     """
@@ -188,21 +189,13 @@ def ensure_tables():
 # Función helper para adaptar queries SQLite a PostgreSQL
 def adapt_query(query: str) -> str:
     """
-    Adaptar query de SQLite a PostgreSQL si es necesario
+    Adaptar query de SQLite a PostgreSQL
     """
-    if not USE_POSTGRESQL:
-        return query
-    
     # Reemplazos comunes
     replacements = {
         'INTEGER PRIMARY KEY AUTOINCREMENT': 'SERIAL PRIMARY KEY',
         'AUTOINCREMENT': '',  # PostgreSQL usa SERIAL
-        'BOOLEAN': 'BOOLEAN',  # Mismo
-        'TEXT': 'TEXT',  # Mismo
-        'VARCHAR': 'VARCHAR',  # Mismo
-        'DECIMAL': 'DECIMAL',  # Mismo
         'DATETIME': 'TIMESTAMP',  # PostgreSQL usa TIMESTAMP
-        'CURRENT_TIMESTAMP': 'CURRENT_TIMESTAMP',  # Mismo
     }
     
     adapted = query
@@ -215,77 +208,65 @@ def execute_with_cursor(query: str, params: Optional[Union[tuple, dict]] = None)
     """
     Ejecutar query y retornar un objeto tipo cursor compatible
     Útil para código que espera cursor.execute(), cursor.fetchone(), etc.
+    SIEMPRE usa PostgreSQL
     """
-    if USE_POSTGRESQL and USE_SQLALCHEMY:
-        from sqlalchemy import text
+    from sqlalchemy import text
+    
+    class PostgresCursor:
+        """Wrapper para simular cursor de SQLite con PostgreSQL"""
+        def __init__(self, session, result=None):
+            self.session = session
+            self.result = result
+            self._lastrowid = None
+            self._rows = []
         
-        class PostgresCursor:
-            """Wrapper para simular cursor de SQLite con PostgreSQL"""
-            def __init__(self, session, result=None):
-                self.session = session
-                self.result = result
-                self._lastrowid = None
-                self._rows = []
+        def execute(self, query, params=None):
+            # Adaptar query si es necesario
+            if '?' in query and params:
+                # Convertir ? a :param para PostgreSQL
+                adapted_query = query
+                param_dict = {}
+                if isinstance(params, tuple):
+                    for i, param in enumerate(params):
+                        param_name = f'param{i}'
+                        adapted_query = adapted_query.replace('?', f':{param_name}', 1)
+                        param_dict[param_name] = param
+                    params = param_dict
             
-            def execute(self, query, params=None):
-                # Adaptar query si es necesario
-                if '?' in query and params:
-                    # Convertir ? a :param para PostgreSQL
-                    adapted_query = query
-                    param_dict = {}
-                    if isinstance(params, tuple):
-                        for i, param in enumerate(params):
-                            param_name = f'param{i}'
-                            adapted_query = adapted_query.replace('?', f':{param_name}', 1)
-                            param_dict[param_name] = param
-                        params = param_dict
-                
-                stmt = text(query if not isinstance(params, dict) else adapted_query)
-                self.result = self.session.execute(stmt, params or {})
-                
-                # Intentar obtener lastrowid si es INSERT
-                if 'INSERT' in query.upper():
-                    # En PostgreSQL, usar RETURNING
-                    if 'RETURNING' not in query.upper():
-                        # No podemos obtener ID sin RETURNING, pero intentamos
-                        pass
-                return self
+            stmt = text(query if not isinstance(params, dict) else adapted_query)
+            self.result = self.session.execute(stmt, params or {})
             
-            def fetchone(self):
-                if self.result:
-                    row = self.result.fetchone()
-                    if row:
-                        # Convertir a dict similar a sqlite3.Row
-                        return type('Row', (), dict(row._mapping))()
-                return None
-            
-            def fetchall(self):
-                if self.result:
-                    rows = self.result.fetchall()
-                    # Convertir a lista de objetos Row
-                    return [type('Row', (), dict(row._mapping))() for row in rows]
-                return []
-            
-            @property
-            def lastrowid(self):
-                return self._lastrowid
-            
-            def close(self):
-                pass  # La sesión se cierra externamente
+            # Intentar obtener lastrowid si es INSERT con RETURNING
+            if 'INSERT' in query.upper() and 'RETURNING' in query.upper():
+                row = self.result.fetchone()
+                if row:
+                    self._lastrowid = row[0] if hasattr(row, '__getitem__') else getattr(row, 'id', None)
+            return self
         
-        session = SessionLocal()
-        cursor = PostgresCursor(session)
-        cursor.execute(query, params)
-        return cursor, session
-    else:
-        import sqlite3
-        db_path = os.getenv('BELGRANO_AHORRO_DB_PATH', 'belgrano_ahorro.db')
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        if params:
-            cursor.execute(query, params)
-        else:
-            cursor.execute(query)
-        return cursor, conn
+        def fetchone(self):
+            if self.result:
+                row = self.result.fetchone()
+                if row:
+                    # Convertir a dict similar a sqlite3.Row
+                    return type('Row', (), dict(row._mapping))()
+            return None
+        
+        def fetchall(self):
+            if self.result:
+                rows = self.result.fetchall()
+                # Convertir a lista de objetos Row
+                return [type('Row', (), dict(row._mapping))() for row in rows]
+            return []
+        
+        @property
+        def lastrowid(self):
+            return self._lastrowid
+        
+        def close(self):
+            pass  # La sesión se cierra externamente
+    
+    session = SessionLocal()
+    cursor = PostgresCursor(session)
+    cursor.execute(query, params)
+    return cursor, session
 

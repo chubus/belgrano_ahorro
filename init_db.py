@@ -21,11 +21,11 @@ def init_db():
     logger.info("[DB] Iniciando inicialización de base de datos...")
     
     try:
-        # Crear engine de SQLAlchemy
+        # Crear engine de SQLAlchemy con pool_pre_ping
         engine = create_engine(
             DATABASE_URL,
-            poolclass=NullPool,
             echo=False,
+            pool_pre_ping=True,  # Verificar conexiones antes de usarlas
             connect_args={"connect_timeout": 10}
         )
         
@@ -34,7 +34,7 @@ def init_db():
             result = conn.execute(text("SELECT 1"))
             result.fetchone()
         
-        logger.info("[DB] ✅ Conexión a PostgreSQL establecida")
+        logger.info("[DB] ✅ Conectado a PostgreSQL correctamente")
         
         # Crear tablas si no existen
         with engine.connect() as conn:
@@ -130,16 +130,26 @@ def init_db():
             conn.execute(text('''
                 CREATE TABLE IF NOT EXISTS usuarios (
                     id SERIAL PRIMARY KEY,
-                    email TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    nombre TEXT,
-                    apellido TEXT,
-                    telefono TEXT,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    nombre VARCHAR(255),
+                    apellido VARCHAR(255),
+                    telefono VARCHAR(20),
+                    rol VARCHAR(50) DEFAULT 'cliente',
                     activo BOOLEAN DEFAULT TRUE,
                     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             '''))
+            
+            # Agregar columna 'rol' si la tabla ya existe pero no tiene el campo
+            try:
+                conn.execute(text('''
+                    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS rol VARCHAR(50) DEFAULT 'cliente'
+                '''))
+            except Exception:
+                # La columna ya existe o no se puede agregar, continuar
+                pass
             logger.info("[DB] ✅ Tabla 'usuarios' verificada/creada")
             
             # Tabla pedidos (si no existe)
@@ -147,13 +157,13 @@ def init_db():
                 CREATE TABLE IF NOT EXISTS pedidos (
                     id SERIAL PRIMARY KEY,
                     usuario_id INTEGER NOT NULL,
-                    numero_pedido TEXT UNIQUE NOT NULL,
+                    numero_pedido VARCHAR(255) UNIQUE NOT NULL,
                     total DECIMAL(10,2) NOT NULL,
-                    metodo_pago TEXT,
+                    metodo_pago VARCHAR(50),
                     direccion_entrega TEXT,
                     notas TEXT,
-                    estado TEXT DEFAULT 'pendiente',
-                    ticket_id INTEGER,
+                    estado VARCHAR(50) DEFAULT 'pendiente',
+                    ticketera_id VARCHAR(255),
                     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
@@ -170,16 +180,38 @@ def init_db():
                     cantidad INTEGER NOT NULL,
                     precio_unitario DECIMAL(10,2) NOT NULL,
                     subtotal DECIMAL(10,2) NOT NULL,
-                    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (pedido_id) REFERENCES pedidos(id),
                     FOREIGN KEY (producto_id) REFERENCES productos(id)
                 )
             '''))
             logger.info("[DB] ✅ Tabla 'items_pedido' verificada/creada")
             
+            # Tabla tokens_recuperacion (si no existe)
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS tokens_recuperacion (
+                    id SERIAL PRIMARY KEY,
+                    usuario_id INTEGER NOT NULL,
+                    token VARCHAR(255) NOT NULL UNIQUE,
+                    expiracion TIMESTAMP NOT NULL,
+                    usado BOOLEAN DEFAULT FALSE,
+                    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+                )
+            '''))
+            logger.info("[DB] ✅ Tabla 'tokens_recuperacion' verificada/creada")
+            
             conn.commit()
         
         logger.info("[DB] ✅ Todas las tablas verificadas/creadas correctamente")
+        
+        # Cargar datos iniciales si la DB está vacía
+        try:
+            from load_initial_data import load_initial_data
+            load_initial_data()
+        except ImportError:
+            logger.warning("[DB] ⚠️ No se pudo importar load_initial_data")
+        except Exception as e:
+            logger.warning(f"[DB] ⚠️ Error cargando datos iniciales: {e}")
+        
         return engine
         
     except Exception as e:

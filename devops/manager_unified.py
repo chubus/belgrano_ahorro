@@ -39,60 +39,50 @@ logger = logging.getLogger(__name__)
 class DevOpsBelgranoManagerUnified:
     """Gestor para conexión con API de Belgrano Ahorro"""
     def __init__(self) -> None:
-        # Valores por defecto seguros
-        DEFAULT_URL = 'https://belgranoahorro-aliq.onrender.com'
-        DEFAULT_API_KEY = 'belgrano_ahorro_api_key_2025'
-        
-        # Obtener valores de entorno con fallback seguro
-        belgrano_url = os.getenv('BELGRANO_AHORRO_URL', '').strip().rstrip('/')
-        api_key = os.getenv('BELGRANO_AHORRO_API_KEY', '').strip()
-        
-        # Usar valores por defecto si no están configurados
-        if not belgrano_url:
-            belgrano_url = DEFAULT_URL
-            os.environ['BELGRANO_AHORRO_URL'] = belgrano_url
-            logger.info(f"✅ Usando URL por defecto: {belgrano_url}")
-        
-        if not api_key:
-            api_key = DEFAULT_API_KEY
-            os.environ['BELGRANO_AHORRO_API_KEY'] = api_key
-            logger.info("✅ Usando API key por defecto")
+        # Importar configuración centralizada
+        try:
+            from config import (
+                BELGRANO_AHORRO_URL,
+                BELGRANO_AHORRO_API_KEY,
+                API_TIMEOUT_SECS,
+                API_RETRY_TOTAL
+            )
+            belgrano_url = BELGRANO_AHORRO_URL
+            api_key = BELGRANO_AHORRO_API_KEY
+            timeout = API_TIMEOUT_SECS
+            retries = API_RETRY_TOTAL
+        except ImportError:
+            # Fallback si config.py no está disponible
+            logger.warning("[DEVOPS] ⚠️ No se pudo importar config.py, usando os.getenv()")
+            belgrano_url = os.getenv('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com').strip().rstrip('/')
+            api_key = os.getenv('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025').strip()
+            timeout = int(os.getenv('API_TIMEOUT_SECS', '20'))
+            retries = int(os.getenv('API_RETRY_TOTAL', '3'))
         
         self.belgrano_url = belgrano_url.rstrip('/')
         self.api_key = api_key
-        
-        # Timeout configurable (20s por defecto para producción en Render)
-        self.timeout = int(os.getenv('API_TIMEOUT_SECS', '20'))
+        self.timeout = timeout
         self.cache_ttl = int(os.getenv('API_CACHE_TTL_SECS', '120'))  # Cache por 120 segundos
-        self.retries = int(os.getenv('API_RETRY_TOTAL', '3'))  # 3 reintentos para producción
+        self.retries = retries
         
-        logger.info("✅ Cliente API Belgrano Ahorro configurado")
-        logger.info(f"   URL: {self.belgrano_url}")
-        logger.info(f"   Timeout: {self.timeout}s")
-        logger.info(f"   Cache TTL: {self.cache_ttl}s")
-        logger.info(f"   Retries: {self.retries}")
-        logger.info(f"   API Key: {'*' * min(len(self.api_key), 10)}... ({len(self.api_key)} caracteres)")
-        
-        # Informar si está usando valores por defecto
-        if belgrano_url == DEFAULT_URL or api_key == DEFAULT_API_KEY:
-            logger.info("ℹ️ Usando valores por defecto. Para producción, configure BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY en variables de entorno.")
+        logger.info("[DEVOPS] ✅ Cliente API Belgrano Ahorro configurado")
+        logger.info(f"[DEVOPS]    URL: {self.belgrano_url}")
+        logger.info(f"[DEVOPS]    Timeout: {self.timeout}s")
+        logger.info(f"[DEVOPS]    Cache TTL: {self.cache_ttl}s")
+        logger.info(f"[DEVOPS]    Retries: {self.retries}")
+        logger.info(f"[DEVOPS]    API Key: {'*' * min(len(self.api_key), 10)}... ({len(self.api_key)} caracteres)")
 
     def is_configured(self) -> bool:
         """Verificar si el manager está correctamente configurado"""
-        # Valores por defecto seguros
-        DEFAULT_URL = 'https://belgranoahorro-aliq.onrender.com'
-        DEFAULT_API_KEY = 'belgrano_ahorro_api_key_2025'
-        
-        # Verificar variables de entorno directamente (no solo las leídas al inicializar)
-        # Esto asegura que si las variables se configuran después, se detecten
-        current_url = os.getenv('BELGRANO_AHORRO_URL', '').strip().rstrip('/')
-        current_api_key = os.getenv('BELGRANO_AHORRO_API_KEY', '').strip()
-        
-        # Usar valores por defecto si no están configurados
-        if not current_url:
-            current_url = DEFAULT_URL
-        if not current_api_key:
-            current_api_key = DEFAULT_API_KEY
+        # Intentar usar config.py primero
+        try:
+            from config import BELGRANO_AHORRO_URL, BELGRANO_AHORRO_API_KEY
+            current_url = BELGRANO_AHORRO_URL
+            current_api_key = BELGRANO_AHORRO_API_KEY
+        except ImportError:
+            # Fallback a variables de entorno
+            current_url = os.getenv('BELGRANO_AHORRO_URL', '').strip().rstrip('/')
+            current_api_key = os.getenv('BELGRANO_AHORRO_API_KEY', '').strip()
         
         # Actualizar valores internos
         if current_url:
@@ -100,11 +90,11 @@ class DevOpsBelgranoManagerUnified:
         if current_api_key:
             self.api_key = current_api_key
         
-        # Verificar que ambas estén configuradas (siempre retorna True con defaults)
+        # Verificar que ambas estén configuradas
         is_ok = bool(current_api_key and current_url)
         
         if not is_ok:
-            logger.debug(f"⚠️ Manager no configurado - URL: {'✅' if current_url else '❌'}, API_KEY: {'✅' if current_api_key else '❌'}")
+            logger.debug(f"[DEVOPS] ⚠️ Manager no configurado - URL: {'✅' if current_url else '❌'}, API_KEY: {'✅' if current_api_key else '❌'}")
         
         return is_ok
 
@@ -269,10 +259,22 @@ class DevOpsTicketeraManager:
         )
         self.username = os.getenv('TICKETS_API_USERNAME', '')
         self.password = os.getenv('TICKETS_API_PASSWORD', '')
-        self.timeout = int(os.getenv('API_TIMEOUT_SECS', '20'))  # 20s para producción
+        # Importar configuración centralizada
+        try:
+            from config import API_TIMEOUT_SECS, API_RETRY_TOTAL, API_RETRY_BACKOFF
+            timeout = API_TIMEOUT_SECS
+            retries = API_RETRY_TOTAL
+            backoff = API_RETRY_BACKOFF
+        except ImportError:
+            # Fallback si config.py no está disponible
+            timeout = int(os.getenv('API_TIMEOUT_SECS', '20'))
+            retries = int(os.getenv('API_RETRY_TOTAL', '3'))
+            backoff = float(os.getenv('API_RETRY_BACKOFF', '1.0'))
+        
+        self.timeout = timeout  # 20s para producción
         retry_strategy = Retry(
-            total=int(os.getenv('API_RETRY_TOTAL', '3')),
-            backoff_factor=float(os.getenv('API_RETRY_BACKOFF', '1.0')),  # 1.0s para producción
+            total=retries,
+            backoff_factor=backoff,  # 1.0s para producción
             status_forcelist=(429, 500, 502, 503, 504),
             allowed_methods=("GET", "POST", "PUT", "DELETE", "PATCH")
         )
@@ -281,9 +283,9 @@ class DevOpsTicketeraManager:
         self.session.mount('https://', adapter)
         self.session.mount('http://', adapter)
         self._session_token = None
-        logger.info("✅ Cliente API Ticketera configurado")
-        logger.info(f"   URL: {self.ticketera_url}")
-        logger.info(f"   API Key: {'*' * len(self.api_key) if self.api_key else 'no-set'}")
+        logger.info("[DEVOPS] ✅ Cliente API Ticketera configurado")
+        logger.info(f"[DEVOPS]    URL: {self.ticketera_url}")
+        logger.info(f"[DEVOPS]    API Key: {'*' * len(self.api_key) if self.api_key else 'no-set'}")
 
     def _headers(self) -> Dict[str, str]:
         headers = {"Content-Type": "application/json"}

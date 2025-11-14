@@ -24,6 +24,11 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
+# Asegurar que la URL tenga sslmode=require para Render
+if 'sslmode' not in DATABASE_URL:
+    separator = '&' if '?' in DATABASE_URL else '?'
+    DATABASE_URL = f"{DATABASE_URL}{separator}sslmode=require"
+
 # Belgrano Ahorro
 BELGRANO_AHORRO_URL = os.getenv('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com').strip().rstrip('/')
 BELGRANO_AHORRO_API_KEY = os.getenv('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025').strip()

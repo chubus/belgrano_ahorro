@@ -78,14 +78,13 @@ def get_db_connection():
 @contextmanager
 def db_connection():
     """
-    Context manager para conexión de base de datos
-    Compatible con SQLite y PostgreSQL
+    Context manager para conexión de base de datos PostgreSQL
     """
-    conn = get_db_connection()
+    session = get_db_connection()
     try:
-        yield conn
+        yield session
     finally:
-        conn.close()
+        session.close()
 
 def execute_insert_returning_id(query: str, params: tuple, table_name: str = None):
     """
@@ -142,88 +141,57 @@ def execute_insert_returning_id(query: str, params: tuple, table_name: str = Non
 
 def execute_select(query: str, params: tuple = None):
     """
-    Ejecutar SELECT y retornar resultados
-    Compatible con SQLite y PostgreSQL
+    Ejecutar SELECT y retornar resultados en PostgreSQL
     
     Returns:
         Lista de diccionarios con los resultados
     """
-    database_url = os.getenv('DATABASE_URL', '')
-    use_postgres = database_url and (database_url.startswith('postgresql://') or database_url.startswith('postgres://'))
-    
-    conn = get_db_connection()
+    session = get_db_connection()
     try:
-        if use_postgres:
-            from sqlalchemy import text
-            
-            # Convertir ? a :param si es necesario
-            adapted_query = query
-            param_dict = {}
-            if '?' in query and params:
-                for i, param in enumerate(params):
-                    param_name = f'p{i}'
-                    adapted_query = adapted_query.replace('?', f':{param_name}', 1)
-                    param_dict[param_name] = param
-            
-            result = conn.execute(text(adapted_query), param_dict if param_dict else {})
-            rows = result.fetchall()
-            return [dict(row._mapping) for row in rows]
-        else:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            if params:
-                cursor.execute(query, params)
-            else:
-                cursor.execute(query)
-            return [dict(row) for row in cursor.fetchall()]
+        # Convertir ? a :param si es necesario
+        adapted_query = query
+        param_dict = {}
+        if '?' in query and params:
+            for i, param in enumerate(params):
+                param_name = f'p{i}'
+                adapted_query = adapted_query.replace('?', f':{param_name}', 1)
+                param_dict[param_name] = param
+        
+        result = session.execute(text(adapted_query), param_dict if param_dict else {})
+        rows = result.fetchall()
+        return [dict(row._mapping) for row in rows]
     finally:
-        conn.close()
+        session.close()
 
 def execute_update_delete(query: str, params: tuple = None):
     """
-    Ejecutar UPDATE o DELETE
-    Compatible con SQLite y PostgreSQL
+    Ejecutar UPDATE o DELETE en PostgreSQL
     
     Returns:
         Número de filas afectadas
     """
-    database_url = os.getenv('DATABASE_URL', '')
-    use_postgres = database_url and (database_url.startswith('postgresql://') or database_url.startswith('postgres://'))
-    
-    conn = get_db_connection()
+    session = get_db_connection()
     try:
-        if use_postgres:
-            from sqlalchemy import text
-            
-            # Convertir ? a :param si es necesario
-            adapted_query = query
-            param_dict = {}
-            if '?' in query and params:
-                for i, param in enumerate(params):
-                    param_name = f'p{i}'
-                    adapted_query = adapted_query.replace('?', f':{param_name}', 1)
-                    param_dict[param_name] = param
-            
-            result = conn.execute(text(adapted_query), param_dict if param_dict else {})
-            conn.commit()
-            return result.rowcount
-        else:
-            cursor = conn.cursor()
-            if params:
-                cursor.execute(query, params)
-            else:
-                cursor.execute(query)
-            conn.commit()
-            return cursor.rowcount
+        # Convertir ? a :param si es necesario
+        adapted_query = query
+        param_dict = {}
+        if '?' in query and params:
+            for i, param in enumerate(params):
+                param_name = f'p{i}'
+                adapted_query = adapted_query.replace('?', f':{param_name}', 1)
+                param_dict[param_name] = param
+        
+        result = session.execute(text(adapted_query), param_dict if param_dict else {})
+        session.commit()
+        return result.rowcount
     except Exception as e:
-        if use_postgres:
-            conn.rollback()
-        else:
-            conn.rollback()
-        logger.error(f"Error en execute_update_delete: {e}")
+        session.rollback()
+        logger.error(f"[API] Error en execute_update_delete: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise
     finally:
-        conn.close()
+        session.close()
 
 def ensure_tables():
     """
@@ -251,36 +219,17 @@ def ensure_tables():
 def api_negocios():
     """Obtener lista de negocios"""
     try:
-        # Detectar si estamos usando PostgreSQL
-        database_url = os.getenv('DATABASE_URL', '')
-        use_postgres = database_url and (database_url.startswith('postgresql://') or database_url.startswith('postgres://'))
-        
-        conn = get_db_connection()
-        
+        session = get_db_connection()
         try:
-            if use_postgres:
-                # PostgreSQL: usar SQLAlchemy
-                from sqlalchemy import text
-                result = conn.execute(text('''
-                    SELECT id, nombre, descripcion, direccion, telefono, email, activo,
-                           fecha_creacion, fecha_actualizacion
-                    FROM negocios 
-                    WHERE activo = TRUE
-                    ORDER BY nombre
-                '''))
-                negocios = [dict(row._mapping) for row in result.fetchall()]
-            else:
-                # SQLite: usar cursor tradicional
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-                cursor.execute('''
-                    SELECT id, nombre, descripcion, direccion, telefono, email, activo,
-                           fecha_creacion, fecha_actualizacion
-                    FROM negocios 
-                    WHERE activo = 1
-                    ORDER BY nombre
-                ''')
-                negocios = [dict(row) for row in cursor.fetchall()]
+            from sqlalchemy import text
+            result = session.execute(text('''
+                SELECT id, nombre, descripcion, direccion, telefono, email, activo,
+                       fecha_creacion, fecha_actualizacion
+                FROM negocios 
+                WHERE activo = TRUE
+                ORDER BY nombre
+            '''))
+            negocios = [dict(row._mapping) for row in result.fetchall()]
             
             return jsonify({
                 'status': 'success',
@@ -289,10 +238,10 @@ def api_negocios():
                 'timestamp': datetime.now().isoformat()
             })
         finally:
-            conn.close()
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_negocios: {e}")
+        logger.error(f"[API] Error in api_negocios: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
@@ -319,7 +268,7 @@ def api_negocio_create():
         if not nombre:
             return jsonify({'error': 'Nombre no puede estar vacío'}), 400
         
-        # Usar función helper compatible con SQLite y PostgreSQL
+        # Usar función helper para PostgreSQL
         try:
             negocio_id = execute_insert_returning_id(
                 '''
@@ -374,29 +323,30 @@ def api_negocio_create():
 def api_negocio_detail(negocio_id):
     """Obtener detalles de un negocio específico"""
     try:
-        with get_db_connection() as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            cursor.execute('''
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
+            result = session.execute(text('''
                 SELECT id, nombre, descripcion, direccion, telefono, email, activo,
                        fecha_creacion, fecha_actualizacion
                 FROM negocios 
-                WHERE id = ? AND activo = 1
-            ''', (negocio_id,))
+                WHERE id = :id AND activo = TRUE
+            '''), {'id': negocio_id})
             
-            negocio = cursor.fetchone()
-            if not negocio:
+            row = result.fetchone()
+            if not row:
                 return jsonify({'error': 'Negocio no encontrado'}), 404
             
             return jsonify({
                 'status': 'success',
-                'data': dict(negocio),
+                'data': dict(row._mapping),
                 'timestamp': datetime.now().isoformat()
             })
+        finally:
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_negocio_detail: {e}")
+        logger.error(f"[API] Error in api_negocio_detail: {e}")
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/negocios/<int:negocio_id>', methods=['PUT'])
@@ -408,45 +358,52 @@ def api_negocio_update(negocio_id):
         if not data:
             return jsonify({'error': 'Datos requeridos'}), 400
         
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
             
             # Verificar que el negocio existe
-            cursor.execute('SELECT id FROM negocios WHERE id = ? AND activo = 1', (negocio_id,))
-            if not cursor.fetchone():
+            result = session.execute(text('SELECT id FROM negocios WHERE id = :id AND activo = TRUE'), {'id': negocio_id})
+            if not result.fetchone():
                 return jsonify({'error': 'Negocio no encontrado'}), 404
             
             # Actualizar campos
             update_fields = []
-            values = []
+            params = {}
             
             for field in ['nombre', 'descripcion', 'direccion', 'telefono', 'email']:
                 if field in data:
-                    update_fields.append(f"{field} = ?")
-                    values.append(data[field])
+                    update_fields.append(f"{field} = :{field}")
+                    params[field] = data[field]
             
             if not update_fields:
                 return jsonify({'error': 'No hay campos para actualizar'}), 400
             
             update_fields.append("fecha_actualizacion = CURRENT_TIMESTAMP")
-            values.append(negocio_id)
+            params['id'] = negocio_id
             
-            cursor.execute(f'''
+            session.execute(text(f'''
                 UPDATE negocios 
                 SET {', '.join(update_fields)}
-                WHERE id = ?
-            ''', values)
+                WHERE id = :id
+            '''), params)
             
-            conn.commit()
+            session.commit()
             
             return jsonify({
                 'status': 'success',
                 'message': 'Negocio actualizado exitosamente',
                 'timestamp': datetime.now().isoformat()
             })
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[API] Error in api_negocio_update: {e}")
+            return jsonify({'error': str(e)}), 500
+        finally:
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_negocio_update: {e}")
+        logger.error(f"[API] Error in api_negocio_update: {e}")
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/negocios/<int:negocio_id>', methods=['DELETE'])
@@ -454,31 +411,38 @@ def api_negocio_update(negocio_id):
 def api_negocio_delete(negocio_id):
     """Eliminar negocio (soft delete)"""
     try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
             
             # Verificar que el negocio existe
-            cursor.execute('SELECT id FROM negocios WHERE id = ? AND activo = 1', (negocio_id,))
-            if not cursor.fetchone():
+            result = session.execute(text('SELECT id FROM negocios WHERE id = :id AND activo = TRUE'), {'id': negocio_id})
+            if not result.fetchone():
                 return jsonify({'error': 'Negocio no encontrado'}), 404
             
             # Soft delete
-            cursor.execute('''
+            session.execute(text('''
                 UPDATE negocios 
-                SET activo = 0, fecha_actualizacion = CURRENT_TIMESTAMP
-                WHERE id = ?
-            ''', (negocio_id,))
+                SET activo = FALSE, fecha_actualizacion = CURRENT_TIMESTAMP
+                WHERE id = :id
+            '''), {'id': negocio_id})
             
-            conn.commit()
+            session.commit()
             
             return jsonify({
                 'status': 'success',
                 'message': 'Negocio eliminado exitosamente',
                 'timestamp': datetime.now().isoformat()
             })
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[API] Error in api_negocio_delete: {e}")
+            return jsonify({'error': str(e)}), 500
+        finally:
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_negocio_delete: {e}")
+        logger.error(f"[API] Error in api_negocio_delete: {e}")
         return jsonify({'error': str(e)}), 500
 
 # =============================
@@ -490,22 +454,21 @@ def api_negocio_delete(negocio_id):
 def api_productos():
     """Obtener lista de productos"""
     try:
-        with get_db_connection() as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            cursor.execute('''
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
+            result = session.execute(text('''
                 SELECT p.id, p.nombre, p.store, p.precio, p.original_price, p.categoria,
                        p.imagen, p.stock, p.stock_minimo, p.negocio_id, p.activo, p.destacado,
                        p.fecha_creacion, p.fecha_actualizacion,
                        n.nombre as negocio_nombre
                 FROM productos p
                 LEFT JOIN negocios n ON p.negocio_id = n.id
-                WHERE p.activo = 1
+                WHERE p.activo = TRUE
                 ORDER BY p.destacado DESC, p.nombre
-            ''')
+            '''))
             
-            productos = [dict(row) for row in cursor.fetchall()]
+            productos = [dict(row._mapping) for row in result.fetchall()]
             
             return jsonify({
                 'status': 'success',
@@ -513,9 +476,11 @@ def api_productos():
                 'total': len(productos),
                 'timestamp': datetime.now().isoformat()
             })
+        finally:
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_productos: {e}")
+        logger.error(f"[API] Error in api_productos: {e}")
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/productos', methods=['POST'])
@@ -539,7 +504,7 @@ def api_producto_create():
         if 'activo' in data:
             activo = 1 if (data['activo'] is True or data['activo'] == 1 or str(data['activo']).lower() == 'true') else 0
         
-        # Usar función helper compatible con SQLite y PostgreSQL
+        # Usar función helper para PostgreSQL
         producto_id = execute_insert_returning_id(
             '''
             INSERT INTO productos (nombre, store, precio, original_price, categoria, imagen, 
@@ -581,32 +546,33 @@ def api_producto_create():
 def api_producto_detail(producto_id):
     """Obtener detalles de un producto específico"""
     try:
-        with get_db_connection() as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            cursor.execute('''
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
+            result = session.execute(text('''
                 SELECT p.id, p.nombre, p.store, p.precio, p.original_price, p.categoria,
                        p.imagen, p.stock, p.stock_minimo, p.negocio_id, p.activo, p.destacado,
                        p.fecha_creacion, p.fecha_actualizacion,
                        n.nombre as negocio_nombre
                 FROM productos p
                 LEFT JOIN negocios n ON p.negocio_id = n.id
-                WHERE p.id = ? AND p.activo = 1
-            ''', (producto_id,))
+                WHERE p.id = :id AND p.activo = TRUE
+            '''), {'id': producto_id})
             
-            producto = cursor.fetchone()
-            if not producto:
+            row = result.fetchone()
+            if not row:
                 return jsonify({'error': 'Producto no encontrado'}), 404
             
             return jsonify({
                 'status': 'success',
-                'data': dict(producto),
+                'data': dict(row._mapping),
                 'timestamp': datetime.now().isoformat()
             })
+        finally:
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_producto_detail: {e}")
+        logger.error(f"[API] Error in api_producto_detail: {e}")
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/productos/<int:producto_id>', methods=['PUT'])
@@ -618,46 +584,53 @@ def api_producto_update(producto_id):
         if not data:
             return jsonify({'error': 'Datos requeridos'}), 400
         
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
             
             # Verificar que el producto existe
-            cursor.execute('SELECT id FROM productos WHERE id = ? AND activo = 1', (producto_id,))
-            if not cursor.fetchone():
+            result = session.execute(text('SELECT id FROM productos WHERE id = :id AND activo = TRUE'), {'id': producto_id})
+            if not result.fetchone():
                 return jsonify({'error': 'Producto no encontrado'}), 404
             
             # Actualizar campos
             update_fields = []
-            values = []
+            params = {}
             
             for field in ['nombre', 'store', 'precio', 'original_price', 'categoria', 'imagen', 
                          'stock', 'stock_minimo', 'negocio_id', 'activo', 'destacado']:
                 if field in data:
-                    update_fields.append(f"{field} = ?")
-                    values.append(data[field])
+                    update_fields.append(f"{field} = :{field}")
+                    params[field] = data[field]
             
             if not update_fields:
                 return jsonify({'error': 'No hay campos para actualizar'}), 400
             
             update_fields.append("fecha_actualizacion = CURRENT_TIMESTAMP")
-            values.append(producto_id)
+            params['id'] = producto_id
             
-            cursor.execute(f'''
+            session.execute(text(f'''
                 UPDATE productos 
                 SET {', '.join(update_fields)}
-                WHERE id = ?
-            ''', values)
+                WHERE id = :id
+            '''), params)
             
-            conn.commit()
+            session.commit()
             
             return jsonify({
                 'status': 'success',
                 'message': 'Producto actualizado exitosamente',
                 'timestamp': datetime.now().isoformat()
             })
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[API] Error in api_producto_update: {e}")
+            return jsonify({'error': str(e)}), 500
+        finally:
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_producto_update: {e}")
+        logger.error(f"[API] Error in api_producto_update: {e}")
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/productos/<int:producto_id>', methods=['DELETE'])
@@ -665,31 +638,38 @@ def api_producto_update(producto_id):
 def api_producto_delete(producto_id):
     """Eliminar producto (soft delete)"""
     try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
             
             # Verificar que el producto existe
-            cursor.execute('SELECT id FROM productos WHERE id = ? AND activo = 1', (producto_id,))
-            if not cursor.fetchone():
+            result = session.execute(text('SELECT id FROM productos WHERE id = :id AND activo = TRUE'), {'id': producto_id})
+            if not result.fetchone():
                 return jsonify({'error': 'Producto no encontrado'}), 404
             
             # Soft delete
-            cursor.execute('''
+            session.execute(text('''
                 UPDATE productos 
-                SET activo = 0, fecha_actualizacion = CURRENT_TIMESTAMP
-                WHERE id = ?
-            ''', (producto_id,))
+                SET activo = FALSE, fecha_actualizacion = CURRENT_TIMESTAMP
+                WHERE id = :id
+            '''), {'id': producto_id})
             
-            conn.commit()
+            session.commit()
             
             return jsonify({
                 'status': 'success',
                 'message': 'Producto eliminado exitosamente',
                 'timestamp': datetime.now().isoformat()
             })
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[API] Error in api_producto_delete: {e}")
+            return jsonify({'error': str(e)}), 500
+        finally:
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_producto_delete: {e}")
+        logger.error(f"[API] Error in api_producto_delete: {e}")
         return jsonify({'error': str(e)}), 500
 
 # =============================
@@ -701,18 +681,17 @@ def api_producto_delete(producto_id):
 def api_categorias():
     """Obtener lista de categorías"""
     try:
-        with get_db_connection() as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            cursor.execute('''
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
+            result = session.execute(text('''
                 SELECT id, nombre, descripcion, activa, fecha_creacion
                 FROM categorias 
-                WHERE activa = 1
+                WHERE activa = TRUE
                 ORDER BY nombre
-            ''')
+            '''))
             
-            categorias = [dict(row) for row in cursor.fetchall()]
+            categorias = [dict(row._mapping) for row in result.fetchall()]
             
             return jsonify({
                 'status': 'success',
@@ -720,9 +699,11 @@ def api_categorias():
                 'total': len(categorias),
                 'timestamp': datetime.now().isoformat()
             })
+        finally:
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_categorias: {e}")
+        logger.error(f"[API] Error in api_categorias: {e}")
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/categorias', methods=['POST'])
@@ -734,7 +715,7 @@ def api_categoria_create():
         if not data or 'nombre' not in data:
             return jsonify({'error': 'Nombre es requerido'}), 400
         
-        # Usar función helper compatible con SQLite y PostgreSQL
+        # Usar función helper para PostgreSQL
         categoria_id = execute_insert_returning_id(
             '''
             INSERT INTO categorias (nombre, descripcion)
@@ -770,22 +751,21 @@ def api_categoria_create():
 def api_ofertas():
     """Obtener lista de ofertas"""
     try:
-        with get_db_connection() as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            cursor.execute('''
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
+            result = session.execute(text('''
                 SELECT o.id, o.nombre, o.descripcion, o.descuento, o.fecha_inicio, o.fecha_fin,
                        o.producto_id, o.negocio_id, o.activo, o.fecha_creacion, o.fecha_actualizacion,
                        p.nombre as producto_nombre, n.nombre as negocio_nombre
                 FROM ofertas o
                 LEFT JOIN productos p ON o.producto_id = p.id
                 LEFT JOIN negocios n ON o.negocio_id = n.id
-                WHERE o.activo = 1
+                WHERE o.activo = TRUE
                 ORDER BY o.fecha_inicio DESC
-            ''')
+            '''))
             
-            ofertas = [dict(row) for row in cursor.fetchall()]
+            ofertas = [dict(row._mapping) for row in result.fetchall()]
             
             return jsonify({
                 'status': 'success',
@@ -793,9 +773,11 @@ def api_ofertas():
                 'total': len(ofertas),
                 'timestamp': datetime.now().isoformat()
             })
+        finally:
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_ofertas: {e}")
+        logger.error(f"[API] Error in api_ofertas: {e}")
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/ofertas', methods=['POST'])
@@ -826,7 +808,7 @@ def api_oferta_create():
             except Exception:
                 pass  # Si falla, negocio_id queda None
         
-        # Usar función helper compatible con SQLite y PostgreSQL
+        # Usar función helper para PostgreSQL
         oferta_id = execute_insert_returning_id(
             '''
             INSERT INTO ofertas (nombre, descripcion, descuento, fecha_inicio, fecha_fin,
@@ -869,20 +851,19 @@ def api_oferta_create():
 def api_sucursales():
     """Obtener lista de sucursales"""
     try:
-        with get_db_connection() as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            cursor.execute('''
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
+            result = session.execute(text('''
                 SELECT s.id, s.nombre, s.direccion, s.telefono, s.email, s.negocio_id, s.activo,
                        s.fecha_creacion, s.fecha_actualizacion, n.nombre as negocio_nombre
                 FROM sucursales s
                 LEFT JOIN negocios n ON s.negocio_id = n.id
-                WHERE s.activo = 1
+                WHERE s.activo = TRUE
                 ORDER BY s.nombre
-            ''')
+            '''))
             
-            sucursales = [dict(row) for row in cursor.fetchall()]
+            sucursales = [dict(row._mapping) for row in result.fetchall()]
             
             return jsonify({
                 'status': 'success',
@@ -890,9 +871,11 @@ def api_sucursales():
                 'total': len(sucursales),
                 'timestamp': datetime.now().isoformat()
             })
+        finally:
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_sucursales: {e}")
+        logger.error(f"[API] Error in api_sucursales: {e}")
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/sucursales', methods=['POST'])
@@ -904,7 +887,7 @@ def api_sucursal_create():
         if not data or 'nombre' not in data or 'negocio_id' not in data:
             return jsonify({'error': 'Nombre y negocio_id son requeridos'}), 400
         
-        # Usar función helper compatible con SQLite y PostgreSQL
+        # Usar función helper para PostgreSQL
         sucursal_id = execute_insert_returning_id(
             '''
             INSERT INTO sucursales (nombre, direccion, telefono, email, negocio_id)
@@ -943,20 +926,19 @@ def api_sucursal_create():
 def api_precios_list():
     """Obtener lista de precios"""
     try:
-        with get_db_connection() as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            cursor.execute('''
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
+            result = session.execute(text('''
                 SELECT p.id as producto_id, p.nombre as producto_nombre, p.precio, p.original_price,
                        p.categoria, n.nombre as negocio_nombre
                 FROM productos p
                 LEFT JOIN negocios n ON p.negocio_id = n.id
-                WHERE p.activo = 1
+                WHERE p.activo = TRUE
                 ORDER BY p.categoria, p.nombre
-            ''')
+            '''))
             
-            precios = [dict(row) for row in cursor.fetchall()]
+            precios = [dict(row._mapping) for row in result.fetchall()]
             
             return jsonify({
                 'status': 'success',
@@ -964,9 +946,11 @@ def api_precios_list():
                 'total': len(precios),
                 'timestamp': datetime.now().isoformat()
             })
+        finally:
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_precios_list: {e}")
+        logger.error(f"[API] Error in api_precios_list: {e}")
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/precios/<int:producto_id>', methods=['PUT'])
@@ -978,31 +962,38 @@ def api_precios_update(producto_id):
         if not data or 'precio' not in data:
             return jsonify({'error': 'Precio es requerido'}), 400
         
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
             
             # Verificar que el producto existe
-            cursor.execute('SELECT id FROM productos WHERE id = ? AND activo = 1', (producto_id,))
-            if not cursor.fetchone():
+            result = session.execute(text('SELECT id FROM productos WHERE id = :id AND activo = TRUE'), {'id': producto_id})
+            if not result.fetchone():
                 return jsonify({'error': 'Producto no encontrado'}), 404
             
             # Actualizar precio
-            cursor.execute('''
+            session.execute(text('''
                 UPDATE productos 
-                SET precio = ?, fecha_actualizacion = CURRENT_TIMESTAMP
-                WHERE id = ?
-            ''', (data['precio'], producto_id))
+                SET precio = :precio, fecha_actualizacion = CURRENT_TIMESTAMP
+                WHERE id = :id
+            '''), {'precio': data['precio'], 'id': producto_id})
             
-            conn.commit()
+            session.commit()
             
             return jsonify({
                 'status': 'success',
                 'message': 'Precio actualizado exitosamente',
                 'timestamp': datetime.now().isoformat()
             })
+        except Exception as e:
+            session.rollback()
+            logger.error(f"[API] Error in api_precios_update: {e}")
+            return jsonify({'error': str(e)}), 500
+        finally:
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_precios_update: {e}")
+        logger.error(f"[API] Error in api_precios_update: {e}")
         return jsonify({'error': str(e)}), 500
 
 # =============================
@@ -1144,24 +1135,25 @@ def api_health():
 def api_status():
     """Status detallado de la API"""
     try:
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
             
             # Contar registros
-            cursor.execute('SELECT COUNT(*) FROM negocios WHERE activo = 1')
-            negocios_count = cursor.fetchone()[0]
+            result = session.execute(text('SELECT COUNT(*) FROM negocios WHERE activo = TRUE'))
+            negocios_count = result.scalar()
             
-            cursor.execute('SELECT COUNT(*) FROM productos WHERE activo = 1')
-            productos_count = cursor.fetchone()[0]
+            result = session.execute(text('SELECT COUNT(*) FROM productos WHERE activo = TRUE'))
+            productos_count = result.scalar()
             
-            cursor.execute('SELECT COUNT(*) FROM categorias WHERE activa = 1')
-            categorias_count = cursor.fetchone()[0]
+            result = session.execute(text('SELECT COUNT(*) FROM categorias WHERE activa = TRUE'))
+            categorias_count = result.scalar()
             
-            cursor.execute('SELECT COUNT(*) FROM ofertas WHERE activo = 1')
-            ofertas_count = cursor.fetchone()[0]
+            result = session.execute(text('SELECT COUNT(*) FROM ofertas WHERE activo = TRUE'))
+            ofertas_count = result.scalar()
             
-            cursor.execute('SELECT COUNT(*) FROM sucursales WHERE activo = 1')
-            sucursales_count = cursor.fetchone()[0]
+            result = session.execute(text('SELECT COUNT(*) FROM sucursales WHERE activo = TRUE'))
+            sucursales_count = result.scalar()
             
             return jsonify({
                 'status': 'success',
@@ -1179,9 +1171,11 @@ def api_status():
                     'required': True
                 }
             })
+        finally:
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_status: {e}")
+        logger.error(f"[API] Error in api_status: {e}")
         return jsonify({'error': str(e)}), 500
 
 # =============================
@@ -1234,24 +1228,25 @@ def api_crear_compra():
         # Calcular total
         total = 0
         carrito_items = []
-        with get_db_connection() as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
             
             for item in items:
                 producto_id = item['producto_id']
                 cantidad = item['cantidad']
                 
-                cursor.execute('''
+                result = session.execute(text('''
                     SELECT id, nombre, precio FROM productos 
-                    WHERE id = ? AND activo = 1
-                ''', (producto_id,))
-                producto = cursor.fetchone()
+                    WHERE id = :id AND activo = TRUE
+                '''), {'id': producto_id})
+                row = result.fetchone()
                 
-                if not producto:
+                if not row:
                     return jsonify({'error': f'Producto {producto_id} no encontrado'}), 404
                 
-                precio = producto['precio']
+                producto = dict(row._mapping)
+                precio = float(producto['precio'])
                 subtotal = precio * cantidad
                 total += subtotal
                 
@@ -1261,6 +1256,8 @@ def api_crear_compra():
                     'precio_unitario': precio,
                     'subtotal': subtotal
                 })
+        finally:
+            session.close()
         
         # Generar número de pedido
         numero_pedido = f"PED-{datetime.now().strftime('%Y%m%d%H%M%S')}-{data['usuario_id']}"
@@ -1303,22 +1300,22 @@ def api_crear_compra():
             ticketera_url = os.getenv('TICKETERA_URL', '')
             if ticketera_url:
                 # Obtener datos del usuario
-                with get_db_connection() as conn:
-                    conn.row_factory = sqlite3.Row
-                    cursor = conn.cursor()
-                    cursor.execute('SELECT * FROM usuarios WHERE id = ?', (data['usuario_id'],))
-                    usuario_row = cursor.fetchone()
+                session = get_db_connection()
+                try:
+                    from sqlalchemy import text
+                    result = session.execute(text('SELECT * FROM usuarios WHERE id = :id'), {'id': data['usuario_id']})
+                    row = result.fetchone()
                     
-                    if usuario_row:
-                        usuario = dict(usuario_row)
+                    if row:
+                        usuario = dict(row._mapping)
                         # Preparar datos para Ticketera
                         productos_lista = []
                         for item in carrito_items:
-                            cursor.execute('SELECT nombre FROM productos WHERE id = ?', (item['producto_id'],))
-                            prod = cursor.fetchone()
+                            result = session.execute(text('SELECT nombre FROM productos WHERE id = :id'), {'id': item['producto_id']})
+                            prod_row = result.fetchone()
                             productos_lista.append({
                                 'id': item['producto_id'],
-                                'nombre': prod['nombre'] if prod else 'Producto',
+                                'nombre': dict(prod_row._mapping)['nombre'] if prod_row else 'Producto',
                                 'precio': item['precio_unitario'],
                                 'cantidad': item['cantidad']
                             })
@@ -1346,7 +1343,9 @@ def api_crear_compra():
                         
                         if response.status_code == 201:
                             ticket_creado = response.json()
-                            logger.info(f"✅ Ticket creado en Ticketera para pedido {numero_pedido}")
+                            logger.info(f"[API] ✅ Ticket creado en Ticketera para pedido {numero_pedido}")
+                finally:
+                    session.close()
         except Exception as e:
             logger.warning(f"⚠️ No se pudo enviar a Ticketera: {e}")
         
@@ -1365,7 +1364,9 @@ def api_crear_compra():
         }), 201
         
     except Exception as e:
-        logger.error(f"Error in api_crear_compra: {e}")
+        logger.error(f"[API] Error in api_crear_compra: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/compras/<int:pedido_id>', methods=['GET'])
@@ -1373,43 +1374,47 @@ def api_crear_compra():
 def api_obtener_compra(pedido_id):
     """Obtener detalles de una compra"""
     try:
-        with get_db_connection() as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
+        session = get_db_connection()
+        try:
+            from sqlalchemy import text
             
             # Obtener pedido
-            cursor.execute('''
+            result = session.execute(text('''
                 SELECT p.*, u.email, u.nombre, u.apellido
                 FROM pedidos p
                 LEFT JOIN usuarios u ON p.usuario_id = u.id
-                WHERE p.id = ?
-            ''', (pedido_id,))
+                WHERE p.id = :id
+            '''), {'id': pedido_id})
             
-            pedido = cursor.fetchone()
-            if not pedido:
+            row = result.fetchone()
+            if not row:
                 return jsonify({'error': 'Pedido no encontrado'}), 404
             
-            # Obtener items del pedido
-            cursor.execute('''
-                SELECT pi.*, pr.nombre as producto_nombre
-                FROM pedido_items pi
-                LEFT JOIN productos pr ON pi.producto_id = pr.id
-                WHERE pi.pedido_id = ?
-            ''', (pedido_id,))
+            pedido = dict(row._mapping)
             
-            items = [dict(row) for row in cursor.fetchall()]
+            # Obtener items del pedido
+            result = session.execute(text('''
+                SELECT pi.*, pr.nombre as producto_nombre
+                FROM items_pedido pi
+                LEFT JOIN productos pr ON pi.producto_id = pr.id
+                WHERE pi.pedido_id = :id
+            '''), {'id': pedido_id})
+            
+            items = [dict(row._mapping) for row in result.fetchall()]
             
             return jsonify({
                 'status': 'success',
                 'data': {
-                    'pedido': dict(pedido),
+                    'pedido': pedido,
                     'items': items
                 },
                 'timestamp': datetime.now().isoformat()
             })
+        finally:
+            session.close()
             
     except Exception as e:
-        logger.error(f"Error in api_obtener_compra: {e}")
+        logger.error(f"[API] Error in api_obtener_compra: {e}")
         return jsonify({'error': str(e)}), 500
 
 # Inicializar tablas al importar el módulo usando init_db() centralizada
