@@ -144,6 +144,8 @@ def execute_insert_returning_id(query: str, params: tuple, table_name: str = Non
             if match:
                 column_names = [col.strip().lower() for col in match.group(1).split(',')]
                 logger.info(f"[API] 🔍 Columnas detectadas en query: {column_names}")
+            else:
+                logger.warning(f"[API] ⚠️ No se pudieron detectar nombres de columnas en query: {query[:100]}")
             
             # Procesar cada parámetro
             for i, param in enumerate(params):
@@ -154,7 +156,7 @@ def execute_insert_returning_id(query: str, params: tuple, table_name: str = Non
                 if i < len(column_names):
                     col_name = column_names[i]
                     if col_name in boolean_fields:
-                        # Convertir integer/string a boolean automáticamente
+                        # SIEMPRE convertir a boolean, sin importar el tipo actual
                         original_value = param
                         original_type = type(original_value).__name__
                         param_dict[param_name] = _to_boolean(param, default=True)
@@ -182,18 +184,25 @@ def execute_insert_returning_id(query: str, params: tuple, table_name: str = Non
                 adapted_query = adapted_query.rstrip(';') + f' RETURNING {table_name}.id'
         
         # CORRECCIÓN FINAL: Verificar que todos los campos booleanos sean realmente boolean
-        # Esto es una verificación de seguridad adicional
-        for param_name, param_value in param_dict.items():
-            # Si el parámetro es un integer 0 o 1, verificar si corresponde a una columna booleana
-            if isinstance(param_value, int) and param_value in (0, 1):
-                # Extraer índice del parámetro (p0, p1, p2, etc.)
-                param_index = int(param_name[1:]) if param_name.startswith('p') and param_name[1:].isdigit() else -1
-                if param_index >= 0 and param_index < len(column_names):
-                    col_name = column_names[param_index]
-                    if col_name in boolean_fields:
-                        logger.warning(f"[API] ⚠️ Detectado integer {param_value} en campo booleano '{col_name}' (parámetro {param_name}). Convirtiendo...")
+        # Esto es una verificación de seguridad adicional - FORZAR conversión
+        for param_name, param_value in list(param_dict.items()):
+            # Extraer índice del parámetro (p0, p1, p2, etc.)
+            param_index = int(param_name[1:]) if param_name.startswith('p') and param_name[1:].isdigit() else -1
+            if param_index >= 0 and param_index < len(column_names):
+                col_name = column_names[param_index]
+                if col_name in boolean_fields:
+                    # SIEMPRE convertir si es campo booleano, sin importar el tipo actual
+                    if not isinstance(param_value, bool):
+                        original_value = param_value
+                        original_type = type(original_value).__name__
                         param_dict[param_name] = _to_boolean(param_value, default=True)
-                        logger.info(f"[API] ✅ Convertido {param_name}: {param_value} (int) -> {param_dict[param_name]} (bool)")
+                        logger.warning(f"[API] ⚠️ FORZANDO conversión de campo booleano '{col_name}' (parámetro {param_name}): {original_value} ({original_type}) -> {param_dict[param_name]} (bool)")
+                    else:
+                        logger.debug(f"[API] ✅ Campo booleano '{col_name}' ya es boolean: {param_value}")
+            else:
+                # Si no se pudo identificar la columna pero el valor es 0/1, verificar si podría ser boolean
+                if isinstance(param_value, int) and param_value in (0, 1):
+                    logger.warning(f"[API] ⚠️ Parámetro {param_name} es {param_value} (int) pero no se pudo identificar columna. Podría ser boolean.")
         
         # Log final de parámetros antes de ejecutar
         logger.info(f"[API] 🔍 Parámetros finales antes de ejecutar: {param_dict}")
@@ -350,11 +359,20 @@ def api_negocio_create():
         # Usar función helper para PostgreSQL
         # NOTA: execute_insert_returning_id ahora convierte automáticamente campos booleanos
         try:
-            # Verificar que activo sea realmente boolean antes de pasar a execute_insert_returning_id
+            # FORZAR conversión a boolean ANTES de pasar a execute_insert_returning_id
+            # Esto es crítico porque JSON puede deserializar True como 1
             if not isinstance(activo, bool):
                 logger.warning(f"[API] ⚠️ 'activo' no es boolean antes de execute_insert_returning_id: {activo} ({type(activo).__name__})")
                 activo = _to_boolean(activo, default=True)
                 logger.info(f"[API] ✅ 'activo' convertido a boolean: {activo} (bool)")
+            
+            # VERIFICACIÓN FINAL: Asegurar que activo sea boolean
+            activo = bool(_to_boolean(activo, default=True))
+            if not isinstance(activo, bool):
+                logger.error(f"[API] ❌ ERROR CRÍTICO: 'activo' todavía no es boolean después de conversión: {activo} ({type(activo).__name__})")
+                activo = True  # Fallback seguro
+            
+            logger.info(f"[API] 🔍 Verificación final antes de INSERT: activo = {activo} (tipo: {type(activo).__name__})")
             
             negocio_id = execute_insert_returning_id(
                 '''
@@ -367,7 +385,7 @@ def api_negocio_create():
                     str(data.get('direccion', '')).strip(),
                     str(data.get('telefono', '')).strip(),
                     str(data.get('email', '')).strip(),
-                    activo  # Debe ser boolean (True/False), no integer
+                    activo  # DEBE ser boolean (True/False), NO integer
                 ),
                 table_name='negocios'
             )

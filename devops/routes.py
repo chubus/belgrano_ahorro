@@ -340,14 +340,32 @@ def editar_negocio(negocio_id):
                 flash('Error: API no configurada.', 'error')
                 return redirect(url_for('devops.gestion_negocios'))
             
+            # Helper para convertir a boolean
+            def _to_boolean(value, default=True):
+                """Convertir valor a boolean de forma segura"""
+                if value is None:
+                    return default
+                if isinstance(value, bool):
+                    return value
+                if isinstance(value, int):
+                    return True if value != 0 else False
+                if isinstance(value, str):
+                    value_lower = value.lower().strip()
+                    if value_lower in ('true', '1', 'yes', 'on', 'si', 'sí'):
+                        return True
+                    if value_lower in ('false', '0', 'no', 'off'):
+                        return False
+                return default
+            
             # Obtener datos del formulario
+            activo_raw = request.form.get('activo', 'false')
             negocio_data = {
                 'nombre': request.form.get('nombre', '').strip(),
                 'descripcion': request.form.get('descripcion', '').strip(),
                 'direccion': request.form.get('direccion', '').strip(),
                 'telefono': request.form.get('telefono', '').strip(),
                 'email': request.form.get('email', '').strip(),
-                'activo': request.form.get('activo') == 'on'
+                'activo': _to_boolean(activo_raw, default=True)  # CORRECCIÓN: Usar _to_boolean() en lugar de == 'on'
             }
             
             # Validar campos requeridos
@@ -423,6 +441,25 @@ def gestion_productos():
             if not categoria:
                 categoria = request.form.get('categoria_id', '1')  # Fallback a categoria_id si no hay categoria
             
+            # Helper para convertir a boolean
+            def _to_boolean(value, default=True):
+                """Convertir valor a boolean de forma segura"""
+                if value is None:
+                    return default
+                if isinstance(value, bool):
+                    return value
+                if isinstance(value, int):
+                    return True if value != 0 else False
+                if isinstance(value, str):
+                    value_lower = value.lower().strip()
+                    if value_lower in ('true', '1', 'yes', 'on', 'si', 'sí'):
+                        return True
+                    if value_lower in ('false', '0', 'no', 'off'):
+                        return False
+                return default
+            
+            activo_raw = request.form.get('activo', 'true')
+            destacado_raw = request.form.get('destacado', 'false')
             producto_data = {
                 'nombre': nombre,
                 'descripcion': descripcion,  # Se mapea a 'store' en la API
@@ -430,7 +467,8 @@ def gestion_productos():
                 'negocio_id': int(negocio_id),
                 'categoria': categoria,  # Enviar categoria (string) en lugar de categoria_id
                 'stock': int(request.form.get('stock', 0)),
-                'activo': True
+                'activo': _to_boolean(activo_raw, default=True),  # CORRECCIÓN: Usar _to_boolean() para consistencia
+                'destacado': _to_boolean(destacado_raw, default=False)  # CORRECCIÓN: Agregar conversión para destacado
             }
             success, message = devops_manager.create_item('productos', producto_data)
             if success:
@@ -466,6 +504,25 @@ def editar_producto(producto_id):
                 return redirect(url_for('devops.gestion_productos'))
             
             # Obtener datos del formulario
+            # Helper para convertir a boolean
+            def _to_boolean(value, default=True):
+                """Convertir valor a boolean de forma segura"""
+                if value is None:
+                    return default
+                if isinstance(value, bool):
+                    return value
+                if isinstance(value, int):
+                    return True if value != 0 else False
+                if isinstance(value, str):
+                    value_lower = value.lower().strip()
+                    if value_lower in ('true', '1', 'yes', 'on', 'si', 'sí'):
+                        return True
+                    if value_lower in ('false', '0', 'no', 'off'):
+                        return False
+                return default
+            
+            activo_raw = request.form.get('activo', 'false')
+            destacado_raw = request.form.get('destacado', 'false')
             producto_data = {
                 'nombre': request.form.get('nombre', '').strip(),
                 'descripcion': request.form.get('descripcion', '').strip(),
@@ -473,7 +530,8 @@ def editar_producto(producto_id):
                 'categoria': request.form.get('categoria', '').strip(),
                 'stock': request.form.get('stock', '0').strip(),
                 'negocio_id': request.form.get('negocio_id', '').strip(),
-                'activo': request.form.get('activo') == 'on'
+                'activo': _to_boolean(activo_raw, default=True),  # CORRECCIÓN: Usar _to_boolean() en lugar de == 'on'
+                'destacado': _to_boolean(destacado_raw, default=False)  # CORRECCIÓN: Agregar conversión para destacado
             }
             
             # Validar campos requeridos
@@ -576,6 +634,24 @@ def gestion_ofertas():
                 from datetime import timedelta
                 fecha_fin = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
             
+            # Helper para convertir a boolean
+            def _to_boolean(value, default=True):
+                """Convertir valor a boolean de forma segura"""
+                if value is None:
+                    return default
+                if isinstance(value, bool):
+                    return value
+                if isinstance(value, int):
+                    return True if value != 0 else False
+                if isinstance(value, str):
+                    value_lower = value.lower().strip()
+                    if value_lower in ('true', '1', 'yes', 'on', 'si', 'sí'):
+                        return True
+                    if value_lower in ('false', '0', 'no', 'off'):
+                        return False
+                return default
+            
+            activa_raw = request.form.get('activa', 'true')
             oferta_data = {
                 'titulo': titulo,  # La API acepta tanto 'titulo' como 'nombre'
                 'descripcion': descripcion,
@@ -583,7 +659,7 @@ def gestion_ofertas():
                 'producto_id': int(producto_id),
                 'fecha_inicio': fecha_inicio,
                 'fecha_fin': fecha_fin,
-                'activa': True  # La API acepta tanto 'activa' como 'activo'
+                'activa': _to_boolean(activa_raw, default=True)  # CORRECCIÓN: Usar _to_boolean() para consistencia
             }
             success, message = devops_manager.create_item('ofertas', oferta_data)
             if success:
@@ -617,13 +693,31 @@ def editar_oferta(oferta_id):
                 flash('Error: API no configurada.', 'error')
                 return redirect(url_for('devops.gestion_ofertas'))
             
+            # Helper para convertir a boolean
+            def _to_boolean(value, default=True):
+                """Convertir valor a boolean de forma segura"""
+                if value is None:
+                    return default
+                if isinstance(value, bool):
+                    return value
+                if isinstance(value, int):
+                    return True if value != 0 else False
+                if isinstance(value, str):
+                    value_lower = value.lower().strip()
+                    if value_lower in ('true', '1', 'yes', 'on', 'si', 'sí'):
+                        return True
+                    if value_lower in ('false', '0', 'no', 'off'):
+                        return False
+                return default
+            
+            activa_raw = request.form.get('activo', 'false')
             # Obtener datos del formulario
             oferta_data = {
                 'titulo': request.form.get('titulo', '').strip(),
                 'descripcion': request.form.get('descripcion', '').strip(),
                 'descuento_porcentaje': request.form.get('descuento_porcentaje', '').strip(),
                 'descuento_fijo': request.form.get('descuento_fijo', '').strip(),
-                'activa': request.form.get('activo') == 'on'
+                'activa': _to_boolean(activa_raw, default=True)  # CORRECCIÓN: Usar _to_boolean() en lugar de == 'on'
             }
             
             # Validar campos requeridos
@@ -1114,6 +1208,35 @@ def api_productos():
     if not payload or 'nombre' not in payload or 'precio' not in payload:
         return _json_response(False, None, 'Los campos "nombre" y "precio" son requeridos', 400)
     
+    # CORRECCIÓN: Asegurar que activo y destacado sean boolean (no integer)
+    # Helper para convertir a boolean
+    def _to_boolean(value, default=True):
+        """Convertir valor a boolean de forma segura"""
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return True if value != 0 else False
+        if isinstance(value, str):
+            value_lower = value.lower().strip()
+            if value_lower in ('true', '1', 'yes', 'on', 'si', 'sí'):
+                return True
+            if value_lower in ('false', '0', 'no', 'off'):
+                return False
+        return default
+    
+    # Convertir activo y destacado a boolean si están presentes
+    if 'activo' in payload:
+        payload['activo'] = _to_boolean(payload['activo'], default=True)
+    else:
+        payload['activo'] = True  # Default a True si no se especifica
+    
+    if 'destacado' in payload:
+        payload['destacado'] = _to_boolean(payload['destacado'], default=False)
+    else:
+        payload['destacado'] = False  # Default a False si no se especifica
+    
     try:
         result = devops_manager.create_item('productos', payload)
         ok, data, msg = _parse_manager_response(result, 'Producto creado exitosamente')
@@ -1187,6 +1310,34 @@ def api_ofertas():
     if not payload or 'titulo' not in payload:
         return _json_response(False, None, 'El campo "titulo" es requerido', 400)
     
+    # CORRECCIÓN: Asegurar que activa/activo sea boolean (no integer)
+    # Helper para convertir a boolean
+    def _to_boolean(value, default=True):
+        """Convertir valor a boolean de forma segura"""
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return True if value != 0 else False
+        if isinstance(value, str):
+            value_lower = value.lower().strip()
+            if value_lower in ('true', '1', 'yes', 'on', 'si', 'sí'):
+                return True
+            if value_lower in ('false', '0', 'no', 'off'):
+                return False
+        return default
+    
+    # Convertir activa/activo a boolean si está presente
+    if 'activa' in payload:
+        payload['activa'] = _to_boolean(payload['activa'], default=True)
+    elif 'activo' in payload:
+        payload['activo'] = _to_boolean(payload['activo'], default=True)
+        # Normalizar a 'activa' para ofertas
+        payload['activa'] = payload.pop('activo')
+    else:
+        payload['activa'] = True  # Default a True si no se especifica
+    
     try:
         result = devops_manager.create_item('ofertas', payload)
         ok, data, msg = _parse_manager_response(result, 'Oferta creada exitosamente')
@@ -1259,6 +1410,30 @@ def api_sucursales():
     payload = request.get_json(silent=True) or {}
     if not payload or 'nombre' not in payload:
         return _json_response(False, None, 'El campo "nombre" es requerido', 400)
+    
+    # CORRECCIÓN: Asegurar que activo sea boolean (no integer)
+    # Helper para convertir a boolean
+    def _to_boolean(value, default=True):
+        """Convertir valor a boolean de forma segura"""
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return True if value != 0 else False
+        if isinstance(value, str):
+            value_lower = value.lower().strip()
+            if value_lower in ('true', '1', 'yes', 'on', 'si', 'sí'):
+                return True
+            if value_lower in ('false', '0', 'no', 'off'):
+                return False
+        return default
+    
+    # Convertir activo a boolean si está presente
+    if 'activo' in payload:
+        payload['activo'] = _to_boolean(payload['activo'], default=True)
+    else:
+        payload['activo'] = True  # Default a True si no se especifica
     
     try:
         result = devops_manager.create_sucursal(payload)
@@ -1521,12 +1696,30 @@ def gestion_sucursales():
             if not devops_manager:
                 flash('Error: API no configurada.', 'error')
                 return redirect(url_for('devops.gestion_sucursales'))
+            # Helper para convertir a boolean
+            def _to_boolean(value, default=True):
+                """Convertir valor a boolean de forma segura"""
+                if value is None:
+                    return default
+                if isinstance(value, bool):
+                    return value
+                if isinstance(value, int):
+                    return True if value != 0 else False
+                if isinstance(value, str):
+                    value_lower = value.lower().strip()
+                    if value_lower in ('true', '1', 'yes', 'on', 'si', 'sí'):
+                        return True
+                    if value_lower in ('false', '0', 'no', 'off'):
+                        return False
+                return default
+            
+            activo_raw = request.form.get('activo', 'true')
             sucursal_data = {
                 'nombre': nombre,
                 'direccion': direccion,
                 'telefono': telefono,
                 'negocio_id': negocio_id,
-                'activo': True
+                'activo': _to_boolean(activo_raw, default=True)  # CORRECCIÓN: Usar _to_boolean() para consistencia
             }
             success, message = devops_manager.create_sucursal(sucursal_data)
             if success:
@@ -1561,6 +1754,24 @@ def editar_sucursal(sucursal_id):
                 flash('Error: API no configurada.', 'error')
                 return redirect(url_for('devops.gestion_sucursales'))
             
+            # Helper para convertir a boolean
+            def _to_boolean(value, default=True):
+                """Convertir valor a boolean de forma segura"""
+                if value is None:
+                    return default
+                if isinstance(value, bool):
+                    return value
+                if isinstance(value, int):
+                    return True if value != 0 else False
+                if isinstance(value, str):
+                    value_lower = value.lower().strip()
+                    if value_lower in ('true', '1', 'yes', 'on', 'si', 'sí'):
+                        return True
+                    if value_lower in ('false', '0', 'no', 'off'):
+                        return False
+                return default
+            
+            activo_raw = request.form.get('activo', 'false')
             # Obtener datos del formulario
             sucursal_data = {
                 'nombre': request.form.get('nombre', '').strip(),
@@ -1568,7 +1779,7 @@ def editar_sucursal(sucursal_id):
                 'telefono': request.form.get('telefono', '').strip(),
                 'email': request.form.get('email', '').strip(),
                 'negocio_id': request.form.get('negocio_id', '').strip(),
-                'activo': request.form.get('activo') == 'on'
+                'activo': _to_boolean(activo_raw, default=True)  # CORRECCIÓN: Usar _to_boolean() en lugar de == 'on'
             }
             
             # Validar campos requeridos
