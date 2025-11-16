@@ -62,7 +62,7 @@ def _validate_and_setup_database():
         
         # Verificar que el hostname sea completo
         if parsed.hostname.startswith('dpg-') and '.' not in parsed.hostname:
-            raise ValueError(f"[DB] ERROR: Hostname incompleto: '{parsed.hostname}'. La URL debe incluir el dominio completo (ej: dpg-xxx.frankfurt-postgres.render.com)")
+            raise ValueError(f"[DB] ERROR: Hostname incompleto: '{parsed.hostname}'. La URL debe incluir el dominio completo. Ejemplo correcto: dpg-xxx.frankfurt-postgres.render.com")
     except Exception as e:
         logger.error(f"[DB] ERROR validando DATABASE_URL: {e}")
         raise

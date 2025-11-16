@@ -142,9 +142,9 @@ try:
             
             # Verificar que el hostname sea completo
             if parsed.hostname.startswith('dpg-') and '.' not in parsed.hostname:
-                logger.error(f"[INIT] ❌ Hostname incompleto en DATABASE_URL: '{parsed.hostname}'")
-                logger.error("[INIT] ❌ La URL debe incluir el dominio completo (ej: dpg-xxx.frankfurt-postgres.render.com)")
-                raise ValueError(f"Hostname incompleto: {parsed.hostname}")
+                error_msg = f"[INIT] ❌ Hostname incompleto en DATABASE_URL: '{parsed.hostname}'. La URL debe incluir el dominio completo. Ejemplo correcto: dpg-xxx.frankfurt-postgres.render.com"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
             
             # Intentar inicializar la base de datos
             from init_db import init_db
@@ -3089,7 +3089,21 @@ def _guardar_negocio_en_db(negocio_data):
         from sqlalchemy import text
         session = get_db_connection()
         try:
-            activo = negocio_data.get('activo', True)
+            # CORRECCIÓN: Convertir activo a boolean (no integer)
+            # PostgreSQL requiere boolean, no integer (1/0)
+            activo_value = negocio_data.get('activo', True)
+            # Función helper para convertir a boolean
+            if activo_value is None:
+                activo = True
+            elif isinstance(activo_value, bool):
+                activo = activo_value
+            elif isinstance(activo_value, int):
+                activo = bool(activo_value)
+            elif isinstance(activo_value, str):
+                activo = activo_value.lower().strip() in ('true', '1', 'yes', 'on', 'si', 'sí')
+            else:
+                activo = True
+            
             result = session.execute(text('''
                 INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo)
                 VALUES (:nombre, :descripcion, :direccion, :telefono, :email, :activo)
@@ -3100,7 +3114,7 @@ def _guardar_negocio_en_db(negocio_data):
                 'direccion': negocio_data.get('direccion', ''),
                 'telefono': negocio_data.get('telefono', ''),
                 'email': negocio_data.get('email', ''),
-                'activo': activo
+                'activo': activo  # Ahora es boolean (True/False), no integer
             })
             row = result.fetchone()
             negocio_id = row[0] if row else None
@@ -3127,8 +3141,21 @@ def _guardar_producto_en_db(producto_data):
         from sqlalchemy import text
         session = get_db_connection()
         try:
-            activo = producto_data.get('activo', True)
-            destacado = producto_data.get('destacado', False)
+            # CORRECCIÓN: Convertir activo y destacado a boolean (no integer)
+            # PostgreSQL requiere boolean, no integer (1/0)
+            def _to_bool(val, default):
+                if val is None:
+                    return default
+                if isinstance(val, bool):
+                    return val
+                if isinstance(val, int):
+                    return bool(val)
+                if isinstance(val, str):
+                    return val.lower().strip() in ('true', '1', 'yes', 'on', 'si', 'sí')
+                return default
+            
+            activo = _to_bool(producto_data.get('activo', True), True)
+            destacado = _to_bool(producto_data.get('destacado', False), False)
             store = producto_data.get('descripcion', producto_data.get('store', ''))
             negocio_id = producto_data.get('negocio_id', producto_data.get('negocio', 1))
             if isinstance(negocio_id, str):
@@ -3188,7 +3215,19 @@ def _guardar_sucursal_en_db(sucursal_data):
                 except:
                     negocio_id = 1
             
-            activo = sucursal_data.get('activo', True)
+            # CORRECCIÓN: Convertir activo a boolean (no integer)
+            # PostgreSQL requiere boolean, no integer (1/0)
+            activo_value = sucursal_data.get('activo', True)
+            if activo_value is None:
+                activo = True
+            elif isinstance(activo_value, bool):
+                activo = activo_value
+            elif isinstance(activo_value, int):
+                activo = bool(activo_value)
+            elif isinstance(activo_value, str):
+                activo = activo_value.lower().strip() in ('true', '1', 'yes', 'on', 'si', 'sí')
+            else:
+                activo = True
             
             result = session.execute(text('''
                 INSERT INTO sucursales (nombre, direccion, telefono, email, negocio_id, activo)
@@ -3200,7 +3239,7 @@ def _guardar_sucursal_en_db(sucursal_data):
                 'telefono': sucursal_data.get('telefono', ''),
                 'email': sucursal_data.get('email', ''),
                 'negocio_id': negocio_id,
-                'activo': activo
+                'activo': activo  # Ahora es boolean (True/False), no integer
             })
             row = result.fetchone()
             sucursal_id = row[0] if row else None
@@ -3227,7 +3266,20 @@ def _guardar_oferta_en_db(oferta_data):
         from sqlalchemy import text
         session = get_db_connection()
         try:
-            activa = oferta_data.get('activa', oferta_data.get('activo', True))
+            # CORRECCIÓN: Convertir activo/activa a boolean (no integer)
+            # PostgreSQL requiere boolean, no integer (1/0)
+            activa_value = oferta_data.get('activa', oferta_data.get('activo', True))
+            if activa_value is None:
+                activo = True
+            elif isinstance(activa_value, bool):
+                activo = activa_value
+            elif isinstance(activa_value, int):
+                activo = bool(activa_value)
+            elif isinstance(activa_value, str):
+                activo = activa_value.lower().strip() in ('true', '1', 'yes', 'on', 'si', 'sí')
+            else:
+                activo = True
+            
             negocio_id = oferta_data.get('negocio_id', oferta_data.get('negocio', None))
             if isinstance(negocio_id, str):
                 try:
@@ -3247,7 +3299,7 @@ def _guardar_oferta_en_db(oferta_data):
                 'descuento': float(oferta_data.get('descuento', 0)),
                 'fecha_inicio': oferta_data.get('fecha_inicio', ''),
                 'fecha_fin': oferta_data.get('fecha_fin', ''),
-                'activo': activa,
+                'activo': activo,  # Ahora es boolean (True/False), no integer
                 'negocio_id': negocio_id
             })
             row = result.fetchone()

@@ -28,6 +28,32 @@ except ImportError:
     if not DATABASE_URL:
         raise ValueError("[API] ERROR: DATABASE_URL no configurada")
 
+# ==========================================
+# HELPER: Conversión segura a boolean
+# ==========================================
+def _to_boolean(value, default=True):
+    """
+    Convertir valor a boolean de forma segura
+    Acepta: True/False, 1/0, "true"/"false", "1"/"0"
+    Retorna: True o False (nunca integer)
+    
+    CORRECCIÓN: PostgreSQL requiere boolean, no integer
+    """
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        # CORRECCIÓN: Convertir 1/0 explícitamente a True/False
+        return True if value != 0 else False
+    if isinstance(value, str):
+        value_lower = value.lower().strip()
+        if value_lower in ('true', '1', 'yes', 'on', 'si', 'sí'):
+            return True
+        if value_lower in ('false', '0', 'no', 'off'):
+            return False
+    return default
+
 # Crear blueprint para la API
 api_bp = Blueprint('belgrano_api', __name__, url_prefix='/api')
 
@@ -72,8 +98,8 @@ def require_api_key(f):
 
 def get_db_connection():
     """Obtener conexión a la base de datos PostgreSQL"""
-    from db_abstraction import get_db_connection as get_db_conn_abstracted
-    return get_db_conn_abstracted()
+        from db_abstraction import get_db_connection as get_db_conn_abstracted
+        return get_db_conn_abstracted()
 
 @contextmanager
 def db_connection():
@@ -104,11 +130,43 @@ def execute_insert_returning_id(query: str, params: tuple, table_name: str = Non
         # Convertir ? a :param para PostgreSQL
         adapted_query = query
         param_dict = {}
+        
+        # CORRECCIÓN: Detectar campos booleanos en el query y convertir valores automáticamente
+        # Buscar nombres de campos booleanos comunes en el INSERT
+        boolean_fields = ['activo', 'activa', 'destacado', 'destacada']
+        column_names = []  # Definir en scope superior para uso posterior
+        
         if '?' in query and params:
+            # Extraer nombres de columnas del query
+            import re
+            # Buscar "INSERT INTO tabla (col1, col2, ...)"
+            match = re.search(r'INSERT\s+INTO\s+\w+\s*\(([^)]+)\)', query, re.IGNORECASE)
+            if match:
+                column_names = [col.strip().lower() for col in match.group(1).split(',')]
+                logger.info(f"[API] 🔍 Columnas detectadas en query: {column_names}")
+            
+            # Procesar cada parámetro
             for i, param in enumerate(params):
                 param_name = f'p{i}'
                 adapted_query = adapted_query.replace('?', f':{param_name}', 1)
-                param_dict[param_name] = param
+                
+                # CORRECCIÓN: Convertir a boolean si el campo es booleano
+                if i < len(column_names):
+                    col_name = column_names[i]
+                    if col_name in boolean_fields:
+                        # Convertir integer/string a boolean automáticamente
+                        original_value = param
+                        original_type = type(original_value).__name__
+                        param_dict[param_name] = _to_boolean(param, default=True)
+                        # Siempre loguear la conversión para debugging
+                        logger.info(f"[API] ✅ Convertido campo booleano '{col_name}' (índice {i}): {original_value} ({original_type}) -> {param_dict[param_name]} (bool)")
+                    else:
+                        param_dict[param_name] = param
+                else:
+                    # Si no hay nombre de columna, verificar si el valor es 1/0 y podría ser boolean
+                    if isinstance(param, int) and param in (0, 1):
+                        logger.warning(f"[API] ⚠️ Parámetro {i} es {param} (int) pero no se pudo identificar columna. Verificando si podría ser boolean...")
+                    param_dict[param_name] = param
         
         # Agregar RETURNING si no está
         if 'RETURNING' not in adapted_query.upper():
@@ -122,6 +180,23 @@ def execute_insert_returning_id(query: str, params: tuple, table_name: str = Non
             
             if table_name:
                 adapted_query = adapted_query.rstrip(';') + f' RETURNING {table_name}.id'
+        
+        # CORRECCIÓN FINAL: Verificar que todos los campos booleanos sean realmente boolean
+        # Esto es una verificación de seguridad adicional
+        for param_name, param_value in param_dict.items():
+            # Si el parámetro es un integer 0 o 1, verificar si corresponde a una columna booleana
+            if isinstance(param_value, int) and param_value in (0, 1):
+                # Extraer índice del parámetro (p0, p1, p2, etc.)
+                param_index = int(param_name[1:]) if param_name.startswith('p') and param_name[1:].isdigit() else -1
+                if param_index >= 0 and param_index < len(column_names):
+                    col_name = column_names[param_index]
+                    if col_name in boolean_fields:
+                        logger.warning(f"[API] ⚠️ Detectado integer {param_value} en campo booleano '{col_name}' (parámetro {param_name}). Convirtiendo...")
+                        param_dict[param_name] = _to_boolean(param_value, default=True)
+                        logger.info(f"[API] ✅ Convertido {param_name}: {param_value} (int) -> {param_dict[param_name]} (bool)")
+        
+        # Log final de parámetros antes de ejecutar
+        logger.info(f"[API] 🔍 Parámetros finales antes de ejecutar: {param_dict}")
         
         result = session.execute(text(adapted_query), param_dict)
         row = result.fetchone()
@@ -148,18 +223,18 @@ def execute_select(query: str, params: tuple = None):
     """
     session = get_db_connection()
     try:
-        # Convertir ? a :param si es necesario
-        adapted_query = query
-        param_dict = {}
-        if '?' in query and params:
-            for i, param in enumerate(params):
-                param_name = f'p{i}'
-                adapted_query = adapted_query.replace('?', f':{param_name}', 1)
-                param_dict[param_name] = param
-        
+            # Convertir ? a :param si es necesario
+            adapted_query = query
+            param_dict = {}
+            if '?' in query and params:
+                for i, param in enumerate(params):
+                    param_name = f'p{i}'
+                    adapted_query = adapted_query.replace('?', f':{param_name}', 1)
+                    param_dict[param_name] = param
+            
         result = session.execute(text(adapted_query), param_dict if param_dict else {})
-        rows = result.fetchall()
-        return [dict(row._mapping) for row in rows]
+            rows = result.fetchall()
+            return [dict(row._mapping) for row in rows]
     finally:
         session.close()
 
@@ -172,18 +247,18 @@ def execute_update_delete(query: str, params: tuple = None):
     """
     session = get_db_connection()
     try:
-        # Convertir ? a :param si es necesario
-        adapted_query = query
-        param_dict = {}
-        if '?' in query and params:
-            for i, param in enumerate(params):
-                param_name = f'p{i}'
-                adapted_query = adapted_query.replace('?', f':{param_name}', 1)
-                param_dict[param_name] = param
-        
+            # Convertir ? a :param si es necesario
+            adapted_query = query
+            param_dict = {}
+            if '?' in query and params:
+                for i, param in enumerate(params):
+                    param_name = f'p{i}'
+                    adapted_query = adapted_query.replace('?', f':{param_name}', 1)
+                    param_dict[param_name] = param
+            
         result = session.execute(text(adapted_query), param_dict if param_dict else {})
         session.commit()
-        return result.rowcount
+            return result.rowcount
     except Exception as e:
         session.rollback()
         logger.error(f"[API] Error en execute_update_delete: {e}")
@@ -221,15 +296,15 @@ def api_negocios():
     try:
         session = get_db_connection()
         try:
-            from sqlalchemy import text
+                from sqlalchemy import text
             result = session.execute(text('''
-                SELECT id, nombre, descripcion, direccion, telefono, email, activo,
-                       fecha_creacion, fecha_actualizacion
-                FROM negocios 
-                WHERE activo = TRUE
-                ORDER BY nombre
-            '''))
-            negocios = [dict(row._mapping) for row in result.fetchall()]
+                    SELECT id, nombre, descripcion, direccion, telefono, email, activo,
+                           fecha_creacion, fecha_actualizacion
+                    FROM negocios 
+                    WHERE activo = TRUE
+                    ORDER BY nombre
+                '''))
+                negocios = [dict(row._mapping) for row in result.fetchall()]
             
             return jsonify({
                 'status': 'success',
@@ -258,10 +333,14 @@ def api_negocio_create():
         if not data or 'nombre' not in data:
             return jsonify({'error': 'Nombre es requerido'}), 400
         
-        # Aceptar activo (booleano o entero) y convertirlo
-        activo = 1
-        if 'activo' in data:
-            activo = 1 if (data['activo'] is True or data['activo'] == 1 or str(data['activo']).lower() == 'true') else 0
+        # CORRECCIÓN: Convertir activo a boolean (no integer)
+        # PostgreSQL requiere boolean, no integer (1/0)
+        activo_raw = data.get('activo', True)
+        activo = _to_boolean(activo_raw, default=True)
+        
+        # Log para debugging
+        if activo_raw != activo or not isinstance(activo, bool):
+            logger.info(f"[API] ✅ Convertido 'activo' en api_negocio_create: {activo_raw} ({type(activo_raw).__name__}) -> {activo} (bool)")
         
         # Validar que los campos no sean None
         nombre = str(data['nombre']).strip() if data.get('nombre') else ''
@@ -269,7 +348,14 @@ def api_negocio_create():
             return jsonify({'error': 'Nombre no puede estar vacío'}), 400
         
         # Usar función helper para PostgreSQL
+        # NOTA: execute_insert_returning_id ahora convierte automáticamente campos booleanos
         try:
+            # Verificar que activo sea realmente boolean antes de pasar a execute_insert_returning_id
+            if not isinstance(activo, bool):
+                logger.warning(f"[API] ⚠️ 'activo' no es boolean antes de execute_insert_returning_id: {activo} ({type(activo).__name__})")
+                activo = _to_boolean(activo, default=True)
+                logger.info(f"[API] ✅ 'activo' convertido a boolean: {activo} (bool)")
+            
             negocio_id = execute_insert_returning_id(
                 '''
                 INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo)
@@ -281,7 +367,7 @@ def api_negocio_create():
                     str(data.get('direccion', '')).strip(),
                     str(data.get('telefono', '')).strip(),
                     str(data.get('email', '')).strip(),
-                    activo
+                    activo  # Debe ser boolean (True/False), no integer
                 ),
                 table_name='negocios'
             )
@@ -375,6 +461,11 @@ def api_negocio_update(negocio_id):
                 if field in data:
                     update_fields.append(f"{field} = :{field}")
                     params[field] = data[field]
+            
+            # CORRECCIÓN: Manejar campo activo como boolean
+            if 'activo' in data:
+                update_fields.append("activo = :activo")
+                params['activo'] = _to_boolean(data['activo'], default=True)
             
             if not update_fields:
                 return jsonify({'error': 'No hay campos para actualizar'}), 400
@@ -499,10 +590,10 @@ def api_producto_create():
         if not categoria and 'categoria_id' in data:
             categoria = str(data['categoria_id'])
         
-        # Aceptar activo (booleano o entero) y convertirlo a 1 o 0
-        activo = 1
-        if 'activo' in data:
-            activo = 1 if (data['activo'] is True or data['activo'] == 1 or str(data['activo']).lower() == 'true') else 0
+        # CORRECCIÓN: Convertir activo y destacado a boolean (no integer)
+        # PostgreSQL requiere boolean, no integer (1/0)
+        activo = _to_boolean(data.get('activo', True), default=True)
+        destacado = _to_boolean(data.get('destacado', False), default=False)
         
         # Usar función helper para PostgreSQL
         producto_id = execute_insert_returning_id(
@@ -521,8 +612,8 @@ def api_producto_create():
                 int(data.get('stock', 0)),
                 int(data.get('stock_minimo', 5)),
                 int(data.get('negocio_id', 1)),
-                activo,
-                int(data.get('destacado', 0))
+                activo,  # Ahora es boolean (True/False), no integer
+                destacado  # Ahora es boolean (True/False), no integer
             ),
             table_name='productos'
         )
@@ -598,10 +689,19 @@ def api_producto_update(producto_id):
             params = {}
             
             for field in ['nombre', 'store', 'precio', 'original_price', 'categoria', 'imagen', 
-                         'stock', 'stock_minimo', 'negocio_id', 'activo', 'destacado']:
+                         'stock', 'stock_minimo', 'negocio_id']:
                 if field in data:
                     update_fields.append(f"{field} = :{field}")
                     params[field] = data[field]
+            
+            # CORRECCIÓN: Manejar campos booleanos (activo, destacado) como boolean
+            if 'activo' in data:
+                update_fields.append("activo = :activo")
+                params['activo'] = _to_boolean(data['activo'], default=True)
+            
+            if 'destacado' in data:
+                update_fields.append("destacado = :destacado")
+                params['destacado'] = _to_boolean(data['destacado'], default=False)
             
             if not update_fields:
                 return jsonify({'error': 'No hay campos para actualizar'}), 400
@@ -791,12 +891,15 @@ def api_oferta_create():
         if not nombre_oferta or 'descuento' not in data:
             return jsonify({'error': 'Nombre/titulo y descuento son requeridos'}), 400
         
-        # Aceptar activa (booleano) o activo (entero) y convertirlo a 1 o 0
-        activo = 1
+        # CORRECCIÓN: Convertir activo/activa a boolean (no integer)
+        # PostgreSQL requiere boolean, no integer (1/0)
+        # Aceptar tanto 'activa' como 'activo' para compatibilidad
         if 'activa' in data:
-            activo = 1 if (data['activa'] is True or data['activa'] == 1 or str(data['activa']).lower() == 'true') else 0
+            activo = _to_boolean(data['activa'], default=True)
         elif 'activo' in data:
-            activo = 1 if (data['activo'] is True or data['activo'] == 1 or str(data['activo']).lower() == 'true') else 0
+            activo = _to_boolean(data['activo'], default=True)
+        else:
+            activo = True  # Por defecto activo
         
         # Obtener negocio_id del producto si no viene directamente
         negocio_id = data.get('negocio_id')
@@ -823,7 +926,7 @@ def api_oferta_create():
                 data.get('fecha_fin'),
                 data.get('producto_id'),
                 negocio_id,
-                activo
+                activo  # Ahora es boolean (True/False), no integer
             ),
             table_name='ofertas'
         )
@@ -887,18 +990,23 @@ def api_sucursal_create():
         if not data or 'nombre' not in data or 'negocio_id' not in data:
             return jsonify({'error': 'Nombre y negocio_id son requeridos'}), 400
         
+        # CORRECCIÓN: Convertir activo a boolean (no integer)
+        # PostgreSQL requiere boolean, no integer (1/0)
+        activo = _to_boolean(data.get('activo', True), default=True)
+        
         # Usar función helper para PostgreSQL
         sucursal_id = execute_insert_returning_id(
             '''
-            INSERT INTO sucursales (nombre, direccion, telefono, email, negocio_id)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO sucursales (nombre, direccion, telefono, email, negocio_id, activo)
+            VALUES (?, ?, ?, ?, ?, ?)
             ''',
             (
                 data['nombre'],
                 data.get('direccion', ''),
                 data.get('telefono', ''),
                 data.get('email', ''),
-                data['negocio_id']
+                data['negocio_id'],
+                activo  # Ahora es boolean (True/False), no integer
             ),
             table_name='sucursales'
         )

@@ -277,6 +277,28 @@ def gestion_negocios():
             if not devops_manager:
                 flash('Error: API no configurada. Verifique BELGRANO_AHORRO_URL y BELGRANO_AHORRO_API_KEY', 'error')
                 return redirect(url_for('devops.gestion_negocios'))
+            # CORRECCIÓN: Asegurar que activo sea boolean (no integer)
+            # Helper para convertir a boolean
+            def _to_boolean(value, default=True):
+                """Convertir valor a boolean de forma segura"""
+                if value is None:
+                    return default
+                if isinstance(value, bool):
+                    return value
+                if isinstance(value, int):
+                    return True if value != 0 else False
+                if isinstance(value, str):
+                    value_lower = value.lower().strip()
+                    if value_lower in ('true', '1', 'yes', 'on', 'si', 'sí'):
+                        return True
+                    if value_lower in ('false', '0', 'no', 'off'):
+                        return False
+                return default
+            
+            # Obtener activo del formulario y convertirlo a boolean
+            activo_raw = request.form.get('activo', 'true')
+            activo = _to_boolean(activo_raw, default=True)
+            
             negocio_data = {
                 'nombre': nombre,
                 'descripcion': descripcion,
@@ -284,7 +306,7 @@ def gestion_negocios():
                 'telefono': request.form.get('telefono', ''),
                 'direccion': request.form.get('direccion', ''),
                 'email': request.form.get('email', ''),
-                'activo': True
+                'activo': activo  # Asegurar que sea boolean (True/False), no integer
             }
             success, message = devops_manager.create_item('negocios', negocio_data)
             if success:
@@ -993,6 +1015,30 @@ def api_negocios():
     payload = request.get_json(silent=True) or {}
     if not payload or 'nombre' not in payload:
         return _json_response(False, None, 'El campo "nombre" es requerido', 400)
+    
+    # CORRECCIÓN: Asegurar que activo sea boolean (no integer)
+    # Helper para convertir a boolean
+    def _to_boolean(value, default=True):
+        """Convertir valor a boolean de forma segura"""
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return True if value != 0 else False
+        if isinstance(value, str):
+            value_lower = value.lower().strip()
+            if value_lower in ('true', '1', 'yes', 'on', 'si', 'sí'):
+                return True
+            if value_lower in ('false', '0', 'no', 'off'):
+                return False
+        return default
+    
+    # Convertir activo a boolean si está presente
+    if 'activo' in payload:
+        payload['activo'] = _to_boolean(payload['activo'], default=True)
+    else:
+        payload['activo'] = True  # Default a True si no se especifica
     
     try:
         result = devops_manager.create_item('negocios', payload)

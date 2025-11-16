@@ -36,8 +36,9 @@ try:
     
     # Verificar que el hostname no sea solo un fragmento
     if parsed.hostname.startswith('dpg-') and '.' not in parsed.hostname:
-        logger.warning(f"[CONFIG] ⚠️ Hostname incompleto detectado: {parsed.hostname}")
-        logger.warning("[CONFIG] ⚠️ La URL debe incluir el dominio completo (ej: dpg-xxx.frankfurt-postgres.render.com)")
+        error_msg = f"[CONFIG] ERROR: Hostname incompleto detectado: '{parsed.hostname}'. La URL debe incluir el dominio completo (ej: dpg-xxx.frankfurt-postgres.render.com)"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
 except Exception as e:
     logger.error(f"[CONFIG] ERROR validando DATABASE_URL: {e}")
     raise ValueError(f"[CONFIG] ERROR: DATABASE_URL inválida: {e}")

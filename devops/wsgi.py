@@ -65,9 +65,9 @@ try:
             
             # Verificar que el hostname sea completo
             if parsed.hostname.startswith('dpg-') and '.' not in parsed.hostname:
-                logger.error(f"[INIT] ❌ Hostname incompleto en DATABASE_URL: '{parsed.hostname}'")
-                logger.error("[INIT] ❌ La URL debe incluir el dominio completo (ej: dpg-xxx.frankfurt-postgres.render.com)")
-                raise ValueError(f"Hostname incompleto: {parsed.hostname}")
+                error_msg = f"[INIT] ❌ Hostname incompleto en DATABASE_URL: '{parsed.hostname}'. La URL debe incluir el dominio completo. Ejemplo correcto: dpg-xxx.frankfurt-postgres.render.com"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
             
             # Intentar inicializar la base de datos
             from init_db import init_db
