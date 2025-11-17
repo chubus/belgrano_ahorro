@@ -29,8 +29,6 @@ def cached_request(
 ) -> Dict[str, Any]:
     """
     Helper robusto para hacer requests a APIs externas con cache y manejo de errores
-    overall_start = time.time()
-
     Args:
         url: URL a la que hacer el request
         method: Método HTTP (GET, POST, PUT, DELETE)
@@ -44,6 +42,7 @@ def cached_request(
     Returns:
         Dict con los datos de la respuesta o error
     """
+    overall_start = time.time()
     # Solo cachear GET requests
     use_cache = method.upper() == "GET"
     cache_key = f"{method}:{url}"

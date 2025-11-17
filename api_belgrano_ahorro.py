@@ -98,8 +98,8 @@ def require_api_key(f):
 
 def get_db_connection():
     """Obtener conexión a la base de datos PostgreSQL"""
-        from db_abstraction import get_db_connection as get_db_conn_abstracted
-        return get_db_conn_abstracted()
+    from db_abstraction import get_db_connection as get_db_conn_abstracted
+    return get_db_conn_abstracted()
 
 @contextmanager
 def db_connection():
@@ -232,18 +232,18 @@ def execute_select(query: str, params: tuple = None):
     """
     session = get_db_connection()
     try:
-            # Convertir ? a :param si es necesario
-            adapted_query = query
-            param_dict = {}
-            if '?' in query and params:
-                for i, param in enumerate(params):
-                    param_name = f'p{i}'
-                    adapted_query = adapted_query.replace('?', f':{param_name}', 1)
-                    param_dict[param_name] = param
-            
+        # Convertir ? a :param si es necesario
+        adapted_query = query
+        param_dict = {}
+        if '?' in query and params:
+            for i, param in enumerate(params):
+                param_name = f'p{i}'
+                adapted_query = adapted_query.replace('?', f':{param_name}', 1)
+                param_dict[param_name] = param
+        
         result = session.execute(text(adapted_query), param_dict if param_dict else {})
-            rows = result.fetchall()
-            return [dict(row._mapping) for row in rows]
+        rows = result.fetchall()
+        return [dict(row._mapping) for row in rows]
     finally:
         session.close()
 
@@ -256,18 +256,18 @@ def execute_update_delete(query: str, params: tuple = None):
     """
     session = get_db_connection()
     try:
-            # Convertir ? a :param si es necesario
-            adapted_query = query
-            param_dict = {}
-            if '?' in query and params:
-                for i, param in enumerate(params):
-                    param_name = f'p{i}'
-                    adapted_query = adapted_query.replace('?', f':{param_name}', 1)
-                    param_dict[param_name] = param
-            
+        # Convertir ? a :param si es necesario
+        adapted_query = query
+        param_dict = {}
+        if '?' in query and params:
+            for i, param in enumerate(params):
+                param_name = f'p{i}'
+                adapted_query = adapted_query.replace('?', f':{param_name}', 1)
+                param_dict[param_name] = param
+        
         result = session.execute(text(adapted_query), param_dict if param_dict else {})
         session.commit()
-            return result.rowcount
+        return result.rowcount
     except Exception as e:
         session.rollback()
         logger.error(f"[API] Error en execute_update_delete: {e}")
@@ -305,15 +305,15 @@ def api_negocios():
     try:
         session = get_db_connection()
         try:
-                from sqlalchemy import text
+            from sqlalchemy import text
             result = session.execute(text('''
-                    SELECT id, nombre, descripcion, direccion, telefono, email, activo,
-                           fecha_creacion, fecha_actualizacion
-                    FROM negocios 
-                    WHERE activo = TRUE
-                    ORDER BY nombre
-                '''))
-                negocios = [dict(row._mapping) for row in result.fetchall()]
+                SELECT id, nombre, descripcion, direccion, telefono, email, activo,
+                       fecha_creacion, fecha_actualizacion
+                FROM negocios 
+                WHERE activo = TRUE
+                ORDER BY nombre
+            '''))
+            negocios = [dict(row._mapping) for row in result.fetchall()]
             
             return jsonify({
                 'status': 'success',
@@ -323,7 +323,6 @@ def api_negocios():
             })
         finally:
             session.close()
-            
     except Exception as e:
         logger.error(f"[API] Error in api_negocios: {e}")
         import traceback
@@ -1543,18 +1542,7 @@ def api_obtener_compra(pedido_id):
         logger.error(f"[API] Error in api_obtener_compra: {e}")
         return jsonify({'error': str(e)}), 500
 
-# Inicializar tablas al importar el módulo usando init_db() centralizada
-try:
-    from init_db import init_db
-    # Solo inicializar si no se ha inicializado antes
-    _db_initialized = False
-    if not _db_initialized:
-        try:
-            init_db()
-            _db_initialized = True
-            logger.info("[API] ✅ Base de datos inicializada correctamente")
-        except Exception as e:
-            logger.error(f"[API] ❌ Error inicializando base de datos: {e}")
-            # No fallar la app, pero registrar el error
-except ImportError:
-    logger.warning("[API] ⚠️ No se pudo importar init_db. Las tablas deben crearse manualmente.")
+# NO inicializar tablas al importar el módulo
+# La inicialización debe hacerse explícitamente desde app_unificado.py o wsgi.py
+# Esto evita doble inicialización y problemas de importación circular
+logger.debug("[API] Módulo api_belgrano_ahorro importado. La inicialización de DB se hace desde app_unificado.py")

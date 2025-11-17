@@ -7,7 +7,6 @@ Los datos reales se obtienen desde las APIs de Belgrano Ahorro, Ticketera y DevO
 
 import logging
 from sqlalchemy import text
-from db_abstraction import engine
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +19,25 @@ def load_initial_data():
     logger.info("[DB] Verificando si se necesita crear usuario administrador...")
     
     try:
+        # Obtener engine desde init_db o db_abstraction
+        try:
+            from init_db import _engine as engine
+            if engine is None:
+                # Intentar obtener desde db_abstraction
+                from db_abstraction import engine as engine_alt
+                engine = engine_alt
+        except (ImportError, AttributeError):
+            # Fallback: obtener desde db_abstraction directamente
+            try:
+                from db_abstraction import engine
+            except ImportError:
+                logger.warning("[DB] ⚠️ No se pudo importar engine. Saltando carga de datos iniciales.")
+                return
+        
+        if engine is None:
+            logger.warning("[DB] ⚠️ Engine no está inicializado. Saltando carga de datos iniciales.")
+            return
+        
         with engine.connect() as conn:
             # Verificar si ya existe un usuario admin
             result = conn.execute(text('''

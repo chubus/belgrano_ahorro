@@ -146,6 +146,9 @@ class DevOpsBelgranoManagerUnified:
             error_msg = data.get('message', data.get('error', 'Error desconocido')) if isinstance(data, dict) else 'Error desconocido'
             status_code = data.get('status_code', 0) if isinstance(data, dict) else None
             logger.warning(f"[DEVOPS] ⚠️ Error en {method.upper()} {url}: {error_msg}")
+            if method.upper() == 'GET':
+                logger.info("[DEVOPS] ℹ️ Activando fallback vacío ([]) para mantener el panel funcionando.")
+                return False, []
             return False, {'error': error_msg, 'status_code': status_code}
         
         return True, data

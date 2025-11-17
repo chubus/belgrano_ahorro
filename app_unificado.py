@@ -122,63 +122,65 @@ HTTP_TIMEOUT_SECS = max(1, min(int(os.environ.get('API_TIMEOUT_SECS', '10')), 10
 
 # Inicializar base de datos PostgreSQL PRIMERO
 # Solo si DATABASE_URL está correctamente configurada
+# Usar flag global para evitar doble inicialización
 _db_initialized = False
-try:
-    # Verificar que DATABASE_URL esté configurada antes de intentar conectar
-    import os
-    database_url = os.getenv('DATABASE_URL', '') or os.getenv('POSTGRES_URL', '')
-    
-    if not database_url:
-        logger.warning("[INIT] ⚠️ DATABASE_URL no configurada. La aplicación puede no funcionar correctamente.")
-        logger.warning("[INIT] ⚠️ Configure DATABASE_URL o POSTGRES_URL en Render Dashboard.")
-    else:
-        # Validar formato básico de la URL
-        from urllib.parse import urlparse
-        try:
-            parsed = urlparse(database_url)
-            if not parsed.hostname:
-                logger.error("[INIT] ❌ DATABASE_URL no tiene un hostname válido")
-                raise ValueError("DATABASE_URL inválida: falta hostname")
-            
-            # Verificar que el hostname sea completo
-            if parsed.hostname.startswith('dpg-') and '.' not in parsed.hostname:
-                error_msg = f"[INIT] ❌ Hostname incompleto en DATABASE_URL: '{parsed.hostname}'. La URL debe incluir el dominio completo. Ejemplo correcto: dpg-xxx.frankfurt-postgres.render.com"
-                logger.error(error_msg)
-                raise ValueError(error_msg)
-            
-            # Intentar inicializar la base de datos
-            from init_db import init_db
-            logger.info("[INIT] Inicializando base de datos PostgreSQL...")
-            init_db()
-            _db_initialized = True
-            logger.info("[INIT] ✅ Base de datos inicializada correctamente")
-        except ValueError as ve:
-            logger.error(f"[INIT] ❌ Error de validación: {ve}")
-            logger.error("[INIT] ❌ La aplicación no puede iniciar sin una DATABASE_URL válida")
-            raise
-        except Exception as e:
-            error_msg = str(e)
-            if "could not translate host name" in error_msg or "Name or service not known" in error_msg:
-                logger.error("[INIT] ❌ ERROR: No se puede resolver el hostname de la base de datos")
-                logger.error(f"[INIT]    Error: {error_msg}")
-                logger.error("[INIT]    Verifique que DATABASE_URL tenga el formato correcto en Render Dashboard")
-                logger.error("[INIT]    Formato esperado: postgresql://user:password@hostname:port/database?sslmode=require")
-                raise ValueError("No se puede conectar a PostgreSQL: hostname no resuelto")
-            else:
-                logger.error(f"[INIT] ❌ Error inicializando base de datos: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
-                raise
-except ImportError as ie:
-    logger.warning(f"[INIT] ⚠️ No se pudo importar init_db: {ie}")
-    logger.warning("[INIT] ⚠️ La aplicación puede no funcionar correctamente sin la base de datos")
-except Exception as e:
-    logger.error(f"[INIT] ❌ Error crítico inicializando base de datos: {e}")
-    import traceback
-    logger.error(traceback.format_exc())
-    # No hacer raise aquí para evitar que gunicorn crashee
-    # La app puede intentar funcionar sin DB (aunque con funcionalidad limitada)
-    logger.warning("[INIT] ⚠️ Continuando sin inicialización de base de datos (funcionalidad limitada)")
+if not _db_initialized:
+    try:
+        # Verificar que DATABASE_URL esté configurada antes de intentar conectar
+        import os
+        database_url = os.getenv('DATABASE_URL', '') or os.getenv('POSTGRES_URL', '')
+        
+        if not database_url:
+            logger.warning("[INIT] ⚠️ DATABASE_URL no configurada. La aplicación puede no funcionar correctamente.")
+            logger.warning("[INIT] ⚠️ Configure DATABASE_URL o POSTGRES_URL en Render Dashboard.")
+        else:
+            # Validar formato básico de la URL
+            from urllib.parse import urlparse
+            try:
+                parsed = urlparse(database_url)
+                if not parsed.hostname:
+                    logger.error("[INIT] ❌ DATABASE_URL no tiene un hostname válido")
+                    raise ValueError("DATABASE_URL inválida: falta hostname")
+                
+                # Verificar que el hostname sea completo
+                if parsed.hostname.startswith('dpg-') and '.' not in parsed.hostname:
+                    error_msg = f"[INIT] ❌ Hostname incompleto en DATABASE_URL: '{parsed.hostname}'. La URL debe incluir el dominio completo. Ejemplo correcto: dpg-xxx.frankfurt-postgres.render.com"
+                    logger.error(error_msg)
+                    raise ValueError(error_msg)
+                
+                # Intentar inicializar la base de datos (solo una vez)
+                from init_db import init_db
+                logger.info("[INIT] Inicializando base de datos PostgreSQL...")
+                init_db()  # init_db() ya tiene protección interna contra doble inicialización
+                _db_initialized = True
+                logger.info("[INIT] ✅ Base de datos inicializada correctamente")
+            except ValueError as ve:
+                logger.error(f"[INIT] ❌ Error de validación: {ve}")
+                logger.error("[INIT] ❌ La aplicación no puede iniciar sin una DATABASE_URL válida")
+                # No hacer raise para evitar que gunicorn crashee
+            except Exception as e:
+                error_msg = str(e)
+                if "could not translate host name" in error_msg or "Name or service not known" in error_msg:
+                    logger.error("[INIT] ❌ ERROR: No se puede resolver el hostname de la base de datos")
+                    logger.error(f"[INIT]    Error: {error_msg}")
+                    logger.error("[INIT]    Verifique que DATABASE_URL tenga el formato correcto en Render Dashboard")
+                    logger.error("[INIT]    Formato esperado: postgresql://user:password@hostname:port/database?sslmode=require")
+                    # No hacer raise para evitar que gunicorn crashee
+                else:
+                    logger.error(f"[INIT] ❌ Error inicializando base de datos: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    # No hacer raise para evitar que gunicorn crashee
+    except ImportError as ie:
+        logger.warning(f"[INIT] ⚠️ No se pudo importar init_db: {ie}")
+        logger.warning("[INIT] ⚠️ La aplicación puede no funcionar correctamente sin la base de datos")
+    except Exception as e:
+        logger.error(f"[INIT] ❌ Error crítico inicializando base de datos: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        # No hacer raise aquí para evitar que gunicorn crashee
+        # La app puede intentar funcionar sin DB (aunque con funcionalidad limitada)
+        logger.warning("[INIT] ⚠️ Continuando sin inicialización de base de datos (funcionalidad limitada)")
 
 # Importar base de datos con manejo de errores
 try:
@@ -189,11 +191,19 @@ except Exception as e:
     raise  # Detén la app si el import falla
 
 # Importar API RESTful
+api_bp = None
 try:
     from api_belgrano_ahorro import api_bp
     logger.info("[INIT] ✅ API RESTful importada correctamente")
+except ImportError as ie:
+    logger.warning(f"[INIT] ⚠️ No se pudo importar api_bp: {ie}")
+    logger.warning("[INIT] ⚠️ La aplicación continuará sin API RESTful (funcionalidad limitada)")
+    api_bp = None
 except Exception as e:
     logger.error(f"[INIT] ❌ Error importando API: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
+    logger.warning("[INIT] ⚠️ Continuando sin API RESTful (funcionalidad limitada)")
     api_bp = None
 
 # Función para obtener conexión a la base de datos PostgreSQL
@@ -807,8 +817,10 @@ def obtener_ofertas_activas():
         return ofertas_activas
         
     except Exception as e:
-        logger.error(f"❌ Error en obtener_ofertas_activas: {e}")
-        return {}
+        logger.warning(f"⚠️ Error en obtener_ofertas_activas: {e}")
+        import traceback
+        logger.debug(traceback.format_exc())
+        return {}  # Retornar dict vacío en lugar de fallar
 
 # ==========================================
 # BASE DE DATOS SIMPLE (USUARIOS Y PEDIDOS)
@@ -2887,8 +2899,15 @@ try:
     from api_belgrano_ahorro import register_api_blueprint
     register_api_blueprint(app)
     logger.info("✅ API de Belgrano Ahorro registrada en /api/v1")
-except ImportError as e:
-    logger.warning(f"⚠️ No se pudo registrar la API: {e}")
+except ImportError as ie:
+    logger.warning(f"⚠️ No se pudo importar register_api_blueprint: {ie}")
+    logger.warning("⚠️ La aplicación continuará sin registrar la API (funcionalidad limitada)")
+except Exception as e:
+    logger.error(f"⚠️ Error registrando la API: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
+    logger.warning("⚠️ Continuando sin registrar la API (funcionalidad limitada)")
+    # NO hacer raise - permitir que la app continúe
 else:
     # Precarga no bloqueante de datos para evitar cold-start lentos
     try:
