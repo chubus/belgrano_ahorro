@@ -44,15 +44,15 @@ def crear_usuario(nombre, apellido, email, password, telefono=None, direccion=No
     try:
         session = get_db_connection()
         try:
-            # Verificar si el email ya existe
+        # Verificar si el email ya existe
             result = session.execute(text('SELECT id FROM usuarios WHERE email = :email'), {'email': email})
             if result.fetchone():
-                return {'exito': False, 'mensaje': 'El email ya está registrado'}
-            
-            # Crear hash de la contraseña
-            password_hash = hash_password(password)
-            
-            # Insertar usuario
+            return {'exito': False, 'mensaje': 'El email ya está registrado'}
+        
+        # Crear hash de la contraseña
+        password_hash = hash_password(password)
+        
+        # Insertar usuario
             result = session.execute(text('''
                 INSERT INTO usuarios (nombre, apellido, email, password_hash, telefono, activo)
                 VALUES (:nombre, :apellido, :email, :password_hash, :telefono, TRUE)
@@ -70,8 +70,8 @@ def crear_usuario(nombre, apellido, email, password, telefono=None, direccion=No
             session.commit()
             
             logger.info(f"[DB] ✅ Usuario creado: {email} (ID: {usuario_id})")
-            return {'exito': True, 'usuario_id': usuario_id, 'mensaje': 'Usuario creado exitosamente'}
-        except Exception as e:
+        return {'exito': True, 'usuario_id': usuario_id, 'mensaje': 'Usuario creado exitosamente'}
+    except Exception as e:
             session.rollback()
             logger.error(f"[DB] ❌ Error creando usuario: {e}")
             import traceback
@@ -106,8 +106,8 @@ def verificar_usuario(email, password):
                         'email': usuario[2]
                     }
                 }
-            else:
-                return {'exito': False, 'mensaje': 'Credenciales incorrectas'}
+        else:
+            return {'exito': False, 'mensaje': 'Credenciales incorrectas'}
         finally:
             session.close()
     except Exception as e:
@@ -128,7 +128,7 @@ def buscar_usuario_por_email(email):
             '''), {'email': email})
             
             usuario = result.fetchone()
-            if usuario:
+        if usuario:
                 return {
                     'id': usuario[0],
                     'nombre': usuario[1] or '',
@@ -136,7 +136,7 @@ def buscar_usuario_por_email(email):
                     'telefono': usuario[3] or '',
                     'activo': bool(usuario[4])
                 }
-            return None
+        return None
         finally:
             session.close()
     except Exception as e:
@@ -156,15 +156,15 @@ def obtener_usuario_por_id(usuario_id):
             
             usuario = result.fetchone()
             if usuario:
-                return {
-                    'id': usuario[0],
+            return {
+                'id': usuario[0], 
                     'nombre': usuario[1] or '',
                     'email': usuario[2],
                     'telefono': usuario[3] or '',
                     'activo': bool(usuario[4]),
                     'fecha_registro': str(usuario[5]) if usuario[5] else None
-                }
-            return None
+            }
+        return None
         finally:
             session.close()
     except Exception as e:
@@ -186,8 +186,8 @@ def actualizar_usuario(usuario_id, nombre, telefono, direccion):
                 'telefono': telefono
             })
             session.commit()
-            return True
-        except Exception as e:
+        return True
+    except Exception as e:
             session.rollback()
             logger.error(f"[DB] ❌ Error actualizando usuario: {e}")
             return False
@@ -202,22 +202,22 @@ def cambiar_password(usuario_id, password_actual, password_nuevo):
     try:
         session = get_db_connection()
         try:
-            # Verificar password actual
+        # Verificar password actual
             result = session.execute(text('SELECT password_hash FROM usuarios WHERE id = :id'), {'id': usuario_id})
             usuario = result.fetchone()
-            if not usuario or not verificar_password(password_actual, usuario[0]):
-                return False
-            
-            # Cambiar password
-            password_hash = hash_password(password_nuevo)
+        if not usuario or not verificar_password(password_actual, usuario[0]):
+            return False
+        
+        # Cambiar password
+        password_hash = hash_password(password_nuevo)
             session.execute(text('''
                 UPDATE usuarios 
                 SET password_hash = :password_hash, fecha_actualizacion = CURRENT_TIMESTAMP
                 WHERE id = :id
             '''), {'id': usuario_id, 'password_hash': password_hash})
             session.commit()
-            return True
-        except Exception as e:
+        return True
+    except Exception as e:
             session.rollback()
             logger.error(f"[DB] ❌ Error cambiando password: {e}")
             return False
@@ -351,8 +351,8 @@ def guardar_pedido(usuario_id, numero_pedido, total, metodo_pago, direccion_entr
             row = result.fetchone()
             pedido_id = row[0] if row else None
             session.commit()
-            return pedido_id
-        except Exception as e:
+        return pedido_id
+    except Exception as e:
             session.rollback()
             logger.error(f"[DB] ❌ Error guardando pedido: {e}")
             return None
@@ -367,7 +367,7 @@ def guardar_items_pedido(pedido_id, items):
     try:
         session = get_db_connection()
         try:
-            for item in items:
+        for item in items:
                 session.execute(text('''
                     INSERT INTO items_pedido (pedido_id, producto_id, cantidad, precio_unitario, subtotal)
                     VALUES (:pedido_id, :producto_id, :cantidad, :precio_unitario, :subtotal)
@@ -379,8 +379,8 @@ def guardar_items_pedido(pedido_id, items):
                     'subtotal': item['subtotal']
                 })
             session.commit()
-            return True
-        except Exception as e:
+        return True
+    except Exception as e:
             session.rollback()
             logger.error(f"[DB] ❌ Error guardando items de pedido: {e}")
             return False
@@ -493,14 +493,14 @@ def validar_stock_producto(producto_id, cantidad_solicitada):
             '''), {'id': producto_id})
             
             row = result.fetchone()
-            if not row:
-                return False, 'Producto no encontrado o inactivo'
-            
+        if not row:
+            return False, 'Producto no encontrado o inactivo'
+        
             stock_disponible = int(row[0]) if row[0] else 0
-            if stock_disponible < cantidad_solicitada:
-                return False, f'Stock insuficiente. Disponible: {stock_disponible}, Solicitado: {cantidad_solicitada}'
-            
-            return True, stock_disponible
+        if stock_disponible < cantidad_solicitada:
+            return False, f'Stock insuficiente. Disponible: {stock_disponible}, Solicitado: {cantidad_solicitada}'
+        
+        return True, stock_disponible
         finally:
             session.close()
     except Exception as e:
@@ -538,27 +538,27 @@ def actualizar_stock_producto(producto_id, cantidad_vendida):
     try:
         session = get_db_connection()
         try:
-            # Verificar stock actual
+        # Verificar stock actual
             result = session.execute(text('SELECT stock FROM productos WHERE id = :id'), {'id': producto_id})
             row = result.fetchone()
-            
-            if not row:
-                return False, 'Producto no encontrado'
-            
+        
+        if not row:
+            return False, 'Producto no encontrado'
+        
             stock_actual = int(row[0]) if row[0] else 0
             nuevo_stock = max(0, stock_actual - cantidad_vendida)
-            
-            # Actualizar stock
+        
+        # Actualizar stock
             session.execute(text('''
-                UPDATE productos 
+            UPDATE productos 
                 SET stock = :stock, fecha_actualizacion = CURRENT_TIMESTAMP
                 WHERE id = :id
             '''), {'stock': nuevo_stock, 'id': producto_id})
             
             session.commit()
             logger.info(f"[DB] ✅ Stock actualizado: Producto {producto_id} - Stock anterior: {stock_actual}, Vendido: {cantidad_vendida}, Nuevo stock: {nuevo_stock}")
-            return True, nuevo_stock
-        except Exception as e:
+        return True, nuevo_stock
+    except Exception as e:
             session.rollback()
             logger.error(f"[DB] ❌ Error actualizando stock: {e}")
             return False, f'Error al actualizar stock: {str(e)}'

@@ -2657,55 +2657,119 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
     try:
         # Obtener URL de la API desde variables de entorno
         api_url = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com')
-        if not api_url.endswith('/api/tickets'):
-            api_url = f"{api_url}/api/tickets"
+        if not api_url.endswith('/api/tickets/recibir'):
+            api_url = f"{api_url.rstrip('/')}/api/tickets/recibir"
         
         # Obtener datos del usuario con validación
         nombre_completo = f"{usuario.get('nombre', '')} {usuario.get('apellido', '')}".strip()
         if not nombre_completo:
             nombre_completo = usuario.get('email', 'Cliente')
         
+        # Obtener datos auxiliares para enriquecer información de productos
+        negocios_dict = {}
+        try:
+            negocios_raw = obtener_negocios()
+            if isinstance(negocios_raw, list):
+                negocios_dict = {str(n.get('id', '')): n for n in negocios_raw}
+            elif isinstance(negocios_raw, dict):
+                negocios_dict = negocios_raw
+        except Exception as e:
+            logger.warning(f"⚠️ Error obteniendo negocios para ticket: {e}")
+        
+        sucursales_dict = {}
+        try:
+            sucursales_raw = obtener_sucursales()
+            if isinstance(sucursales_raw, list):
+                sucursales_dict = {str(s.get('id', '')): s for s in sucursales_raw}
+            elif isinstance(sucursales_raw, dict):
+                sucursales_dict = sucursales_raw
+        except Exception as e:
+            logger.warning(f"⚠️ Error obteniendo sucursales para ticket: {e}")
+        
+        categorias_dict = {}
+        try:
+            categorias_raw = obtener_categorias()
+            if isinstance(categorias_raw, list):
+                categorias_dict = {str(c.get('id', '')): c for c in categorias_raw}
+            elif isinstance(categorias_raw, dict):
+                categorias_dict = categorias_raw
+        except Exception as e:
+            logger.warning(f"⚠️ Error obteniendo categorías para ticket: {e}")
+        
         # Preparar lista de productos con estructura completa para la Ticketera
         productos_lista = []
-        for item in carrito_items:
-            producto = item['producto']
-            
-            # Obtener información del negocio
-            negocio_nombre = "Negocio no especificado"
-            if producto.get('negocio'):
-                negocio_data = productos.get('negocios', {}).get(producto['negocio'])
-                if negocio_data:
-                    negocio_nombre = negocio_data.get('nombre', producto['negocio'])
-            
-            # Obtener información de la sucursal (usar la primera disponible)
-            sucursal_nombre = "Sucursal no especificada"
-            if producto.get('sucursales') and len(producto['sucursales']) > 0:
-                sucursal_id = producto['sucursales'][0]
-                if producto['negocio'] in productos.get('sucursales', {}):
-                    sucursal_data = productos['sucursales'][producto['negocio']].get(sucursal_id)
+        logger.info(f"🔍 Procesando {len(carrito_items)} items del carrito para Ticketera...")
+        
+        for idx, item in enumerate(carrito_items, 1):
+            try:
+                producto = item.get('producto', {})
+                if not producto:
+                    logger.warning(f"⚠️ Item {idx} del carrito no tiene 'producto', saltando...")
+                    continue
+                
+                # Validar que el item tenga cantidad y subtotal
+                cantidad = int(item.get('cantidad', 0))
+                subtotal = float(item.get('subtotal', 0))
+                
+                if cantidad <= 0:
+                    logger.warning(f"⚠️ Item {idx} tiene cantidad inválida ({cantidad}), saltando...")
+                    continue
+                
+                # Obtener información del negocio
+                negocio_nombre = producto.get('negocio', 'Negocio no especificado')
+                if producto.get('negocio_id'):
+                    negocio_data = negocios_dict.get(str(producto['negocio_id']))
+                    if negocio_data:
+                        negocio_nombre = negocio_data.get('nombre', negocio_nombre)
+                
+                # Obtener información de la sucursal (usar la primera disponible)
+                sucursal_nombre = "Sucursal no especificada"
+                if producto.get('sucursales') and len(producto['sucursales']) > 0:
+                    sucursal_id = producto['sucursales'][0]
+                    sucursal_data = sucursales_dict.get(str(sucursal_id))
                     if sucursal_data:
                         sucursal_nombre = sucursal_data.get('nombre', sucursal_id)
-            
-            # Obtener información de la categoría
-            categoria_nombre = "Sin categoría"
-            if producto.get('categoria'):
-                categoria_data = productos.get('categorias', {}).get(producto['categoria'])
-                if categoria_data:
-                    categoria_nombre = categoria_data.get('nombre', producto['categoria'])
-            
-            productos_lista.append({
-                'id': producto.get('id', 'N/A'),
-                'nombre': producto.get('nombre', 'Producto sin nombre'),
-                'precio': float(producto.get('precio', 0)),
-                'cantidad': int(item['cantidad']),
-                'subtotal': float(item['subtotal']),
-                'sucursal': sucursal_nombre,
-                'negocio': negocio_nombre,
-                'categoria': categoria_nombre,
-                'descripcion': producto.get('descripcion', 'Sin descripción'),
-                'stock': producto.get('stock', 0),
-                'destacado': producto.get('destacado', False)
-            })
+                
+                # Obtener información de la categoría
+                categoria_nombre = producto.get('categoria', 'Sin categoría')
+                if producto.get('categoria_id'):
+                    categoria_data = categorias_dict.get(str(producto['categoria_id']))
+                    if categoria_data:
+                        categoria_nombre = categoria_data.get('nombre', categoria_nombre)
+                elif producto.get('categoria'):
+                    # Si categoria es un string, usarlo directamente
+                    if isinstance(producto.get('categoria'), str):
+                        categoria_nombre = producto.get('categoria')
+                    else:
+                        categoria_data = categorias_dict.get(str(producto['categoria']))
+                        if categoria_data:
+                            categoria_nombre = categoria_data.get('nombre', categoria_nombre)
+                
+                # Construir objeto producto para Ticketera
+                producto_ticket = {
+                    'id': str(producto.get('id', f'producto_{idx}')),
+                    'nombre': producto.get('nombre', 'Producto sin nombre'),
+                    'precio': float(producto.get('precio', 0)),
+                    'cantidad': cantidad,
+                    'subtotal': subtotal,
+                    'sucursal': sucursal_nombre,
+                    'negocio': negocio_nombre,
+                    'categoria': categoria_nombre,
+                    'descripcion': producto.get('descripcion', producto.get('store', 'Sin descripción')),
+                    'stock': int(producto.get('stock', 0)),
+                    'destacado': bool(producto.get('destacado', False))
+                }
+                
+                productos_lista.append(producto_ticket)
+                logger.debug(f"   ✅ Producto {idx} procesado: {producto_ticket['nombre']} x{producto_ticket['cantidad']}")
+                
+            except Exception as e:
+                logger.error(f"❌ Error procesando item {idx} del carrito: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                continue
+        
+        logger.info(f"✅ {len(productos_lista)} productos procesados correctamente para Ticketera")
         
         # Preparar datos para enviar a la API con validación
         ticket_data = {
@@ -2742,6 +2806,20 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
         logger.info(f"   Total: ${total}")
         logger.info(f"   Productos: {len(productos_lista)} items")
         
+        # Log detallado de cada producto que se envía
+        for idx, producto in enumerate(productos_lista, 1):
+            logger.info(f"   Producto {idx}: {producto.get('nombre', 'Sin nombre')} - Cantidad: {producto.get('cantidad', 0)} - Precio: ${producto.get('precio', 0)} - Subtotal: ${producto.get('subtotal', 0)}")
+        
+        # Log del payload completo (solo estructura, no datos sensibles)
+        logger.debug(f"📋 Estructura del ticket_data:")
+        logger.debug(f"   - numero: {ticket_data.get('numero')}")
+        logger.debug(f"   - cliente_nombre: {ticket_data.get('cliente_nombre')}")
+        logger.debug(f"   - cliente_email: {ticket_data.get('cliente_email')}")
+        logger.debug(f"   - total: {ticket_data.get('total')}")
+        logger.debug(f"   - productos (count): {len(ticket_data.get('productos', []))}")
+        logger.debug(f"   - metodo_pago: {ticket_data.get('metodo_pago')}")
+        logger.debug(f"   - origen: {ticket_data.get('origen')}")
+        
         # Headers mejorados
         headers = {
             'Content-Type': 'application/json',
@@ -2770,6 +2848,11 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
                     except Exception as e:
                         logger.warning(f"⚠️ No se pudo verificar health check en intento {attempt + 1}: {e}")
                 
+                # Log del payload completo antes de enviar (solo en debug)
+                import json as json_module
+                logger.debug(f"📦 Payload completo a enviar a Ticketera:")
+                logger.debug(json_module.dumps(ticket_data, indent=2, ensure_ascii=False))
+                
                 response = requests.post(
                     api_url,
                     json=ticket_data,
@@ -2777,6 +2860,25 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
                     timeout=20  # Timeout aumentado
                 )
                 last_response = response
+                
+                # Log de la respuesta recibida
+                logger.info(f"📥 Respuesta de Ticketera: Status {response.status_code}")
+                if response.status_code in (200, 201):
+                    try:
+                        response_data = response.json()
+                        logger.info(f"   ✅ Ticket creado: {response_data.get('ticket_id', 'N/A')}")
+                        logger.info(f"   ✅ Productos recibidos: {len(response_data.get('productos', []))} items")
+                        # Log detallado de productos en la respuesta
+                        productos_respuesta = response_data.get('productos', [])
+                        if productos_respuesta:
+                            logger.info(f"   📦 Productos en respuesta de Ticketera:")
+                            for idx, prod in enumerate(productos_respuesta, 1):
+                                logger.info(f"      {idx}. {prod.get('nombre', 'Sin nombre')} x{prod.get('cantidad', 0)}")
+                        else:
+                            logger.warning(f"   ⚠️ No se recibieron productos en la respuesta de Ticketera")
+                    except Exception as e:
+                        logger.warning(f"   ⚠️ No se pudo parsear respuesta JSON: {e}")
+                        logger.warning(f"   ⚠️ Respuesta raw: {response.text[:200]}")
                 
                 if response.status_code in (200, 201):
                     logger.info(f"✅ Petición exitosa en intento {attempt + 1}")

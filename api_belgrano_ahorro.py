@@ -1435,40 +1435,148 @@ def api_crear_compra():
                         usuario = dict(row._mapping)
                         # Preparar datos para Ticketera
                         productos_lista = []
-                        for item in carrito_items:
-                            result = session.execute(text('SELECT nombre FROM productos WHERE id = :id'), {'id': item['producto_id']})
-                            prod_row = result.fetchone()
-                            productos_lista.append({
-                                'id': item['producto_id'],
-                                'nombre': dict(prod_row._mapping)['nombre'] if prod_row else 'Producto',
-                                'precio': item['precio_unitario'],
-                                'cantidad': item['cantidad']
-                            })
+                        logger.info(f"[API] 🔍 Procesando {len(carrito_items)} items para Ticketera...")
+                        
+                        for idx, item in enumerate(carrito_items, 1):
+                            try:
+                                # Obtener información completa del producto
+                                result = session.execute(text('''
+                                    SELECT id, nombre, descripcion, precio, stock, destacado, 
+                                           negocio_id, categoria_id, sucursales
+                                    FROM productos WHERE id = :producto_id
+                                '''), {'producto_id': item['producto_id']})
+                                prod_row = result.fetchone()
+                                
+                                if not prod_row:
+                                    logger.warning(f"[API] ⚠️ Producto {item['producto_id']} no encontrado, usando datos básicos")
+                                    productos_lista.append({
+                                        'id': str(item['producto_id']),
+                                        'nombre': 'Producto no encontrado',
+                                        'precio': float(item['precio_unitario']),
+                                        'cantidad': int(item['cantidad']),
+                                        'subtotal': float(item['precio_unitario']) * int(item['cantidad'])
+                                    })
+                                    continue
+                                
+                                prod_data = dict(prod_row._mapping)
+                                
+                                # Obtener información del negocio si existe
+                                negocio_nombre = 'Negocio no especificado'
+                                if prod_data.get('negocio_id'):
+                                    neg_result = session.execute(text('''
+                                        SELECT nombre FROM negocios WHERE id = :negocio_id
+                                    '''), {'negocio_id': prod_data['negocio_id']})
+                                    neg_row = neg_result.fetchone()
+                                    if neg_row:
+                                        negocio_nombre = dict(neg_row._mapping)['nombre']
+                                
+                                # Obtener información de la categoría si existe
+                                categoria_nombre = 'Sin categoría'
+                                if prod_data.get('categoria_id'):
+                                    cat_result = session.execute(text('''
+                                        SELECT nombre FROM categorias WHERE id = :categoria_id
+                                    '''), {'categoria_id': prod_data['categoria_id']})
+                                    cat_row = cat_result.fetchone()
+                                    if cat_row:
+                                        categoria_nombre = dict(cat_row._mapping)['nombre']
+                                
+                                # Obtener información de la sucursal si existe
+                                sucursal_nombre = 'Sucursal no especificada'
+                                if prod_data.get('sucursales'):
+                                    try:
+                                        import json
+                                        if isinstance(prod_data['sucursales'], str):
+                                            sucursales_ids = json.loads(prod_data['sucursales'])
+                                        else:
+                                            sucursales_ids = prod_data['sucursales']
+                                        
+                                        if sucursales_ids and len(sucursales_ids) > 0:
+                                            suc_id = sucursales_ids[0] if isinstance(sucursales_ids, list) else sucursales_ids
+                                            suc_result = session.execute(text('''
+                                                SELECT nombre FROM sucursales WHERE id = :sucursal_id
+                                            '''), {'sucursal_id': suc_id})
+                                            suc_row = suc_result.fetchone()
+                                            if suc_row:
+                                                sucursal_nombre = dict(suc_row._mapping)['nombre']
+                                    except Exception as e:
+                                        logger.debug(f"[API] No se pudo obtener sucursal: {e}")
+                                
+                                # Construir objeto producto completo para Ticketera
+                                cantidad = int(item['cantidad'])
+                                precio = float(item['precio_unitario'])
+                                subtotal = precio * cantidad
+                                
+                                producto_ticket = {
+                                    'id': str(prod_data.get('id', item['producto_id'])),
+                                    'nombre': prod_data.get('nombre', 'Producto sin nombre'),
+                                    'precio': precio,
+                                    'cantidad': cantidad,
+                                    'subtotal': subtotal,
+                                    'sucursal': sucursal_nombre,
+                                    'negocio': negocio_nombre,
+                                    'categoria': categoria_nombre,
+                                    'descripcion': prod_data.get('descripcion', 'Sin descripción'),
+                                    'stock': int(prod_data.get('stock', 0)),
+                                    'destacado': bool(prod_data.get('destacado', False))
+                                }
+                                
+                                productos_lista.append(producto_ticket)
+                                logger.debug(f"[API] ✅ Producto {idx} procesado: {producto_ticket['nombre']} x{producto_ticket['cantidad']}")
+                                
+                            except Exception as e:
+                                logger.error(f"[API] ❌ Error procesando item {idx}: {e}")
+                                import traceback
+                                logger.error(traceback.format_exc())
+                                continue
+                        
+                        logger.info(f"[API] ✅ {len(productos_lista)} productos procesados correctamente para Ticketera")
                         
                         # Enviar a Ticketera
                         import requests
+                        from config import BELGRANO_AHORRO_API_KEY
                         ticket_data = {
                             'numero': numero_pedido,
                             'cliente_nombre': f"{usuario.get('nombre', '')} {usuario.get('apellido', '')}".strip() or usuario.get('email', 'Cliente'),
                             'cliente_direccion': data['direccion_entrega'],
                             'cliente_telefono': usuario.get('telefono', ''),
                             'cliente_email': usuario.get('email', ''),
-                            'productos': json.dumps(productos_lista),
+                            'productos': productos_lista,  # CORRECCIÓN: Enviar lista, no JSON string
                             'total': total,
                             'estado': 'pendiente',
-                            'prioridad': 'normal'
+                            'prioridad': 'normal',
+                            'origen': 'belgrano_ahorro',
+                            'fecha_creacion': datetime.now().isoformat()
+                        }
+                        
+                        headers = {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': BELGRANO_AHORRO_API_KEY  # CORRECCIÓN: Agregar API Key requerida
                         }
                         
                         response = requests.post(
-                            f"{ticketera_url.rstrip('/')}/api/tickets",
+                            f"{ticketera_url.rstrip('/')}/api/tickets/recibir",  # CORRECCIÓN: Usar endpoint correcto
                             json=ticket_data,
-                            headers={'Content-Type': 'application/json'},
-                            timeout=10
+                            headers=headers,
+                            timeout=20  # Aumentar timeout
                         )
                         
-                        if response.status_code == 201:
+                        if response.status_code in (200, 201):
                             ticket_creado = response.json()
                             logger.info(f"[API] ✅ Ticket creado en Ticketera para pedido {numero_pedido}")
+                            logger.info(f"[API]    Ticket ID: {ticket_creado.get('ticket_id', 'N/A')}")
+                            logger.info(f"[API]    Productos enviados: {len(productos_lista)} items")
+                            
+                            # Verificar productos en la respuesta
+                            productos_respuesta = ticket_creado.get('productos', [])
+                            if productos_respuesta:
+                                logger.info(f"[API]    Productos recibidos en respuesta: {len(productos_respuesta)} items")
+                                for idx, prod in enumerate(productos_respuesta[:5], 1):  # Mostrar primeros 5
+                                    logger.info(f"[API]       {idx}. {prod.get('nombre', 'Sin nombre')} x{prod.get('cantidad', 0)}")
+                            else:
+                                logger.warning(f"[API]    ⚠️ No se recibieron productos en la respuesta de Ticketera")
+                        else:
+                            logger.warning(f"[API] ⚠️ Ticketera respondió con código {response.status_code}: {response.text[:200]}")
+                            logger.warning(f"[API]    Productos que se intentaron enviar: {len(productos_lista)} items")
                 finally:
                     session.close()
         except Exception as e:

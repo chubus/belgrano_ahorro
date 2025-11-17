@@ -423,6 +423,50 @@ def eliminar_negocio(negocio_id):
         flash('Error interno al eliminar el negocio', 'error')
     return redirect(url_for('devops.gestion_negocios'))
 
+def _normalizar_producto(producto):
+    """
+    Normalizar tipos de datos de un producto.
+    Convierte campos numéricos de string a sus tipos correctos.
+    """
+    if not isinstance(producto, dict):
+        return producto
+    
+    producto_normalizado = producto.copy()
+    
+    # Normalizar campos numéricos
+    campos_numericos = ['id', 'precio', 'stock', 'negocio_id', 'categoria_id']
+    for campo in campos_numericos:
+        if campo in producto_normalizado and producto_normalizado[campo] is not None:
+            try:
+                if campo == 'precio':
+                    producto_normalizado[campo] = float(producto_normalizado[campo])
+                else:
+                    producto_normalizado[campo] = int(producto_normalizado[campo])
+            except (ValueError, TypeError):
+                # Si no se puede convertir, mantener el valor original o usar default
+                if campo == 'precio':
+                    producto_normalizado[campo] = 0.0
+                elif campo == 'stock':
+                    producto_normalizado[campo] = 0
+                else:
+                    producto_normalizado[campo] = None
+    
+    # Normalizar campos booleanos
+    campos_booleanos = ['activo', 'destacado']
+    for campo in campos_booleanos:
+        if campo in producto_normalizado:
+            valor = producto_normalizado[campo]
+            if isinstance(valor, bool):
+                continue
+            elif isinstance(valor, str):
+                producto_normalizado[campo] = valor.lower() in ('true', '1', 'yes', 'on', 'si', 'sí')
+            elif isinstance(valor, int):
+                producto_normalizado[campo] = bool(valor)
+            else:
+                producto_normalizado[campo] = True if campo == 'activo' else False
+    
+    return producto_normalizado
+
 @devops_bp.route('/productos', methods=['GET', 'POST'])
 @devops_login_required
 def gestion_productos():
@@ -492,11 +536,20 @@ def gestion_productos():
         if not devops_manager:
             flash('Error: API no configurada.', 'error')
             return render_template('devops/productos.html', productos=[], negocios=[])
-        productos = devops_manager.get_productos()
+        productos_raw = devops_manager.get_productos()
         negocios = devops_manager.get_negocios()
+        
+        # Normalizar tipos de datos de productos
+        if isinstance(productos_raw, list):
+            productos = [_normalizar_producto(p) for p in productos_raw]
+        else:
+            productos = []
+        
         return render_template('devops/productos.html', productos=productos, negocios=negocios)
     except Exception as e:
         logger.error(f"Error cargando productos: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         flash('Error interno al cargar productos.', 'error')
         return render_template('devops/productos.html', productos=[], negocios=[])
 
@@ -1200,12 +1253,21 @@ def api_productos():
         try:
             if not devops_manager:
                 return _json_response(False, None, 'Manager no disponible', 503)
-            items = devops_manager.get_productos()
-            if isinstance(items, dict) and 'data' in items:
-                items = items['data']
+            items_raw = devops_manager.get_productos()
+            if isinstance(items_raw, dict) and 'data' in items_raw:
+                items_raw = items_raw['data']
+            
+            # Normalizar tipos de datos de productos
+            if isinstance(items_raw, list):
+                items = [_normalizar_producto(p) for p in items_raw]
+            else:
+                items = []
+            
             return _json_response(True, items if items else [], 'Productos obtenidos exitosamente')
         except Exception as e:
             logger.error(f"Error obteniendo productos: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return _json_response(False, None, f'Error al obtener productos: {str(e)}', 500)
     
     if not devops_manager:
@@ -1263,14 +1325,17 @@ def api_producto_detail(item_id: int):
         try:
             ok, data = devops_manager._req('GET', f"/api/productos/{item_id}")
             if ok:
-                if isinstance(data, dict) and 'data' in data:
-                    return _json_response(True, data['data'], 'Producto obtenido exitosamente')
-                return _json_response(True, data, 'Producto obtenido exitosamente')
+                producto_raw = data['data'] if isinstance(data, dict) and 'data' in data else data
+                # Normalizar tipos de datos del producto
+                producto = _normalizar_producto(producto_raw) if isinstance(producto_raw, dict) else producto_raw
+                return _json_response(True, producto, 'Producto obtenido exitosamente')
             else:
                 error_msg = data.get('error', str(data)) if isinstance(data, dict) else str(data)
                 return _json_response(False, None, error_msg, 404)
         except Exception as e:
             logger.error(f"Error obteniendo producto {item_id}: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return _json_response(False, None, f'Error al obtener producto: {str(e)}', 500)
     
     if request.method == 'PUT':
