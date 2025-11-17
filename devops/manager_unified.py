@@ -56,14 +56,18 @@ class DevOpsBelgranoManagerUnified:
             logger.warning("[DEVOPS] ⚠️ No se pudo importar config.py, usando os.getenv()")
             belgrano_url = os.getenv('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com').strip().rstrip('/')
             api_key = os.getenv('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025').strip()
-            timeout = int(os.getenv('API_TIMEOUT_SECS', '20'))
-            retries = int(os.getenv('API_RETRY_TOTAL', '3'))
+            timeout = int(os.getenv('API_TIMEOUT_SECS', '60'))
+            retries = int(os.getenv('API_RETRY_TOTAL', '1'))
         
         self.belgrano_url = belgrano_url.rstrip('/')
         self.api_key = api_key
-        self.timeout = timeout
+        if timeout < 60:
+            logger.warning(f"[DEVOPS] ⚠️ Timeout configurado ({timeout}s) es bajo. Ajustando a 60s para evitar timeouts.")
+        self.timeout = max(timeout, 60)
         self.cache_ttl = int(os.getenv('API_CACHE_TTL_SECS', '120'))  # Cache por 120 segundos
-        self.retries = retries
+        if retries != 1:
+            logger.info(f"[DEVOPS] ℹ️ Ajustando retires de {retries} a 1 para evitar saturar la API.")
+        self.retries = max(1, min(retries, 1))
         
         logger.info("[DEVOPS] ✅ Cliente API Belgrano Ahorro configurado")
         logger.info(f"[DEVOPS]    URL: {self.belgrano_url}")
@@ -112,7 +116,7 @@ class DevOpsBelgranoManagerUnified:
         url = f"{self.belgrano_url}/{path.lstrip('/')}"
         headers = self._headers()
         
-        # Usar cached_request para GET, requests normales para otros métodos
+        start_time = time.time()
         if method.upper() == 'GET':
             data = cached_request(
                 url,
@@ -124,25 +128,26 @@ class DevOpsBelgranoManagerUnified:
                 **kwargs
             )
         else:
-            # Para POST/PUT/DELETE, usar cached_request pero sin cache
             data = cached_request(
                 url,
                 method=method.upper(),
                 timeout=self.timeout,
                 retries=self.retries,
-                cache_ttl=0,  # No cachear POST/PUT/DELETE
+                cache_ttl=0,
                 headers=headers,
                 json_data=json_data,
                 **kwargs
             )
+        elapsed = time.time() - start_time
+        success = not (isinstance(data, dict) and 'error' in data)
+        logger.info(f"[DEVOPS] {method.upper()} {url} respondido en {elapsed:.2f}s ({'ok' if success else 'error'})")
         
-        # Verificar si hay error en la respuesta
-        if isinstance(data, dict) and 'error' in data:
-            error_msg = data.get('message', data.get('error', 'Error desconocido'))
-            status_code = data.get('status_code', 0)
+        if not success:
+            error_msg = data.get('message', data.get('error', 'Error desconocido')) if isinstance(data, dict) else 'Error desconocido'
+            status_code = data.get('status_code', 0) if isinstance(data, dict) else None
+            logger.warning(f"[DEVOPS] ⚠️ Error en {method.upper()} {url}: {error_msg}")
             return False, {'error': error_msg, 'status_code': status_code}
         
-        # Respuesta exitosa
         return True, data
 
     def get_items(self, kind: str):

@@ -74,8 +74,8 @@ PORT = int(os.getenv('PORT', '5000'))
 HOST = os.getenv('HOST', '0.0.0.0')
 
 # API Configuration
-API_TIMEOUT_SECS = int(os.getenv('API_TIMEOUT_SECS', '20'))
-API_RETRY_TOTAL = int(os.getenv('API_RETRY_TOTAL', '3'))
+API_TIMEOUT_SECS = int(os.getenv('API_TIMEOUT_SECS', '60'))
+API_RETRY_TOTAL = int(os.getenv('API_RETRY_TOTAL', '1'))
 API_RETRY_BACKOFF = float(os.getenv('API_RETRY_BACKOFF', '1.0'))
 
 # Log configuración una sola vez (solo mostrar parte de la URL por seguridad)

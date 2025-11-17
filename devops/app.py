@@ -184,6 +184,8 @@ except Exception as e:
     logger.error(traceback.format_exc())
     raise
 
+logger.info("[DEVOPS] ✅ API DevOps inicializada correctamente")
+
 # Ruta raíz - redirigir a DevOps
 @app.route('/')
 def root():

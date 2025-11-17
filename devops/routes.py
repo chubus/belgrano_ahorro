@@ -254,10 +254,17 @@ def dashboard():
             logger.error(f"❌ Error verificando configuración del manager: {e}")
             import traceback
             logger.error(traceback.format_exc())
-        negocios = devops_manager.get_negocios()
-        productos = devops_manager.get_productos()
-        ofertas = devops_manager.get_ofertas()
-        sucursales = devops_manager.get_sucursales()
+        try:
+            negocios = devops_manager.get_negocios() or []
+            productos = devops_manager.get_productos() or []
+            ofertas = devops_manager.get_ofertas() or []
+            sucursales = devops_manager.get_sucursales() or []
+        except Exception as fetch_error:
+            logger.error(f"[DEVOPS] ❌ Error obteniendo datos de la API: {fetch_error}")
+            import traceback
+            logger.error(traceback.format_exc())
+            negocios = productos = ofertas = sucursales = []
+            flash('La API de Belgrano Ahorro no respondió. Mostrando panel sin datos.', 'warning')
         return render_template('devops/dashboard.html', negocios=negocios, productos=productos, ofertas=ofertas, sucursales=sucursales)
     except Exception as e:
         logger.error(f"Error cargando dashboard: {e}")

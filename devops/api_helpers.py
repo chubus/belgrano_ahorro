@@ -20,8 +20,8 @@ CACHE: Dict[str, Dict[str, Any]] = {}
 def cached_request(
     url: str,
     method: str = "GET",
-    timeout: int = 20,  # 20s por defecto para producción
-    retries: int = 2,
+    timeout: int = 60,  # 60s por defecto para APIs lentas
+    retries: int = 1,
     cache_ttl: int = 60,
     headers: Optional[Dict[str, str]] = None,
     json_data: Optional[Dict[str, Any]] = None,
@@ -29,7 +29,8 @@ def cached_request(
 ) -> Dict[str, Any]:
     """
     Helper robusto para hacer requests a APIs externas con cache y manejo de errores
-    
+    overall_start = time.time()
+
     Args:
         url: URL a la que hacer el request
         method: Método HTTP (GET, POST, PUT, DELETE)
@@ -97,6 +98,9 @@ def cached_request(
         
         # Verificar status code
         status_code = response.status_code
+
+        elapsed = time.time() - overall_start
+        logger.info(f"[API] {method.upper()} {url} completado en {elapsed:.2f}s (status {status_code})")
         
         # Intentar parsear JSON
         try:
@@ -122,7 +126,8 @@ def cached_request(
         return data
         
     except requests.Timeout:
-        logger.warning(f"⏳ Timeout alcanzado en {url}, usando datos cacheados si existen.")
+        elapsed = time.time() - overall_start
+        logger.warning(f"⏳ Timeout alcanzado en {url} tras {elapsed:.2f}s, usando datos cacheados si existen.")
         # Intentar devolver cache si existe
         if use_cache and cache_key in CACHE:
             logger.info(f"📦 Usando datos en cache debido a timeout")
@@ -130,7 +135,8 @@ def cached_request(
         return {"error": "timeout", "message": "El servicio puede estar iniciando. Intenta nuevamente en unos segundos."}
     
     except requests.HTTPError as e:
-        logger.warning(f"⚠️ HTTP error en {url}: {e.response.status_code}")
+        elapsed = time.time() - overall_start
+        logger.warning(f"⚠️ HTTP error en {url} tras {elapsed:.2f}s: {e.response.status_code}")
         # Intentar devolver cache si existe
         if use_cache and cache_key in CACHE:
             logger.info(f"📦 Usando datos en cache debido a error HTTP")
@@ -138,7 +144,8 @@ def cached_request(
         return {"error": f"http_error_{e.response.status_code}", "message": str(e)}
     
     except Exception as e:
-        logger.error(f"⚠️ Error accediendo a {url}: {e}")
+        elapsed = time.time() - overall_start
+        logger.error(f"⚠️ Error accediendo a {url} tras {elapsed:.2f}s: {e}")
         # Intentar devolver cache si existe
         if use_cache and cache_key in CACHE:
             logger.info(f"📦 Usando datos en cache debido a error")
