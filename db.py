@@ -44,15 +44,15 @@ def crear_usuario(nombre, apellido, email, password, telefono=None, direccion=No
     try:
         session = get_db_connection()
         try:
-        # Verificar si el email ya existe
+            # Verificar si el email ya existe
             result = session.execute(text('SELECT id FROM usuarios WHERE email = :email'), {'email': email})
             if result.fetchone():
-            return {'exito': False, 'mensaje': 'El email ya está registrado'}
-        
-        # Crear hash de la contraseña
-        password_hash = hash_password(password)
-        
-        # Insertar usuario
+                return {'exito': False, 'mensaje': 'El email ya está registrado'}
+            
+            # Crear hash de la contraseña
+            password_hash = hash_password(password)
+            
+            # Insertar usuario
             result = session.execute(text('''
                 INSERT INTO usuarios (nombre, apellido, email, password_hash, telefono, activo)
                 VALUES (:nombre, :apellido, :email, :password_hash, :telefono, TRUE)
@@ -70,8 +70,8 @@ def crear_usuario(nombre, apellido, email, password, telefono=None, direccion=No
             session.commit()
             
             logger.info(f"[DB] ✅ Usuario creado: {email} (ID: {usuario_id})")
-        return {'exito': True, 'usuario_id': usuario_id, 'mensaje': 'Usuario creado exitosamente'}
-    except Exception as e:
+            return {'exito': True, 'usuario_id': usuario_id, 'mensaje': 'Usuario creado exitosamente'}
+        except Exception as e:
             session.rollback()
             logger.error(f"[DB] ❌ Error creando usuario: {e}")
             import traceback

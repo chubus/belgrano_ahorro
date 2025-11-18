@@ -66,31 +66,34 @@ def register_api_blueprint(app):
         logger.info("API blueprint ya estaba registrado")
 
 def require_api_key(f):
-    """Decorator mejorado para requerir API key válida con múltiples métodos"""
+    """Decorator mejorado para requerir API key válida (solo headers, no query params por seguridad)"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         expected_api_key = BELGRANO_AHORRO_API_KEY
         api_key = None
         
-        # Método 1: Bearer token en Authorization header
+        # Método 1: Bearer token en Authorization header (RECOMENDADO)
         auth_header = request.headers.get('Authorization')
         if auth_header and auth_header.startswith('Bearer '):
             api_key = auth_header.split(' ')[1]
         
-        # Método 2: X-API-Key header
+        # Método 2: X-API-Key header (ALTERNATIVO)
         if not api_key:
             api_key = request.headers.get('X-API-Key')
         
-        # Método 3: Query parameter
-        if not api_key:
-            api_key = request.args.get('api_key')
+        # SEGURIDAD: NO permitir API key en query parameters
+        # Query params pueden quedar en logs, historial, referrers, etc.
         
         # Verificar API key
         if not api_key:
-            return jsonify({'error': 'API key required', 'methods': ['Bearer token', 'X-API-Key header', 'api_key query param']}), 401
+            return jsonify({
+                'error': 'API key required', 
+                'methods': ['Bearer token en Authorization header', 'X-API-Key header'],
+                'note': 'API keys en query parameters no están permitidas por seguridad'
+            }), 401
         
         if api_key != expected_api_key:
-            logger.warning(f"Invalid API key attempt: {api_key[:10]}...")
+            logger.warning(f"[SECURITY] Invalid API key attempt from {request.remote_addr}: {api_key[:10]}...")
             return jsonify({'error': 'Invalid API key'}), 401
         
         return f(*args, **kwargs)

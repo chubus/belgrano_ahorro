@@ -56,7 +56,21 @@ if 'sslmode' not in DATABASE_URL:
 
 # Belgrano Ahorro
 BELGRANO_AHORRO_URL = os.getenv('BELGRANO_AHORRO_URL', 'https://belgranoahorro-aliq.onrender.com').strip().rstrip('/')
-BELGRANO_AHORRO_API_KEY = os.getenv('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025').strip()
+
+# SEGURIDAD: En producción, requerir API key explícita
+FLASK_ENV = os.getenv('FLASK_ENV', 'production').strip()
+is_production = FLASK_ENV.lower() == 'production'
+
+if is_production:
+    BELGRANO_AHORRO_API_KEY = os.getenv('BELGRANO_AHORRO_API_KEY', '').strip()
+    if not BELGRANO_AHORRO_API_KEY:
+        error_msg = "[CONFIG] ERROR: BELGRANO_AHORRO_API_KEY debe estar configurada en producción. Configure en Render Dashboard → Environment."
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+else:
+    # En desarrollo, permitir valor por defecto
+    BELGRANO_AHORRO_API_KEY = os.getenv('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025_dev').strip()
+    logger.warning("[CONFIG] ⚠️ Usando API key por defecto (solo desarrollo). En producción configure BELGRANO_AHORRO_API_KEY.")
 
 # Ticketera
 TICKETERA_URL = os.getenv('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com').strip().rstrip('/')
@@ -67,9 +81,22 @@ DEVOPS_USERNAME = os.getenv('DEVOPS_USERNAME', 'devops').strip()
 DEVOPS_PASSWORD = os.getenv('DEVOPS_PASSWORD', 'devops_password').strip()
 DEVOPS_API_URL = os.getenv('DEVOPS_API_URL', '').strip().rstrip('/')
 
-# Flask
-FLASK_ENV = os.getenv('FLASK_ENV', 'production').strip()
-SECRET_KEY = os.getenv('SECRET_KEY', 'belgrano_ahorro_secret_key_2025').strip()
+# Flask - SEGURIDAD: En producción, requerir SECRET_KEY explícita
+if is_production:
+    SECRET_KEY = os.getenv('SECRET_KEY', '').strip()
+    if not SECRET_KEY:
+        error_msg = "[CONFIG] ERROR: SECRET_KEY debe estar configurada en producción. Configure en Render Dashboard → Environment."
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+    if len(SECRET_KEY) < 32:
+        error_msg = "[CONFIG] ERROR: SECRET_KEY debe tener al menos 32 caracteres. Use: openssl rand -hex 32"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+else:
+    # En desarrollo, permitir valor por defecto
+    SECRET_KEY = os.getenv('SECRET_KEY', 'belgrano_ahorro_secret_key_2025_dev').strip()
+    logger.warning("[CONFIG] ⚠️ Usando SECRET_KEY por defecto (solo desarrollo). En producción configure SECRET_KEY.")
+
 PORT = int(os.getenv('PORT', '5000'))
 HOST = os.getenv('HOST', '0.0.0.0')
 
