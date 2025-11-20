@@ -49,3 +49,4 @@ Si el error persiste en Render, verificar que:
 **Fecha de Corrección:** 2025-01-27
 **Estado:** ✅ Error de indentación corregido en `devops/manager_unified.py`
 
+
