@@ -240,6 +240,16 @@ except Exception as e:
     class AuthorizationError(Exception): pass
     def register_error_handlers(app): pass
 
+try:
+    from helpers.ticketera_client import fetch_ticketera_ofertas
+    logger.info("✅ helpers.ticketera_client importado correctamente")
+except Exception as e:
+    logger.error(f"⚠️ Error importando helpers.ticketera_client: {e}")
+
+    def fetch_ticketera_ofertas(*_, **__):
+        logger.warning("⚠️ fetch_ticketera_ofertas no disponible; usando fallback vacío.")
+        return False, {"ofertas": []}
+
 # Logger ya configurado arriba
 
 # Crear la instancia de Flask
@@ -701,78 +711,39 @@ def obtener_ofertas_activas():
         
         # PRIORIDAD 2: Intentar obtener ofertas adicionales desde Ticketera (opcional)
         ticketera_url = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com').rstrip('/')
-        api_key = os.environ.get('BELGRANO_AHORRO_API_KEY', 'belgrano_ahorro_api_key_2025')
-        api_timeout = HTTP_TIMEOUT_SECS
+        ticketera_timeout = min(float(os.environ.get('TICKETERA_TIMEOUT_SECS', '2.5')), 3.0)
+        ticketera_retries = max(0, min(int(os.environ.get('TICKETERA_RETRY_TOTAL', '1')), 3))
         
-        logger.info(f"🔍 Intentando obtener ofertas adicionales desde Ticketera: {ticketera_url}")
-        session = HTTP_SESSION
-        headers = {
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json'
-        }
-        
-        # Intentar obtener ofertas desde Ticketera (opcional, puede no tener este endpoint)
-        ticketera_paths = ['/api/ofertas', '/ofertas']
-        ticketera_success = False
-        for path in ticketera_paths:
-            try:
-                ticketera_response = session.get(
-                    f"{ticketera_url}{path}", 
-                    headers=headers, 
-                    timeout=api_timeout
-                )
-                if ticketera_response.status_code == 200:
-                    try:
-                        ticketera_ofertas = ticketera_response.json()
-                        if isinstance(ticketera_ofertas, dict) and 'data' in ticketera_ofertas:
-                            ticketera_ofertas = ticketera_ofertas['data']
-                        
-                        logger.info(f"✅ Ofertas obtenidas desde Ticketera ({path}): {len(ticketera_ofertas) if isinstance(ticketera_ofertas, list) else 'N/A'}")
-                        
-                        # Combinar ofertas de Ticketera con las de DB (evitar duplicados)
-                        if isinstance(ticketera_ofertas, list):
-                            for oferta in ticketera_ofertas:
-                                if isinstance(oferta, dict):
-                                    negocio = oferta.get('negocio', oferta.get('negocio_nombre', 'Sin negocio'))
-                                    if negocio not in ofertas_activas:
-                                        ofertas_activas[negocio] = []
-                                    # Evitar duplicados por ID
-                                    ofertas_existentes_ids = {o.get('id') for o in ofertas_activas[negocio]}
-                                    if oferta.get('id') not in ofertas_existentes_ids:
-                                        ofertas_activas[negocio].append(oferta)
-                        elif isinstance(ticketera_ofertas, dict):
-                            for negocio, ofertas_negocio in ticketera_ofertas.items():
-                                if negocio not in ofertas_activas:
-                                    ofertas_activas[negocio] = []
-                                if isinstance(ofertas_negocio, list):
-                                    ofertas_existentes_ids = {o.get('id') for o in ofertas_activas[negocio]}
-                                    for oferta in ofertas_negocio:
-                                        if oferta.get('id') not in ofertas_existentes_ids:
-                                            ofertas_activas[negocio].append(oferta)
-                                else:
-                                    ofertas_existentes_ids = {o.get('id') for o in ofertas_activas[negocio]}
-                                    if ofertas_negocio.get('id') not in ofertas_existentes_ids:
-                                        ofertas_activas[negocio].append(ofertas_negocio)
-                        ticketera_success = True
-                        logger.info(f"✅ Ofertas combinadas (DB + Ticketera): {sum(len(o) for o in ofertas_activas.values())} totales")
-                        break
-                    except Exception as e:
-                        logger.warning(f"⚠️ Error procesando respuesta de Ticketera ({path}): {e}")
-                elif ticketera_response.status_code == 404:
-                    continue
-                elif ticketera_response.status_code == 405:
-                    logger.info(f"ℹ️ Método no permitido en Ticketera {path}, omitiendo")
-                else:
-                    logger.warning(f"⚠️ Ticketera respondió con código {ticketera_response.status_code} en {path}")
-            except requests.exceptions.Timeout:
-                logger.warning(f"⚠️ Timeout obteniendo ofertas desde Ticketera ({path}, {api_timeout}s)")
-            except requests.exceptions.RequestException as e:
-                logger.warning(f"⚠️ Error de conexión con Ticketera ({path}): {e}")
-            except Exception as e:
-                logger.warning(f"⚠️ Error obteniendo ofertas desde Ticketera ({path}): {e}")
-        
-        if not ticketera_success:
-            logger.info("ℹ️ No se pudieron obtener ofertas desde Ticketera (puede no tener este endpoint)")
+        if ticketera_url and not _is_self_host(ticketera_url):
+            logger.info(f"🔍 Intentando obtener ofertas adicionales desde Ticketera (timeout={ticketera_timeout}s, retries={ticketera_retries})")
+            ticketera_success, ticketera_payload = fetch_ticketera_ofertas(
+                timeout=ticketera_timeout,
+                retries=ticketera_retries
+            )
+            ticketera_ofertas = ticketera_payload.get('ofertas', [])
+            
+            if ticketera_success and ticketera_ofertas:
+                logger.info(f"✅ Ofertas obtenidas desde Ticketera: {len(ticketera_ofertas)}")
+                for oferta in ticketera_ofertas:
+                    if not isinstance(oferta, dict):
+                        continue
+                    negocio = (
+                        oferta.get('negocio')
+                        or oferta.get('negocio_nombre')
+                        or oferta.get('negocio_id')
+                        or 'Ticketera'
+                    )
+                    negocio = str(negocio)
+                    if negocio not in ofertas_activas:
+                        ofertas_activas[negocio] = []
+                    ofertas_existentes_ids = {o.get('id') for o in ofertas_activas[negocio] if isinstance(o, dict)}
+                    if oferta.get('id') not in ofertas_existentes_ids:
+                        ofertas_activas[negocio].append(oferta)
+                logger.info(f"✅ Ofertas combinadas (DB + Ticketera): {sum(len(o) for o in ofertas_activas.values())} totales")
+            else:
+                logger.info("ℹ️ Ticketera no respondió a tiempo; continuando sin ofertas adicionales.")
+        else:
+            logger.debug("ℹ️ Ticketera apunta a esta misma instancia; se omite la llamada externa.")
         
         # PRIORIDAD 3: Si aún no hay ofertas, intentar desde JSON local (último recurso)
         if not ofertas_activas:
