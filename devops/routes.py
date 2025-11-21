@@ -1,9 +1,11 @@
 # Rutas DevOps (migradas a paquete devops)
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory
 import os
 import requests
 import logging
 from datetime import datetime
+from werkzeug.utils import secure_filename
+from .image_utils import save_uploaded_file, delete_old_image, get_image_url, validate_image
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -1910,3 +1912,120 @@ def eliminar_sucursal(sucursal_id):
 def devops_home():
     """Alias para dashboard - redirige a dashboard"""
     return redirect(url_for('devops.dashboard'))
+
+# =================================================================
+# Endpoint para carga de imágenes
+# =================================================================
+
+@devops_bp.route('/api/upload-image', methods=['POST'])
+@devops_login_required
+def upload_image():
+    """
+    Endpoint para cargar imágenes para negocios, sucursales o productos.
+    
+    Parámetros (multipart/form-data):
+    - file: Archivo de imagen a subir (obligatorio)
+    - entity_type: Tipo de entidad (business, branch, product) (obligatorio)
+    - entity_id: ID de la entidad (obligatorio)
+    
+    Retorna:
+    - 200 OK: { success: true, image_url: "ruta/a/la/imagen" }
+    - 400 Bad Request: { error: "mensaje de error" }
+    - 500 Error interno del servidor
+    """
+    try:
+        # Validar que se haya enviado un archivo
+        if 'file' not in request.files:
+            return jsonify({"error": "No se ha proporcionado ningún archivo"}), 400
+            
+        file = request.files['file']
+        
+        # Validar que el archivo tenga un nombre
+        if file.filename == '':
+            return jsonify({"error": "No se ha seleccionado ningún archivo"}), 400
+            
+        # Validar tipo de entidad
+        entity_type = request.form.get('entity_type')
+        if not entity_type or entity_type not in ['business', 'branch', 'product']:
+            return jsonify({
+                "error": "Tipo de entidad no válido. Debe ser 'business', 'branch' o 'product'"
+            }), 400
+            
+        # Validar ID de entidad
+        entity_id = request.form.get('entity_id')
+        if not entity_id:
+            return jsonify({"error": "Se requiere el ID de la entidad"}), 400
+            
+        # Validar que el ID sea un número entero
+        try:
+            entity_id = int(entity_id)
+        except ValueError:
+            return jsonify({"error": "El ID de la entidad debe ser un número entero"}), 400
+        
+        # Guardar la imagen
+        filepath, error = save_uploaded_file(file, entity_type, entity_id)
+        if error:
+            return jsonify({"error": error}), 400
+            
+        # Actualizar la URL de la imagen en la entidad correspondiente
+        try:
+            if entity_type == 'business':
+                success, message = devops_manager.actualizar_negocio(entity_id, {'image_url': filepath})
+            elif entity_type == 'branch':
+                success, message = devops_manager.actualizar_sucursal(entity_id, {'image_url': filepath})
+            else:  # product
+                success, message = devops_manager.actualizar_producto(entity_id, {'image_url': filepath})
+                
+            if not success:
+                # Si falla la actualización, eliminar la imagen subida
+                delete_old_image(filepath)
+                return jsonify({"error": f"Error al actualizar la entidad: {message}"}), 500
+                
+        except Exception as e:
+            # Si hay un error, eliminar la imagen subida
+            delete_old_image(filepath)
+            logger.error(f"Error al actualizar la entidad: {str(e)}")
+            return jsonify({"error": f"Error al actualizar la entidad: {str(e)}"}), 500
+            
+        # Devolver la URL de la imagen
+        image_url = get_image_url(filepath)
+        return jsonify({
+            "success": True,
+            "image_url": image_url,
+            "message": "Imagen cargada correctamente"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en upload_image: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Error interno del servidor: {str(e)}"}), 500
+
+# =================================================================
+# Ruta para servir archivos estáticos (imágenes)
+# =================================================================
+
+@devops_bp.route('/media/<path:filename>')
+def serve_media(filename):
+    """
+    Sirve archivos estáticos desde el directorio de uploads.
+    
+    Parámetros:
+    - filename: Ruta relativa del archivo dentro del directorio de uploads
+    
+    Ejemplo: /media/business/1_abc123.jpg
+    """
+    try:
+        # Validar que el archivo esté dentro del directorio de uploads
+        safe_path = os.path.join('uploads', filename)
+        if not os.path.normpath(safe_path).startswith(os.path.normpath('uploads')):
+            return "Acceso denegado", 403
+            
+        # Verificar que el archivo exista
+        if not os.path.isfile(safe_path):
+            return "Archivo no encontrado", 404
+            
+        # Servir el archivo
+        return send_from_directory('..', safe_path)
+        
+    except Exception as e:
+        logger.error(f"Error al servir archivo {filename}: {str(e)}")
+        return "Error al servir el archivo", 500

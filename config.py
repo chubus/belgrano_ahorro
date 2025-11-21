@@ -109,6 +109,19 @@ API_RETRY_BACKOFF = float(os.getenv('API_RETRY_BACKOFF', '1.0'))
 safe_url = DATABASE_URL[:50] + "..." if len(DATABASE_URL) > 50 else DATABASE_URL
 logger.info("[CONFIG] ✅ Variables de entorno cargadas:")
 logger.info(f"[CONFIG]    DATABASE_URL: {safe_url}")
+# Configuración para carga de archivos
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB máximo
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+
+# Asegurarse de que el directorio de uploads exista
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(os.path.join(UPLOAD_FOLDER, 'business'), exist_ok=True)
+os.makedirs(os.path.join(UPLOAD_FOLDER, 'branch'), exist_ok=True)
+os.makedirs(os.path.join(UPLOAD_FOLDER, 'product'), exist_ok=True)
+
 logger.info(f"[CONFIG]    BELGRANO_AHORRO_URL: {BELGRANO_AHORRO_URL}")
 logger.info(f"[CONFIG]    TICKETERA_URL: {TICKETERA_URL}")
 logger.info(f"[CONFIG]    FLASK_ENV: {FLASK_ENV}")
+logger.info(f"[CONFIG]    UPLOAD_FOLDER: {UPLOAD_FOLDER}")
+logger.info("[CONFIG] ✅ Configuración de carga de archivos inicializada")
