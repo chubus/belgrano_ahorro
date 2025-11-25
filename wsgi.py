@@ -40,8 +40,27 @@ def load_env():
         logger.warning("python-dotenv not installed, skipping .env loading")
 
 # Setup environment
-setup_paths()
+# Setup environment
 load_env()
+setup_paths()
+
+# Check Ticketera service availability
+try:
+    import requests
+    ticketera_url = os.getenv('TICKETERA_URL') or os.getenv('BELGRANO_AHORRO_URL')
+    if ticketera_url:
+        health_endpoint = f"{ticketera_url.rstrip('/')}/api/ofertas"
+        resp = requests.get(health_endpoint, timeout=5)
+        if resp.status_code == 200:
+            logger.info(f"✅ Ticketera endpoint reachable: {health_endpoint}")
+        else:
+            logger.warning(f"⚠️ Ticketera endpoint returned {resp.status_code}: {health_endpoint}")
+    else:
+        logger.warning("⚠️ No Ticketera URL configured (TICKETERA_URL or BELGRANO_AHORRO_URL).")
+except Exception as e:
+    logger.error(f"❌ Error checking Ticketera health: {e}")
+from ensure_image_columns import ensure_columns
+ensure_columns()
 
 try:
     # Import the main application from app.py
