@@ -111,7 +111,7 @@
                                  - Para cambiar imagen: reemplazar producto.imagen
                                  - Para agregar imagen: colocar en static/images/productos/[negocio]/
                                  ================================================================= -->
-                            <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">
+                            {% if producto.image_url %}<img src="{{ producto.image_url }}" class="card-img-top" alt="{{ producto.nombre }}">{% elif producto.imagen %}{% if producto.image_url %}<img src="{{ producto.image_url }}" class="card-img-top" alt="{{ producto.nombre }}">{% elif producto.imagen %}<img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">{% else %}<div class="d-flex align-items-center justify-content-center bg-light h-100"><i class="fas fa-image fa-2x text-muted"></i></div>{% endif %}{% else %}<div class="d-flex align-items-center justify-content-center bg-light h-100"><i class="fas fa-image fa-2x text-muted"></i></div>{% endif %}
                             
                             <!-- =================================================================
                                  BADGES DE DESTACADO Y OFERTA

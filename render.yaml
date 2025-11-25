@@ -2,23 +2,30 @@ services:
   - type: web
     name: belgrano-ahorro
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120 --keep-alive 5 wsgi:application
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: |
+      gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 wsgi:application
     envVars:
+      - key: PYTHONPATH
+        value: /opt/render/project/src
+      - key: FLASK_APP
+        value: wsgi:application
       - key: FLASK_ENV
         value: production
       - key: PORT
         fromService:
           type: web
           property: port
-      # IMPORTANTE: Configurar DATABASE_URL para persistencia
-      # Opción 1: PostgreSQL (RECOMENDADO - persistente)
-      # - key: DATABASE_URL
-      #   fromDatabase:
-      #     name: belgrano-ahorro-db
-      #     property: connectionString
-      # Opción 2: SQLite (NO PERSISTE - solo para desarrollo)
-      # Si no se configura DATABASE_URL, usará SQLite (datos se pierden en cada deploy)
+      # Configuración de la base de datos PostgreSQL (RECOMENDADO - persistente)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: belgrano-ahorro-db
+          property: connectionString
+      # Configuración de la API de Belgrano Ahorro
+      - key: BELGRANO_AHORRO_URL
+        value: https://belgranoahorro-aliq.onrender.com
 
 databases:
   - name: belgrano-ahorro-db

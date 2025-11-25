@@ -67,11 +67,12 @@
                         <td>
                             <div class="btn-group" role="group">
                                 <button class="btn btn-sm btn-warning" 
-                                        onclick="editarNegocio({{ negocio.id }}, '{{ negocio.nombre }}', '{{ negocio.descripcion or '' }}', '{{ negocio.direccion or '' }}', '{{ negocio.telefono or '' }}', '{{ negocio.email or '' }}', {{ negocio.activo|lower }})">
+                                        onclick="editarNegocio({{ negocio.id }}, '{{ negocio.nombre }}', '{{ negocio.descripcion or '' }}', '{{ negocio.direccion or '' }}', '{{ negocio.telefono or '' }}', '{{ negocio.email or '' }}', {{ negocio.activo|lower }}, '{{ negocio.image_url or '' }}')">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <form method="POST" action="{{ url_for('devops.eliminar_negocio', negocio_id=negocio.id) }}" 
                                       style="display: inline;" onsubmit="return confirm('¿Estás seguro de eliminar este negocio?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <button type="submit" class="btn btn-sm btn-danger btn-delete">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -102,7 +103,8 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ url_for('devops.gestion_negocios') }}">
+            <form method="POST" action="{{ url_for('devops.gestion_negocios') }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -125,6 +127,21 @@
                     <div class="mb-3">
                         <label class="form-label">Email</label>
                         <input type="email" class="form-control" name="email">
+                    </div>
+                    <div class="mb-3">
+                        <label for="logo_file" class="form-label">
+                            <i class="fas fa-image me-2"></i>Logo del Negocio
+                        </label>
+                        <input type="file" class="form-control" id="logo_file" name="logo_file" 
+                               accept="image/jpeg,image/png,image/webp"
+                               onchange="previewImage(this, 'logo-preview-crear')">
+                        <small class="text-muted">Formatos: JPG, PNG, WebP. Máximo 2MB</small>
+                    </div>
+                    <div class="mb-3" id="logo-preview-crear-container" style="display: none;">
+                        <label class="form-label">Vista Previa</label>
+                        <div>
+                            <img id="logo-preview-crear" src="" alt="Preview" class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
+                        </div>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="activo" checked>
@@ -152,7 +169,8 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="editarNegocioForm" method="POST">
+            <form id="editarNegocioForm" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -176,6 +194,22 @@
                         <label class="form-label">Email</label>
                         <input type="email" class="form-control" name="email" id="edit_email">
                     </div>
+                    <div class="mb-3">
+                        <label for="logo_file_edit" class="form-label">
+                            <i class="fas fa-image me-2"></i>Cambiar Logo
+                        </label>
+                        <input type="file" class="form-control" id="logo_file_edit" name="logo_file" 
+                               accept="image/jpeg,image/png,image/webp"
+                               onchange="previewImage(this, 'logo-preview-edit')">
+                        <small class="text-muted">Sube una nueva imagen para reemplazar la actual</small>
+                        <input type="hidden" name="image_url_actual" id="edit_image_url">
+                    </div>
+                    <div class="mb-3" id="logo-preview-edit-container" style="display: none;">
+                        <label class="form-label">Nueva Imagen</label>
+                        <div>
+                            <img id="logo-preview-edit" src="" alt="Preview" class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
+                        </div>
+                    </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="activo" id="edit_activo">
                         <label class="form-check-label">Negocio activo</label>
@@ -195,14 +229,37 @@
 
 {% block scripts %}
 <script>
-function editarNegocio(id, nombre, descripcion, direccion, telefono, email, activo) {
+function previewImage(input, previewId) {
+    const preview = document.getElementById(previewId);
+    const container = document.getElementById(previewId + '-container');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            container.style.display = 'block';
+        };
+        
+        reader.readAsDataURL(input.files[0]);
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+function editarNegocio(id, nombre, descripcion, direccion, telefono, email, activo, imageUrl) {
     document.getElementById('edit_nombre').value = nombre;
     document.getElementById('edit_descripcion').value = descripcion;
     document.getElementById('edit_direccion').value = direccion;
     document.getElementById('edit_telefono').value = telefono;
     document.getElementById('edit_email').value = email;
     document.getElementById('edit_activo').checked = activo;
+    document.getElementById('edit_image_url').value = imageUrl || '';
     document.getElementById('editarNegocioForm').action = `/devops/negocios/${id}/editar`;
+    
+    // Ocultar preview de nueva imagen
+    document.getElementById('logo-preview-edit-container').style.display = 'none';
+    
     const modal = new bootstrap.Modal(document.getElementById('editarNegocioModal'));
     modal.show();
 }

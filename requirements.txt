@@ -1,22 +1,33 @@
-# Dependencias principales para Belgrano Tickets
-# Framework web y extensiones
+# Core Dependencies
 Flask==2.3.3
-Flask-Login==0.6.3
-Flask-SocketIO==5.3.6
-Flask-SQLAlchemy==3.0.5
 Werkzeug==2.3.7
+python-dotenv==1.0.0
+
+# Database
 SQLAlchemy==2.0.21
+psycopg2-binary==2.9.9
+Flask-SQLAlchemy==3.0.5
 
-# Base de datos PostgreSQL (para producción)
-psycopg2-binary>=2.9.0
+# Authentication
+Flask-Login==0.6.3
 
-# Cliente HTTP y comunicación
-requests==2.31.0
-
-# WebSocket y tiempo real
+# Real-time
+Flask-SocketIO==5.3.6
 python-socketio==5.9.0
 python-engineio==4.7.1
 eventlet==0.33.3
+greenlet==3.0.1
 
-# Servidor de producción
+# HTTP Client
+requests==2.31.0
+urllib3==2.5.0  # Versión específica para compatibilidad
+
+# Security
+cryptography==39.0.2  # Versión específica para evitar problemas de compilación
+pyOpenSSL==23.2.0  # Versión específica para compatibilidad
+
+# File Processing
+Pillow==10.4.0  # Versión específica que no requiere compilación
+
+# Production Server
 gunicorn==21.2.0

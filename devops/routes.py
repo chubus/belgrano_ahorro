@@ -1,11 +1,23 @@
 # Rutas DevOps (migradas a paquete devops)
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory
 import os
+import sys
 import requests
 import logging
 from datetime import datetime
 from werkzeug.utils import secure_filename
-from .image_utils import save_uploaded_file, delete_old_image, get_image_url, validate_image
+
+# Asegurar que el directorio actual esté en el path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+# Importación absoluta para evitar problemas de importación relativa
+try:
+    from devops.image_utils import save_uploaded_file, delete_old_image, get_image_url, validate_image
+except ImportError:
+    # Si falla, intentar con importación relativa
+    from image_utils import save_uploaded_file, delete_old_image, get_image_url, validate_image
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -136,14 +148,29 @@ def devops_login():
         password = request.form.get('password')
         # Usar variables de entorno para credenciales (más seguro)
         expected_username = os.getenv('DEVOPS_USERNAME', 'devops')
-        expected_password = os.getenv('DEVOPS_PASSWORD', 'devops_password')
+        expected_password = os.getenv('DEVOPS_PASSWORD', 'DevOps2025!Secure')
+        
+        # Log para debugging (sin exponer la contraseña completa)
+        logger.info(f"🔐 Intento de login - Usuario recibido: '{username}'")
+        logger.info(f"🔐 Usuario esperado: '{expected_username}'")
+        logger.info(f"🔐 Contraseña recibida tiene {len(password) if password else 0} caracteres")
+        logger.info(f"🔐 Contraseña esperada tiene {len(expected_password)} caracteres")
+        logger.info(f"🔐 Primeros 3 chars de contraseña recibida: '{password[:3] if password else ''}'")
+        logger.info(f"🔐 Primeros 3 chars de contraseña esperada: '{expected_password[:3]}'")
+        logger.info(f"🔐 Últimos 3 chars de contraseña recibida: '{password[-3:] if password else ''}'")
+        logger.info(f"🔐 Últimos 3 chars de contraseña esperada: '{expected_password[-3:]}'")
+        logger.info(f"🔐 Usuario coincide: {username == expected_username}")
+        logger.info(f"🔐 Contraseña coincide: {password == expected_password}")
+        logger.info(f"🔐 Contraseña esperada repr: {repr(expected_password)}")
         
         if username == expected_username and password == expected_password:
             session['devops_authenticated'] = True
             flash('Login exitoso', 'success')
+            logger.info(f"✅ Login exitoso para usuario: {username}")
             return redirect(url_for('devops.dashboard'))
         else:
             flash('Credenciales inválidas', 'error')
+            logger.warning(f"❌ Login fallido para usuario: {username}")
     return render_template('devops/login.html')
 
 @devops_bp.route('/logout')
@@ -308,10 +335,32 @@ def gestion_negocios():
             activo_raw = request.form.get('activo', 'true')
             activo = _to_boolean(activo_raw, default=True)
             
+            # Procesar imagen si existe
+            image_url = None
+            if 'logo_file' in request.files:
+                file = request.files['logo_file']
+                if file and file.filename:
+                    try:
+                        from image_utils import image_to_base64
+                    except ImportError:
+                        try:
+                            from devops.image_utils import image_to_base64
+                        except ImportError:
+                            from .image_utils import image_to_base64
+                    
+                    base64_data, error = image_to_base64(file)
+                    if error:
+                        flash(f'Advertencia: {error}. El negocio se creará sin imagen.', 'warning')
+                        logger.warning(f"Error procesando imagen para negocio: {error}")
+                    else:
+                        image_url = base64_data
+                        logger.info(f"✅ Imagen procesada para negocio: {len(base64_data)} caracteres")
+            
             negocio_data = {
                 'nombre': nombre,
                 'descripcion': descripcion,
                 'logo': request.form.get('logo', ''),
+                'image_url': image_url or request.form.get('image_url', ''),  # Base64 o URL
                 'telefono': request.form.get('telefono', ''),
                 'direccion': request.form.get('direccion', ''),
                 'email': request.form.get('email', ''),
@@ -320,7 +369,7 @@ def gestion_negocios():
             success, message = devops_manager.create_item('negocios', negocio_data)
             if success:
                 flash(f'Negocio "{nombre}" creado exitosamente', 'success')
-                logger.info(f"Negocio creado y sincronizado: {nombre}")
+                logger.info(f"Negocio creado y sincronizado: {nombre} (con imagen: {bool(image_url)})")
             else:
                 flash(f'Error al crear negocio: {message}', 'error')
                 logger.error(f"Error al crear negocio en API: {message}")
@@ -366,6 +415,32 @@ def editar_negocio(negocio_id):
                         return False
                 return default
             
+            
+            # Procesar nueva imagen si existe
+            image_url = None
+            if 'logo_file' in request.files:
+                file = request.files['logo_file']
+                if file and file.filename:
+                    try:
+                        from image_utils import image_to_base64
+                    except ImportError:
+                        try:
+                            from devops.image_utils import image_to_base64
+                        except ImportError:
+                            from .image_utils import image_to_base64
+                    
+                    base64_data, error = image_to_base64(file)
+                    if error:
+                        flash(f'Advertencia: {error}. Se mantendrá la imagen actual.', 'warning')
+                        logger.warning(f"Error procesando nueva imagen para negocio {negocio_id}: {error}")
+                    else:
+                        image_url = base64_data
+                        logger.info(f"✅ Nueva imagen procesada para negocio {negocio_id}")
+            
+            # Si no hay nueva imagen, mantener la actual
+            if not image_url:
+                image_url = request.form.get('image_url_actual', '')
+            
             # Obtener datos del formulario
             activo_raw = request.form.get('activo', 'false')
             negocio_data = {
@@ -374,6 +449,7 @@ def editar_negocio(negocio_id):
                 'direccion': request.form.get('direccion', '').strip(),
                 'telefono': request.form.get('telefono', '').strip(),
                 'email': request.form.get('email', '').strip(),
+                'image_url': image_url,  # Nueva o actual
                 'activo': _to_boolean(activo_raw, default=True)  # CORRECCIÓN: Usar _to_boolean() en lugar de == 'on'
             }
             
@@ -513,6 +589,30 @@ def gestion_productos():
             
             activo_raw = request.form.get('activo', 'true')
             destacado_raw = request.form.get('destacado', 'false')
+            
+            # Procesar imagen del producto si existe
+            image_url = None
+            imagen_filename = ''
+            if 'imagen_file' in request.files:
+                file = request.files['imagen_file']
+                if file and file.filename:
+                    try:
+                        from image_utils import image_to_base64
+                    except ImportError:
+                        try:
+                            from devops.image_utils import image_to_base64
+                        except ImportError:
+                            from .image_utils import image_to_base64
+                    
+                    base64_data, error = image_to_base64(file)
+                    if error:
+                        flash(f'Advertencia: {error}. El producto se creará sin imagen.', 'warning')
+                        logger.warning(f"Error procesando imagen para producto: {error}")
+                    else:
+                        image_url = base64_data
+                        imagen_filename = file.filename
+                        logger.info(f"✅ Imagen procesada para producto: {len(base64_data)} caracteres")
+            
             producto_data = {
                 'nombre': nombre,
                 'descripcion': descripcion,  # Se mapea a 'store' en la API
@@ -520,13 +620,15 @@ def gestion_productos():
                 'negocio_id': int(negocio_id),
                 'categoria': categoria,  # Enviar categoria (string) en lugar de categoria_id
                 'stock': int(request.form.get('stock', 0)),
+                'imagen': imagen_filename or request.form.get('imagen', ''),  # Nombre del archivo
+                'image_url': image_url or request.form.get('image_url', ''),  # Base64 o URL
                 'activo': _to_boolean(activo_raw, default=True),  # CORRECCIÓN: Usar _to_boolean() para consistencia
                 'destacado': _to_boolean(destacado_raw, default=False)  # CORRECCIÓN: Agregar conversión para destacado
             }
             success, message = devops_manager.create_item('productos', producto_data)
             if success:
                 flash(f'Producto "{nombre}" creado exitosamente', 'success')
-                logger.info(f"Producto creado y sincronizado: {nombre}")
+                logger.info(f"Producto creado y sincronizado: {nombre} (con imagen: {bool(image_url)})")
             else:
                 flash(f'Error al crear producto: {message}', 'error')
                 logger.error(f"Error al crear producto en API: {message}")
@@ -583,6 +685,35 @@ def editar_producto(producto_id):
                         return False
                 return default
             
+            
+            # Procesar nueva imagen si existe
+            image_url = None
+            imagen_filename = ''
+            if 'imagen_file' in request.files:
+                file = request.files['imagen_file']
+                if file and file.filename:
+                    try:
+                        from image_utils import image_to_base64
+                    except ImportError:
+                        try:
+                            from devops.image_utils import image_to_base64
+                        except ImportError:
+                            from .image_utils import image_to_base64
+                    
+                    base64_data, error = image_to_base64(file)
+                    if error:
+                        flash(f'Advertencia: {error}. Se mantendrá la imagen actual.', 'warning')
+                        logger.warning(f"Error procesando nueva imagen para producto {producto_id}: {error}")
+                    else:
+                        image_url = base64_data
+                        imagen_filename = file.filename
+                        logger.info(f"✅ Nueva imagen procesada para producto {producto_id}")
+            
+            # Si no hay nueva imagen, mantener la actual
+            if not image_url:
+                image_url = request.form.get('image_url_actual', '')
+                imagen_filename = request.form.get('imagen_actual', '')
+            
             activo_raw = request.form.get('activo', 'false')
             destacado_raw = request.form.get('destacado', 'false')
             producto_data = {
@@ -592,6 +723,8 @@ def editar_producto(producto_id):
                 'categoria': request.form.get('categoria', '').strip(),
                 'stock': request.form.get('stock', '0').strip(),
                 'negocio_id': request.form.get('negocio_id', '').strip(),
+                'imagen': imagen_filename,  # Nombre del archivo (nuevo o actual)
+                'image_url': image_url,  # Base64 o URL (nuevo o actual)
                 'activo': _to_boolean(activo_raw, default=True),  # CORRECCIÓN: Usar _to_boolean() en lugar de == 'on'
                 'destacado': _to_boolean(destacado_raw, default=False)  # CORRECCIÓN: Agregar conversión para destacado
             }
@@ -672,29 +805,15 @@ def gestion_ofertas():
         try:
             titulo = request.form.get('titulo', '').strip()
             descripcion = request.form.get('descripcion', '').strip()
-            descuento = request.form.get('descuento', '').strip()
-            producto_id = request.form.get('producto_id', '').strip()
-            if not all([titulo, descripcion, descuento, producto_id]):
-                flash('Todos los campos son requeridos', 'error')
+            
+            # Validar título
+            if not titulo:
+                flash('El título es requerido', 'error')
                 return redirect(url_for('devops.gestion_ofertas'))
-            try:
-                descuento_float = float(descuento)
-            except ValueError:
-                flash('El descuento debe ser un número válido', 'error')
-                return redirect(url_for('devops.gestion_ofertas'))
+            
             if not devops_manager:
                 flash('Error: API no configurada.', 'error')
                 return redirect(url_for('devops.gestion_ofertas'))
-            # Asegurar que fecha_fin tenga un valor válido
-            fecha_inicio = request.form.get('fecha_inicio', '').strip()
-            if not fecha_inicio:
-                fecha_inicio = datetime.now().strftime('%Y-%m-%d')
-            
-            fecha_fin = request.form.get('fecha_fin', '').strip()
-            if not fecha_fin:
-                # Si no hay fecha_fin, usar 30 días desde hoy
-                from datetime import timedelta
-                fecha_fin = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
             
             # Helper para convertir a boolean
             def _to_boolean(value, default=True):
@@ -713,20 +832,48 @@ def gestion_ofertas():
                         return False
                 return default
             
-            activa_raw = request.form.get('activa', 'true')
+            activa_raw = request.form.get('activo', 'true')
+            
+            # Procesar descuentos
+            descuento_porcentaje = float(request.form.get('descuento_porcentaje', 0))
+            descuento_fijo = float(request.form.get('descuento_fijo', 0))
+            
+            # Procesar imagen de la oferta si existe
+            image_url = None
+            imagen_filename = ''
+            if 'imagen_file' in request.files:
+                file = request.files['imagen_file']
+                if file and file.filename:
+                    try:
+                        from image_utils import image_to_base64
+                    except ImportError:
+                        try:
+                            from devops.image_utils import image_to_base64
+                        except ImportError:
+                            from .image_utils import image_to_base64
+                    
+                    base64_data, error = image_to_base64(file)
+                    if error:
+                        flash(f'Advertencia: {error}. La oferta se creará sin imagen.', 'warning')
+                        logger.warning(f"Error procesando imagen para oferta: {error}")
+                    else:
+                        image_url = base64_data
+                        imagen_filename = file.filename
+                        logger.info(f"✅ Imagen procesada para oferta: {len(base64_data)} caracteres")
+            
             oferta_data = {
-                'titulo': titulo,  # La API acepta tanto 'titulo' como 'nombre'
+                'titulo': titulo,
                 'descripcion': descripcion,
-                'descuento': descuento_float,
-                'producto_id': int(producto_id),
-                'fecha_inicio': fecha_inicio,
-                'fecha_fin': fecha_fin,
-                'activa': _to_boolean(activa_raw, default=True)  # CORRECCIÓN: Usar _to_boolean() para consistencia
+                'descuento_porcentaje': descuento_porcentaje,
+                'descuento_fijo': descuento_fijo,
+                'imagen': imagen_filename or request.form.get('imagen', ''),  # Nombre del archivo
+                'image_url': image_url or request.form.get('image_url', ''),  # Base64 o URL
+                'activa': _to_boolean(activa_raw, default=True)
             }
             success, message = devops_manager.create_item('ofertas', oferta_data)
             if success:
                 flash(f'Oferta "{titulo}" creada exitosamente', 'success')
-                logger.info(f"Oferta creada y sincronizada: {titulo}")
+                logger.info(f"Oferta creada y sincronizada: {titulo} (con imagen: {bool(image_url)})")
             else:
                 flash(f'Error al crear oferta: {message}', 'error')
                 logger.error(f"Error al crear oferta en API: {message}")
@@ -772,6 +919,35 @@ def editar_oferta(oferta_id):
                         return False
                 return default
             
+            
+            # Procesar nueva imagen si existe
+            image_url = None
+            imagen_filename = ''
+            if 'imagen_file' in request.files:
+                file = request.files['imagen_file']
+                if file and file.filename:
+                    try:
+                        from image_utils import image_to_base64
+                    except ImportError:
+                        try:
+                            from devops.image_utils import image_to_base64
+                        except ImportError:
+                            from .image_utils import image_to_base64
+                    
+                    base64_data, error = image_to_base64(file)
+                    if error:
+                        flash(f'Advertencia: {error}. Se mantendrá la imagen actual.', 'warning')
+                        logger.warning(f"Error procesando nueva imagen para oferta {oferta_id}: {error}")
+                    else:
+                        image_url = base64_data
+                        imagen_filename = file.filename
+                        logger.info(f"✅ Nueva imagen procesada para oferta {oferta_id}")
+            
+            # Si no hay nueva imagen, mantener la actual
+            if not image_url:
+                image_url = request.form.get('image_url_actual', '')
+                imagen_filename = request.form.get('imagen_actual', '')
+            
             activa_raw = request.form.get('activo', 'false')
             # Obtener datos del formulario
             oferta_data = {
@@ -779,6 +955,8 @@ def editar_oferta(oferta_id):
                 'descripcion': request.form.get('descripcion', '').strip(),
                 'descuento_porcentaje': request.form.get('descuento_porcentaje', '').strip(),
                 'descuento_fijo': request.form.get('descuento_fijo', '').strip(),
+                'imagen': imagen_filename,  # Nombre del archivo (nuevo o actual)
+                'image_url': image_url,  # Base64 o URL (nuevo o actual)
                 'activa': _to_boolean(activa_raw, default=True)  # CORRECCIÓN: Usar _to_boolean() en lugar de == 'on'
             }
             
@@ -1967,14 +2145,17 @@ def upload_image():
         if error:
             return jsonify({"error": error}), 400
             
+        # Construir la URL pública de la imagen
+        image_url = f"/devops/media/{filepath}"
+        
         # Actualizar la URL de la imagen en la entidad correspondiente
         try:
             if entity_type == 'business':
-                success, message = devops_manager.actualizar_negocio(entity_id, {'image_url': filepath})
+                success, message = devops_manager.actualizar_negocio(entity_id, {'image_url': image_url})
             elif entity_type == 'branch':
-                success, message = devops_manager.actualizar_sucursal(entity_id, {'image_url': filepath})
+                success, message = devops_manager.actualizar_sucursal(entity_id, {'image_url': image_url})
             else:  # product
-                success, message = devops_manager.actualizar_producto(entity_id, {'image_url': filepath})
+                success, message = devops_manager.actualizar_producto(entity_id, {'image_url': image_url})
                 
             if not success:
                 # Si falla la actualización, eliminar la imagen subida
@@ -1988,7 +2169,6 @@ def upload_image():
             return jsonify({"error": f"Error al actualizar la entidad: {str(e)}"}), 500
             
         # Devolver la URL de la imagen
-        image_url = get_image_url(filepath)
         return jsonify({
             "success": True,
             "image_url": image_url,
@@ -2011,20 +2191,30 @@ def serve_media(filename):
     Parámetros:
     - filename: Ruta relativa del archivo dentro del directorio de uploads
     
-    Ejemplo: /media/business/1_abc123.jpg
+    Ejemplo: /media/business/uuid.jpg
     """
     try:
         # Validar que el archivo esté dentro del directorio de uploads
         safe_path = os.path.join('uploads', filename)
-        if not os.path.normpath(safe_path).startswith(os.path.normpath('uploads')):
+        # Normalizar rutas para prevenir path traversal
+        safe_path = os.path.normpath(safe_path)
+        uploads_dir = os.path.normpath('uploads')
+        
+        if not safe_path.startswith(uploads_dir):
             return "Acceso denegado", 403
             
         # Verificar que el archivo exista
         if not os.path.isfile(safe_path):
             return "Archivo no encontrado", 404
-            
-        # Servir el archivo
-        return send_from_directory('..', safe_path)
+        
+        # Obtener directorio y nombre del archivo usando rutas absolutas
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        full_path = os.path.join(base_dir, safe_path)
+        directory = os.path.dirname(full_path)
+        file_name = os.path.basename(full_path)
+        
+        # Servir el archivo usando send_from_directory
+        return send_from_directory(directory, file_name)
         
     except Exception as e:
         logger.error(f"Error al servir archivo {filename}: {str(e)}")

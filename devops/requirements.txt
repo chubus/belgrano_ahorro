@@ -1,15 +1,41 @@
-# Dependencias para DevOps Service
-# Framework web
-Flask==2.3.3
-Werkzeug==2.3.7
-
-# Cliente HTTP y comunicación con APIs
-requests==2.31.0
-urllib3>=1.26.0
-
-# Carga de variables de entorno desde archivo .env
+# Core Dependencies
+Flask==3.0.0
+requests>=2.31.0
+Werkzeug==3.0.1
 python-dotenv==1.0.0
 
-# Servidor de producción
-gunicorn==21.2.0
+# Database
+SQLAlchemy==2.0.23
+psycopg2-binary==2.9.9
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.5
+Flask-WTF==1.2.1
 
+# Real-time
+Flask-SocketIO==5.3.6
+python-socketio==5.10.0
+python-engineio==4.8.2
+eventlet>=0.35.2
+greenlet>=3.1.0  # Versión compatible con Python 3.13
+
+# Security
+cryptography>=42.0.2
+pyOpenSSL>=24.0.0
+PyJWT>=2.8.0
+passlib>=1.7.4
+
+# Utilities
+Pillow>=10.4.0
+gunicorn>=21.2.0
+gevent>=24.10.3  # Alternativa a eventlet
+
+# Additional Utilities
+python-dateutil==2.8.2
+pytz==2023.3
+blinker==1.7.0
+itsdangerous==2.1.2
+email-validator==2.0.0
+
+# Monitoring and Logging (optional)
+sentry-sdk[flask]==1.28.1
+python-json-logger==2.0.7

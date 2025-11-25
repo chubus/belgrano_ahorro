@@ -250,6 +250,18 @@ class DevOpsBelgranoManagerUnified:
         """Actualizar precio de un producto"""
         ok, data = self._req('PUT', f"/api/precios/{producto_id}", json=precio_data)
         return (True, 'ok') if ok else (False, str(data))
+    
+    def actualizar_negocio(self, negocio_id: int, payload: Dict[str, Any]) -> Tuple[bool, Any]:
+        """Actualizar un negocio específico"""
+        return self.update_item('negocios', negocio_id, payload)
+    
+    def actualizar_sucursal(self, sucursal_id: Any, payload: Dict[str, Any]) -> Tuple[bool, Any]:
+        """Actualizar una sucursal específica"""
+        return self.update_item('sucursales', sucursal_id, payload)
+    
+    def actualizar_producto(self, producto_id: int, payload: Dict[str, Any]) -> Tuple[bool, Any]:
+        """Actualizar un producto específico"""
+        return self.update_item('productos', producto_id, payload)
 
 
 class DevOpsTicketeraManager:

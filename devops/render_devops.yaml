@@ -3,12 +3,22 @@ services:
     name: devops-service
     env: python
     buildCommand: |
-      pip install -r devops/requirements.txt
-      echo "✅ Build DevOps completado"
+      pip install --upgrade pip
+      pip install -r requirements.txt
     startCommand: |
-      echo "🚀 Iniciando servicio DevOps..."
-      gunicorn --bind 0.0.0.0:$PORT --workers 2 --worker-class sync --timeout 120 --keep-alive 5 wsgi_devops:application
+      gunicorn --bind 0.0.0.0:$PORT \
+               --workers 4 \
+               --threads 2 \
+               --timeout 120 \
+               --keep-alive 5 \
+               --worker-class gthread \
+               --log-level=info \
+               --access-logfile - \
+               --error-logfile - \
+               wsgi:application
     envVars:
+      - key: FLASK_APP
+        value: devops.app
       - key: FLASK_ENV
         value: production
       - key: SECRET_KEY

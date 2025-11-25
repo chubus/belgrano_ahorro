@@ -19,7 +19,7 @@
 </div>
 
 <!-- Tabla de Ofertas -->
-        <div class="card">
+<div class="card">
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -70,15 +70,16 @@
                         <td>
                             <div class="btn-group" role="group">
                                 <button class="btn btn-sm btn-warning" 
-                                        onclick="editarOferta({{ oferta.id }}, '{{ oferta.titulo }}', '{{ oferta.descripcion or '' }}', {{ oferta.descuento_porcentaje }}, {{ oferta.descuento_fijo }}, {{ oferta.activa|lower }})">
+                                        onclick="editarOferta({{ oferta.id }}, '{{ oferta.titulo }}', '{{ oferta.descripcion or '' }}', {{ oferta.descuento_porcentaje }}, {{ oferta.descuento_fijo }}, {{ oferta.activa|lower }}, '{{ oferta.image_url or '' }}')">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <form method="POST" action="{{ url_for('devops.eliminar_oferta', oferta_id=oferta.id) }}" 
                                       style="display: inline;" onsubmit="return confirm('¿Estás seguro de eliminar esta oferta?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <button type="submit" class="btn btn-sm btn-danger btn-delete">
                                         <i class="fas fa-trash"></i>
                                     </button>
-                            </form>
+                                </form>
                             </div>
                         </td>
                     </tr>
@@ -93,8 +94,8 @@
             </table>
         </div>
     </div>
-        </div>
-        
+</div>
+
 <!-- Modal Crear Oferta -->
 <div class="modal fade" id="crearOfertaModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -104,8 +105,9 @@
                     <i class="fas fa-plus me-2"></i>Crear Nueva Oferta
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-            <form method="POST" action="{{ url_for('devops.gestion_ofertas') }}">
+            </div>
+            <form method="POST" action="{{ url_for('devops.gestion_ofertas') }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Título *</label>
@@ -125,6 +127,21 @@
                             <input type="number" class="form-control" name="descuento_fijo" min="0" step="0.01" value="0">
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <label for="imagen_file" class="form-label">
+                            <i class="fas fa-image me-2"></i>Imagen de la Oferta
+                        </label>
+                        <input type="file" class="form-control" id="imagen_file" name="imagen_file" 
+                               accept="image/jpeg,image/png,image/webp"
+                               onchange="previewImage(this, 'imagen-preview-crear')">
+                        <small class="text-muted">Formatos: JPG, PNG, WebP. Máximo 2MB</small>
+                    </div>
+                    <div class="mb-3" id="imagen-preview-crear-container" style="display: none;">
+                        <label class="form-label">Vista Previa</label>
+                        <div>
+                            <img id="imagen-preview-crear" src="" alt="Preview" class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
+                        </div>
+                    </div>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
                         <strong>Nota:</strong> Puedes usar descuento porcentual O descuento fijo, no ambos a la vez.
@@ -138,33 +155,34 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save me-2"></i>Crear Oferta
-                </button>
+                    </button>
                 </div>
             </form>
         </div>
-        </div>
-            </div>
-            
+    </div>
+</div>
+
 <!-- Modal Editar Oferta -->
 <div class="modal fade" id="editarOfertaModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="fas fa-edit me-2"></i>Editar Oferta
                 </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-            <form id="editarOfertaForm" method="POST">
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editarOfertaForm" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Título *</label>
                         <input type="text" class="form-control" name="titulo" id="edit_titulo" required>
-                            </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label">Descripción</label>
                         <textarea class="form-control" name="descripcion" id="edit_descripcion" rows="3"></textarea>
-                            </div>
+                    </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Descuento Porcentual (%)</label>
@@ -175,6 +193,22 @@
                             <input type="number" class="form-control" name="descuento_fijo" id="edit_descuento_fijo" min="0" step="0.01">
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <label for="imagen_file_edit" class="form-label">
+                            <i class="fas fa-image me-2"></i>Cambiar Imagen
+                        </label>
+                        <input type="file" class="form-control" id="imagen_file_edit" name="imagen_file" 
+                               accept="image/jpeg,image/png,image/webp"
+                               onchange="previewImage(this, 'imagen-preview-edit')">
+                        <small class="text-muted">Sube una nueva imagen para reemplazar la actual</small>
+                        <input type="hidden" name="image_url_actual" id="edit_image_url">
+                    </div>
+                    <div class="mb-3" id="imagen-preview-edit-container" style="display: none;">
+                        <label class="form-label">Nueva Imagen</label>
+                        <div>
+                            <img id="imagen-preview-edit" src="" alt="Preview" class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
+                        </div>
+                    </div>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
                         <strong>Nota:</strong> Puedes usar descuento porcentual O descuento fijo, no ambos a la vez.
@@ -182,7 +216,7 @@
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="activo" id="edit_activo">
                         <label class="form-check-label">Oferta activa</label>
-                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -195,18 +229,41 @@
     </div>
 </div>
 {% endblock %}
-    
+
 {% block scripts %}
-    <script>
-function editarOferta(id, titulo, descripcion, descuento_porcentaje, descuento_fijo, activo) {
+<script>
+function previewImage(input, previewId) {
+    const preview = document.getElementById(previewId);
+    const container = document.getElementById(previewId + '-container');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            container.style.display = 'block';
+        };
+        
+        reader.readAsDataURL(input.files[0]);
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+function editarOferta(id, titulo, descripcion, descuento_porcentaje, descuento_fijo, activo, imageUrl) {
     document.getElementById('edit_titulo').value = titulo;
     document.getElementById('edit_descripcion').value = descripcion;
     document.getElementById('edit_descuento_porcentaje').value = descuento_porcentaje;
     document.getElementById('edit_descuento_fijo').value = descuento_fijo;
     document.getElementById('edit_activo').checked = activo;
+    document.getElementById('edit_image_url').value = imageUrl || '';
     document.getElementById('editarOfertaForm').action = `/devops/ofertas/${id}/editar`;
+    
+    // Ocultar preview de nueva imagen
+    document.getElementById('imagen-preview-edit-container').style.display = 'none';
+    
     const modal = new bootstrap.Modal(document.getElementById('editarOfertaModal'));
-                modal.show();
-        }
-    </script>
+    modal.show();
+}
+</script>
 {% endblock %}

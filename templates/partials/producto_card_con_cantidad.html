@@ -2,7 +2,7 @@
 <div class="producto-carrusel">
     <div class="card h-100 producto-card">
         <div class="position-relative">
-            <img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">
+            {% if producto.image_url %}<img src="{{ producto.image_url }}" class="card-img-top" alt="{{ producto.nombre }}">{% elif producto.imagen %}{% if producto.image_url %}<img src="{{ producto.image_url }}" class="card-img-top" alt="{{ producto.nombre }}">{% elif producto.imagen %}<img src="{{ producto.imagen }}" class="card-img-top" alt="{{ producto.nombre }}">{% else %}<div class="d-flex align-items-center justify-content-center bg-light h-100"><i class="fas fa-image fa-2x text-muted"></i></div>{% endif %}{% else %}<div class="d-flex align-items-center justify-content-center bg-light h-100"><i class="fas fa-image fa-2x text-muted"></i></div>{% endif %}
             {% if producto.destacado %}
             <div class="position-absolute top-0 start-0 m-2">
                 <span class="badge bg-warning">⭐ Destacado</span>

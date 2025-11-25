@@ -1,7 +1,3 @@
-# MUST be first - before any other imports
-import eventlet
-eventlet.monkey_patch()
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """

@@ -311,7 +311,7 @@ def api_negocios():
             from sqlalchemy import text
             result = session.execute(text('''
                 SELECT id, nombre, descripcion, direccion, telefono, email, activo,
-                       fecha_creacion, fecha_actualizacion
+                       fecha_creacion, fecha_actualizacion, image_url
                 FROM negocios 
                 WHERE activo = TRUE
                 ORDER BY nombre
@@ -378,8 +378,8 @@ def api_negocio_create():
             
             negocio_id = execute_insert_returning_id(
                 '''
-                INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo, image_url)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''',
                 (
                     nombre,
@@ -387,7 +387,8 @@ def api_negocio_create():
                     str(data.get('direccion', '')).strip(),
                     str(data.get('telefono', '')).strip(),
                     str(data.get('email', '')).strip(),
-                    activo  # DEBE ser boolean (True/False), NO integer
+                    activo,  # DEBE ser boolean (True/False), NO integer
+                    data.get('image_url', '')
                 ),
                 table_name='negocios'
             )
@@ -434,7 +435,7 @@ def api_negocio_detail(negocio_id):
             from sqlalchemy import text
             result = session.execute(text('''
                 SELECT id, nombre, descripcion, direccion, telefono, email, activo,
-                       fecha_creacion, fecha_actualizacion
+                       fecha_creacion, fecha_actualizacion, image_url
                 FROM negocios 
                 WHERE id = :id AND activo = TRUE
             '''), {'id': negocio_id})
@@ -570,7 +571,7 @@ def api_productos():
             from sqlalchemy import text
             result = session.execute(text('''
                 SELECT p.id, p.nombre, p.store, p.precio, p.original_price, p.categoria,
-                       p.imagen, p.stock, p.stock_minimo, p.negocio_id, p.activo, p.destacado,
+                       p.imagen, p.image_url, p.stock, p.stock_minimo, p.negocio_id, p.activo, p.destacado,
                        p.fecha_creacion, p.fecha_actualizacion,
                        n.nombre as negocio_nombre
                 FROM productos p
@@ -618,9 +619,9 @@ def api_producto_create():
         # Usar función helper para PostgreSQL
         producto_id = execute_insert_returning_id(
             '''
-            INSERT INTO productos (nombre, store, precio, original_price, categoria, imagen, 
+            INSERT INTO productos (nombre, store, precio, original_price, categoria, imagen, image_url,
                                 stock, stock_minimo, negocio_id, activo, destacado)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''',
             (
                 data['nombre'],
@@ -629,6 +630,7 @@ def api_producto_create():
                 float(data.get('original_price', data['precio'])),
                 categoria,
                 data.get('imagen', ''),
+                data.get('image_url', ''),
                 int(data.get('stock', 0)),
                 int(data.get('stock_minimo', 5)),
                 int(data.get('negocio_id', 1)),
@@ -662,7 +664,7 @@ def api_producto_detail(producto_id):
             from sqlalchemy import text
             result = session.execute(text('''
                 SELECT p.id, p.nombre, p.store, p.precio, p.original_price, p.categoria,
-                       p.imagen, p.stock, p.stock_minimo, p.negocio_id, p.activo, p.destacado,
+                       p.imagen, p.image_url, p.stock, p.stock_minimo, p.negocio_id, p.activo, p.destacado,
                        p.fecha_creacion, p.fecha_actualizacion,
                        n.nombre as negocio_nombre
                 FROM productos p
@@ -708,7 +710,7 @@ def api_producto_update(producto_id):
             update_fields = []
             params = {}
             
-            for field in ['nombre', 'store', 'precio', 'original_price', 'categoria', 'imagen', 
+            for field in ['nombre', 'store', 'precio', 'original_price', 'categoria', 'imagen', 'image_url',
                          'stock', 'stock_minimo', 'negocio_id']:
                 if field in data:
                     update_fields.append(f"{field} = :{field}")
@@ -979,7 +981,7 @@ def api_sucursales():
             from sqlalchemy import text
             result = session.execute(text('''
                 SELECT s.id, s.nombre, s.direccion, s.telefono, s.email, s.negocio_id, s.activo,
-                       s.fecha_creacion, s.fecha_actualizacion, n.nombre as negocio_nombre
+                       s.fecha_creacion, s.fecha_actualizacion, s.image_url, n.nombre as negocio_nombre
                 FROM sucursales s
                 LEFT JOIN negocios n ON s.negocio_id = n.id
                 WHERE s.activo = TRUE
@@ -1017,16 +1019,17 @@ def api_sucursal_create():
         # Usar función helper para PostgreSQL
         sucursal_id = execute_insert_returning_id(
             '''
-            INSERT INTO sucursales (nombre, direccion, telefono, email, negocio_id, activo)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO sucursales (nombre, direccion, telefono, email, negocio_id, activo, image_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ''',
             (
                 data['nombre'],
                 data.get('direccion', ''),
                 data.get('telefono', ''),
                 data.get('email', ''),
-                data['negocio_id'],
-                activo  # Ahora es boolean (True/False), no integer
+                int(data['negocio_id']),
+                activo,  # Ahora es boolean (True/False), no integer
+                data.get('image_url', '')
             ),
             table_name='sucursales'
         )
