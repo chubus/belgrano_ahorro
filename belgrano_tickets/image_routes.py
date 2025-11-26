@@ -1,8 +1,11 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, send_from_directory
 import os
 from werkzeug.utils import secure_filename
 from functools import wraps
-from .file_utils import save_uploaded_file, get_upload_path
+try:
+    from .file_utils import save_uploaded_file, get_upload_path
+except ImportError:
+    from file_utils import save_uploaded_file, get_upload_path
 import sqlite3
 
 # Create blueprint for image routes
