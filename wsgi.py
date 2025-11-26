@@ -40,7 +40,6 @@ def load_env():
         logger.warning("python-dotenv not installed, skipping .env loading")
 
 # Setup environment
-# Setup environment
 load_env()
 setup_paths()
 
