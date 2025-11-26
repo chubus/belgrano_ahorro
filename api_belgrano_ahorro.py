@@ -619,9 +619,9 @@ def api_producto_create():
         # Usar función helper para PostgreSQL
         producto_id = execute_insert_returning_id(
             '''
-            INSERT INTO productos (nombre, store, precio, original_price, categoria, imagen, image_url,
+            INSERT INTO productos (nombre, store, precio, original_price, categoria, imagen,
                                 stock, stock_minimo, negocio_id, activo, destacado)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''',
             (
                 data['nombre'],
@@ -630,7 +630,6 @@ def api_producto_create():
                 float(data.get('original_price', data['precio'])),
                 categoria,
                 data.get('imagen', ''),
-                data.get('image_url', ''),
                 int(data.get('stock', 0)),
                 int(data.get('stock_minimo', 5)),
                 int(data.get('negocio_id', 1)),
@@ -710,7 +709,7 @@ def api_producto_update(producto_id):
             update_fields = []
             params = {}
             
-            for field in ['nombre', 'store', 'precio', 'original_price', 'categoria', 'imagen', 'image_url',
+            for field in ['nombre', 'store', 'precio', 'original_price', 'categoria', 'imagen',
                          'stock', 'stock_minimo', 'negocio_id']:
                 if field in data:
                     update_fields.append(f"{field} = :{field}")

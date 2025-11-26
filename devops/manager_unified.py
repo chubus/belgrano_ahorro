@@ -187,6 +187,7 @@ class DevOpsBelgranoManagerUnified:
         # Limpiar cache del tipo de item actualizado
         if ok:
             clear_cache(f"GET:{self.belgrano_url}/api/v1/{kind}")
+            clear_cache(f"GET:{self.belgrano_url}/api/v1/{kind}/{item_id}")
         return (True, 'ok') if ok else (False, str(data))
 
     def delete_item(self, kind: str, item_id: Any):
