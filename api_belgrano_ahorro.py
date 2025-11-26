@@ -311,7 +311,7 @@ def api_negocios():
             from sqlalchemy import text
             result = session.execute(text('''
                 SELECT id, nombre, descripcion, direccion, telefono, email, activo,
-                       fecha_creacion, fecha_actualizacion, image_url
+                       fecha_creacion, fecha_actualizacion
                 FROM negocios 
                 WHERE activo = TRUE
                 ORDER BY nombre
@@ -435,7 +435,7 @@ def api_negocio_detail(negocio_id):
             from sqlalchemy import text
             result = session.execute(text('''
                 SELECT id, nombre, descripcion, direccion, telefono, email, activo,
-                       fecha_creacion, fecha_actualizacion, image_url
+                       fecha_creacion, fecha_actualizacion
                 FROM negocios 
                 WHERE id = :id AND activo = TRUE
             '''), {'id': negocio_id})
@@ -571,7 +571,7 @@ def api_productos():
             from sqlalchemy import text
             result = session.execute(text('''
                 SELECT p.id, p.nombre, p.store, p.precio, p.original_price, p.categoria,
-                       p.imagen, p.image_url, p.stock, p.stock_minimo, p.negocio_id, p.activo, p.destacado,
+                       p.imagen, p.stock, p.stock_minimo, p.negocio_id, p.activo, p.destacado,
                        p.fecha_creacion, p.fecha_actualizacion,
                        n.nombre as negocio_nombre
                 FROM productos p
@@ -664,7 +664,7 @@ def api_producto_detail(producto_id):
             from sqlalchemy import text
             result = session.execute(text('''
                 SELECT p.id, p.nombre, p.store, p.precio, p.original_price, p.categoria,
-                       p.imagen, p.image_url, p.stock, p.stock_minimo, p.negocio_id, p.activo, p.destacado,
+                       p.imagen, p.stock, p.stock_minimo, p.negocio_id, p.activo, p.destacado,
                        p.fecha_creacion, p.fecha_actualizacion,
                        n.nombre as negocio_nombre
                 FROM productos p
@@ -981,7 +981,7 @@ def api_sucursales():
             from sqlalchemy import text
             result = session.execute(text('''
                 SELECT s.id, s.nombre, s.direccion, s.telefono, s.email, s.negocio_id, s.activo,
-                       s.fecha_creacion, s.fecha_actualizacion, s.image_url, n.nombre as negocio_nombre
+                       s.fecha_creacion, s.fecha_actualizacion, n.nombre as negocio_nombre
                 FROM sucursales s
                 LEFT JOIN negocios n ON s.negocio_id = n.id
                 WHERE s.activo = TRUE
