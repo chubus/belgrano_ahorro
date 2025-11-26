@@ -221,6 +221,57 @@ def execute_insert_returning_id(query: str, params: tuple, table_name: str = Non
             return None
     except Exception as e:
         session.rollback()
+        
+        # AUTO-HEALING ROBUSTO
+        # Intentar obtener el mensaje de error completo incluyendo la excepción original de DBAPI
+        error_str = str(e).lower()
+        if hasattr(e, 'orig'):
+            error_str += " " + str(e.orig).lower()
+            
+        # Detectar error de columna faltante (image_url o imagen)
+        if "undefinedcolumn" in error_str and ("image_url" in error_str or "imagen" in error_str):
+            healing_session = None
+            try:
+                # Identificar columna faltante
+                missing_col = "image_url" if "image_url" in error_str else "imagen"
+                
+                # Identificar tabla
+                target_table = table_name
+                if not target_table:
+                    import re
+                    match = re.search(r'INSERT\s+INTO\s+(\w+)', query, re.IGNORECASE)
+                    if match:
+                        target_table = match.group(1)
+                
+                if target_table:
+                    logger.warning(f"[API] ⚠️ Detectada columna faltante '{missing_col}' en tabla '{target_table}'. Iniciando AUTO-HEALING con nueva sesión...")
+                    
+                    # Usar una NUEVA sesión para el DDL para evitar problemas con la transacción anterior
+                    healing_session = get_db_connection()
+                    
+                    # Crear columna
+                    healing_session.execute(text(f"ALTER TABLE {target_table} ADD COLUMN IF NOT EXISTS {missing_col} TEXT"))
+                    healing_session.commit()
+                    logger.info(f"[API] ✅ Columna '{missing_col}' creada exitosamente en '{target_table}'.")
+                    
+                    # Cerrar sesión de healing
+                    healing_session.close()
+                    healing_session = None
+                    
+                    # Reintentar INSERT con la sesión original (que ya hizo rollback)
+                    logger.info(f"[API] 🔄 Reintentando INSERT original...")
+                    result = session.execute(text(adapted_query), param_dict)
+                    row = result.fetchone()
+                    if row:
+                        inserted_id = row[0] if hasattr(row, '__getitem__') else row.id
+                        session.commit()
+                        return inserted_id
+            except Exception as healing_error:
+                logger.error(f"[API] ❌ Falló el AUTO-HEALING: {healing_error}")
+                if healing_session:
+                    healing_session.close()
+                # Si falla el healing, lanzar el error original
+        
         logger.error(f"[API] Error en execute_insert_returning_id: {e}")
         raise
     finally:
@@ -619,9 +670,9 @@ def api_producto_create():
         # Usar función helper para PostgreSQL
         producto_id = execute_insert_returning_id(
             '''
-            INSERT INTO productos (nombre, store, precio, original_price, categoria, imagen,
+            INSERT INTO productos (nombre, store, precio, original_price, categoria, imagen, image_url,
                                 stock, stock_minimo, negocio_id, activo, destacado)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''',
             (
                 data['nombre'],
@@ -630,6 +681,7 @@ def api_producto_create():
                 float(data.get('original_price', data['precio'])),
                 categoria,
                 data.get('imagen', ''),
+                data.get('image_url', ''),
                 int(data.get('stock', 0)),
                 int(data.get('stock_minimo', 5)),
                 int(data.get('negocio_id', 1)),
