@@ -62,6 +62,11 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'upload
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
 
+# Agregar configuración de uploads a app.config
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['UPLOAD_EXTENSIONS'] = ['.png', '.jpg', '.jpeg', '.webp']
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+
 # Configuración de base de datos - en producción usar DATABASE_URL; en dev usar sqlite local
 import os
 import re
