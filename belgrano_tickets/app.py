@@ -5,7 +5,7 @@ from flask_socketio import SocketIO
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-import os
+
 from datetime import datetime
 import json
 import logging
@@ -68,7 +68,7 @@ app.config['UPLOAD_EXTENSIONS'] = ['.png', '.jpg', '.jpeg', '.webp']
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 # Configuración de base de datos - en producción usar DATABASE_URL; en dev usar sqlite local
-import os
+
 import re
 
 def is_valid_database_url(url):
@@ -130,7 +130,7 @@ except ImportError:
         try:
             # Fallback final: import directo
             import sys
-            import os
+            
             sys.path.append(os.path.dirname(os.path.abspath(__file__)))
             from models import db, User, Ticket
         except ImportError as e:
@@ -423,7 +423,7 @@ with app.app_context():
                 
                 # Panel principal de DevOps con funcionalidad real
                 from datetime import datetime
-                import os
+                
                 
                 # Obtener información del sistema
                 system_info = {
@@ -730,7 +730,7 @@ with app.app_context():
                         # Usar persistencia real
                         try:
                             import sys
-                            import os
+                            
                             sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                             from devops_persistence import get_devops_db
                             
@@ -796,7 +796,7 @@ with app.app_context():
                         # Obtener datos reales de la base de datos
                         try:
                             import sys
-                            import os
+                            
                             sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                             from devops_persistence import get_devops_db
                             
@@ -828,7 +828,7 @@ with app.app_context():
                 # Si no es AJAX, devolver template HTML
                 try:
                     import sys
-                    import os
+                    
                     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                     from devops_persistence import get_devops_db
                     db = get_devops_db()
@@ -846,7 +846,7 @@ with app.app_context():
                 # Importar cliente API
                 try:
                     import sys
-                    import os
+                    
                     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                     from belgrano_client import belgrano_client
                 except Exception as e:
@@ -901,7 +901,7 @@ with app.app_context():
                                 logger.error(f"Error en API: {api_error}")
                                 # Fallback a persistencia local
                                 import sys
-                                import os
+                                
                                 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                                 from devops_persistence import get_devops_db
                                 
@@ -921,7 +921,7 @@ with app.app_context():
                             # Fallback a persistencia local
                             try:
                                 import sys
-                                import os
+                                
                                 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                                 from devops_persistence import get_devops_db
                                 
@@ -989,7 +989,7 @@ with app.app_context():
                         # Obtener datos reales de la base de datos
                         try:
                             import sys
-                            import os
+                            
                             sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                             from devops_persistence import get_devops_db
                             
@@ -1009,7 +1009,7 @@ with app.app_context():
                 # Si no es AJAX, devolver template HTML
                 try:
                     import sys
-                    import os
+                    
                     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                     from devops_persistence import get_devops_db
                     db = get_devops_db()
@@ -1043,7 +1043,7 @@ with app.app_context():
                         # Persistencia real
                         try:
                             import sys
-                            import os
+                            
                             sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                             from devops_persistence import get_devops_db
 
@@ -1099,7 +1099,7 @@ with app.app_context():
                     request.args.get('json') == 'true'):
                     try:
                         import sys
-                        import os
+                        
                         sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                         from devops_persistence import get_devops_db
                         db = get_devops_db()
@@ -1138,7 +1138,7 @@ with app.app_context():
                         # Usar persistencia real
                         try:
                             import sys
-                            import os
+                            
                             sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                             from devops_persistence import get_devops_db
                             
@@ -1203,7 +1203,7 @@ with app.app_context():
                         # Obtener datos reales de la base de datos
                         try:
                             import sys
-                            import os
+                            
                             sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                             from devops_persistence import get_devops_db
                             
@@ -1247,7 +1247,7 @@ with app.app_context():
 
                         try:
                             import sys
-                            import os
+                            
                             sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                             from devops_persistence import get_devops_db
                             db = get_devops_db()
@@ -1279,7 +1279,7 @@ with app.app_context():
                 # Si no es AJAX, devolver template HTML
                 try:
                     import sys
-                    import os
+                    
                     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                     from devops_persistence import get_devops_db
                     db = get_devops_db()
@@ -1426,7 +1426,7 @@ with app.app_context():
                         # Usar sincronizador real
                         try:
                             import sys
-                            import os
+                            
                             sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                             from sincronizar_belgrano_ahorro import SincronizadorBelgranoAhorro
                             
@@ -2963,7 +2963,12 @@ def test_ahorro_api():
 try:
     from .image_routes import image_bp
 except ImportError:
-    from image_routes import image_bp
+    try:
+        from belgrano_tickets.image_routes import image_bp
+    except ImportError:
+        import sys
+        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+        from image_routes import image_bp
 app.register_blueprint(image_bp, url_prefix='/api')
 
 # Crear directorio de uploads si no existe

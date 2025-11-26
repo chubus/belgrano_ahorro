@@ -58,8 +58,14 @@ try:
         logger.warning("⚠️ No Ticketera URL configured (TICKETERA_URL or BELGRANO_AHORRO_URL).")
 except Exception as e:
     logger.error(f"❌ Error checking Ticketera health: {e}")
-from ensure_image_columns import ensure_columns
-ensure_columns()
+
+# Ejecutar migración automática de columnas de imagen
+try:
+    from ensure_image_columns import ensure_image_columns
+    ensure_image_columns()
+except Exception as e:
+    logger.warning(f"⚠️ No se pudo ejecutar migración automática: {e}")
+
 
 try:
     # Import the main application from app.py

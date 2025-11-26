@@ -3074,6 +3074,32 @@ def api_obtener_tickets():
     except Exception as e:
         return jsonify({'error': 'Error obteniendo tickets'}), 500
 
+@app.route('/media/<entity_type>/<filename>')
+def serve_media(entity_type, filename):
+    """Servir archivos de medios subidos (imágenes de productos, negocios, sucursales)"""
+    import os
+    from flask import send_from_directory
+    
+    # Validar entity_type para evitar path traversal
+    allowed_types = ['productos', 'negocios', 'sucursales', 'business', 'branch', 'product']
+    if entity_type not in allowed_types:
+        return jsonify({'error': 'Invalid entity type'}), 404
+    
+    # Construir path del directorio de uploads
+    # Verificar si estamos en Belgrano Ahorro o en Ticketera
+    upload_folder = os.environ.get('UPLOAD_FOLDER')
+    if not upload_folder:
+        # Fallback a ubicación por defecto
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        upload_folder = os.path.join(base_dir, 'uploads')
+    
+    upload_dir = os.path.join(upload_folder, entity_type)
+    
+    try:
+        return send_from_directory(upload_dir, filename)
+    except FileNotFoundError:
+        return jsonify({'error': 'File not found'}), 404
+
 @app.route('/health')
 def health_check():
     """Health check para Render.com"""
@@ -3197,8 +3223,8 @@ def _guardar_negocio_en_db(negocio_data):
                 activo = True
             
             result = session.execute(text('''
-                INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo)
-                VALUES (:nombre, :descripcion, :direccion, :telefono, :email, :activo)
+                INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo, image_url)
+                VALUES (:nombre, :descripcion, :direccion, :telefono, :email, :activo, :image_url)
                 RETURNING id
             '''), {
                 'nombre': negocio_data.get('nombre', ''),
@@ -3206,7 +3232,8 @@ def _guardar_negocio_en_db(negocio_data):
                 'direccion': negocio_data.get('direccion', ''),
                 'telefono': negocio_data.get('telefono', ''),
                 'email': negocio_data.get('email', ''),
-                'activo': activo  # Ahora es boolean (True/False), no integer
+                'activo': activo,  # Ahora es boolean (True/False'), no integer
+                'image_url': negocio_data.get('image_url', negocio_data.get('imagen', ''))
             })
             row = result.fetchone()
             negocio_id = row[0] if row else None
@@ -3322,8 +3349,8 @@ def _guardar_sucursal_en_db(sucursal_data):
                 activo = True
             
             result = session.execute(text('''
-                INSERT INTO sucursales (nombre, direccion, telefono, email, negocio_id, activo)
-                VALUES (:nombre, :direccion, :telefono, :email, :negocio_id, :activo)
+                INSERT INTO sucursales (nombre, direccion, telefono, email, negocio_id, activo, image_url)
+                VALUES (:nombre, :direccion, :telefono, :email, :negocio_id, :activo, :image_url)
                 RETURNING id
             '''), {
                 'nombre': sucursal_data.get('nombre', ''),
@@ -3331,7 +3358,8 @@ def _guardar_sucursal_en_db(sucursal_data):
                 'telefono': sucursal_data.get('telefono', ''),
                 'email': sucursal_data.get('email', ''),
                 'negocio_id': negocio_id,
-                'activo': activo  # Ahora es boolean (True/False), no integer
+                'activo': activo,  # Ahora es boolean (True/False), no integer
+                'image_url': sucursal_data.get('image_url', sucursal_data.get('imagen', ''))
             })
             row = result.fetchone()
             sucursal_id = row[0] if row else None
