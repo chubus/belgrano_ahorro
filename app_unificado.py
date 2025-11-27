@@ -1384,7 +1384,7 @@ def obtener_negocios_desde_db():
         try:
             result = session.execute(text('''
                 SELECT id, nombre, descripcion, direccion, telefono, email, activo,
-                       fecha_creacion, fecha_actualizacion
+                       fecha_creacion, fecha_actualizacion, logo
                 FROM negocios 
                 WHERE activo = TRUE
                 ORDER BY nombre
@@ -1393,6 +1393,18 @@ def obtener_negocios_desde_db():
             negocios = {}
             for row in rows:
                 negocio_id = str(row[0])  # id es la primera columna
+                
+                # Manejo de logo (URL vs Local)
+                logo_raw = row[9]
+                logo_final = None
+                if logo_raw:
+                    if logo_raw.startswith('http') or logo_raw.startswith('//'):
+                        logo_final = logo_raw
+                    else:
+                        # Si es local, asumimos que el template espera la ruta completa o usamos url_for
+                        # Pero negocio.html usa src="{{ negocio.logo }}", así que mejor dar la ruta completa
+                        logo_final = f"/static/images/{logo_raw}"
+                
                 negocios[negocio_id] = {
                     'id': negocio_id,
                     'nombre': row[1] or '',
@@ -1404,7 +1416,8 @@ def obtener_negocios_desde_db():
                     'categoria': 'General',  # Valor por defecto
                     'color': '#007bff',  # Color por defecto
                     'fecha_creacion': str(row[7]) if row[7] else '',
-                    'fecha_actualizacion': str(row[8]) if row[8] else ''
+                    'fecha_actualizacion': str(row[8]) if row[8] else '',
+                    'logo': logo_final
                 }
             if negocios:
                 logger.info(f"[DB] ✅ Negocios obtenidos desde PostgreSQL: {len(negocios)}")
@@ -1442,6 +1455,19 @@ def obtener_productos_desde_db():
             productos = []
             for row in rows:
                 categoria_raw = row[5] or 'General'
+                
+                # Manejo de imagen (URL vs Local)
+                imagen_raw = row[6]
+                image_url = None
+                imagen_local = 'producto-default.jpg' # Default filename
+                
+                if imagen_raw:
+                    if imagen_raw.startswith('http') or imagen_raw.startswith('//'):
+                        image_url = imagen_raw
+                        imagen_local = None # No usamos local si hay URL
+                    else:
+                        imagen_local = imagen_raw
+                
                 producto = {
                     'id': str(row[0]),
                     'nombre': row[1] or '',
@@ -1449,7 +1475,8 @@ def obtener_productos_desde_db():
                     'precio': float(row[3]) if row[3] else 0.0,
                     'precio_original': float(row[4]) if row[4] else float(row[3]) if row[3] else 0.0,
                     'categoria': categoria_raw,
-                    'imagen': row[6] or '/static/images/producto-default.jpg',
+                    'imagen': imagen_local, # Para templates que usan url_for('static', filename=imagen)
+                    'image_url': image_url, # Para templates que usan src="{{ image_url }}"
                     'stock': int(row[7]) if row[7] else 0,
                     'negocio_id': str(row[9]) if row[9] else '1',
                     'negocio': row[14] or 'Sin negocio',
