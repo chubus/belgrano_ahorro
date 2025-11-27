@@ -116,10 +116,21 @@ def init_db():
                     telefono TEXT,
                     email TEXT,
                     activo BOOLEAN DEFAULT TRUE,
+                    logo TEXT,
                     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             '''))
+            
+            # Agregar columna 'logo' si la tabla ya existe pero no tiene el campo
+            try:
+                conn.execute(text('''
+                    ALTER TABLE negocios ADD COLUMN IF NOT EXISTS logo TEXT
+                '''))
+                logger.info("[DB] ✅ Columna 'logo' verificada/agregada a tabla 'negocios'")
+            except Exception as e:
+                logger.warning(f"[DB] ⚠️ No se pudo agregar columna 'logo': {e}")
+
             logger.info("[DB] ✅ Tabla 'negocios' verificada/creada")
             
             # Tabla categorías

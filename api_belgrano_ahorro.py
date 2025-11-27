@@ -228,12 +228,17 @@ def execute_insert_returning_id(query: str, params: tuple, table_name: str = Non
         if hasattr(e, 'orig'):
             error_str += " " + str(e.orig).lower()
             
-        # Detectar error de columna faltante (image_url o imagen)
-        if "undefinedcolumn" in error_str and ("image_url" in error_str or "imagen" in error_str):
+        # Detectar error de columna faltante (image_url, imagen o logo)
+        if "undefinedcolumn" in error_str and ("image_url" in error_str or "imagen" in error_str or "logo" in error_str):
             healing_session = None
             try:
                 # Identificar columna faltante
-                missing_col = "image_url" if "image_url" in error_str else "imagen"
+                if "image_url" in error_str:
+                    missing_col = "image_url"
+                elif "imagen" in error_str:
+                    missing_col = "imagen"
+                else:
+                    missing_col = "logo"
                 
                 # Identificar tabla
                 target_table = table_name
@@ -362,7 +367,7 @@ def api_negocios():
             from sqlalchemy import text
             result = session.execute(text('''
                 SELECT id, nombre, descripcion, direccion, telefono, email, activo,
-                       fecha_creacion, fecha_actualizacion
+                       fecha_creacion, fecha_actualizacion, logo
                 FROM negocios 
                 WHERE activo = TRUE
                 ORDER BY nombre
@@ -429,7 +434,7 @@ def api_negocio_create():
             
             negocio_id = execute_insert_returning_id(
                 '''
-                INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo, image_url)
+                INSERT INTO negocios (nombre, descripcion, direccion, telefono, email, activo, logo)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''',
                 (
@@ -439,7 +444,7 @@ def api_negocio_create():
                     str(data.get('telefono', '')).strip(),
                     str(data.get('email', '')).strip(),
                     activo,  # DEBE ser boolean (True/False), NO integer
-                    data.get('image_url', '')
+                    data.get('logo', data.get('image_url', ''))
                 ),
                 table_name='negocios'
             )
@@ -486,7 +491,7 @@ def api_negocio_detail(negocio_id):
             from sqlalchemy import text
             result = session.execute(text('''
                 SELECT id, nombre, descripcion, direccion, telefono, email, activo,
-                       fecha_creacion, fecha_actualizacion
+                       fecha_creacion, fecha_actualizacion, logo
                 FROM negocios 
                 WHERE id = :id AND activo = TRUE
             '''), {'id': negocio_id})
@@ -529,7 +534,7 @@ def api_negocio_update(negocio_id):
             update_fields = []
             params = {}
             
-            for field in ['nombre', 'descripcion', 'direccion', 'telefono', 'email']:
+            for field in ['nombre', 'descripcion', 'direccion', 'telefono', 'email', 'logo']:
                 if field in data:
                     update_fields.append(f"{field} = :{field}")
                     params[field] = data[field]
