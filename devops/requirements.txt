@@ -24,8 +24,11 @@ pyOpenSSL>=24.0.0
 PyJWT>=2.8.0
 passlib>=1.7.4
 
-# Utilities
+# File Processing
 Pillow>=10.4.0
+cloudinary==1.41.0  # Cloud storage para imágenes
+
+# Production Server
 gunicorn>=21.2.0
 gevent>=24.10.3  # Alternativa a eventlet
 

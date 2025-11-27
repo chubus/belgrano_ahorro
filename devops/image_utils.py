@@ -59,14 +59,14 @@ def save_uploaded_file(file, entity_type, entity_id):
         image.save(img_byte_arr, format='JPEG', quality=85, optimize=True)
         img_byte_arr.seek(0)
         
-        # Generar nombre único
-        public_id = f"belgrano_ahorro/{entity_type}/{uuid.uuid4()}"
+        # Generar nombre único (solo UUID, la carpeta se especifica en folder)
+        unique_id = str(uuid.uuid4())
         
         # Subir a Cloudinary
         upload_result = cloudinary.uploader.upload(
             img_byte_arr,
-            public_id=public_id,
-            folder=f"belgrano_ahorro/{entity_type}",
+            public_id=unique_id,  # Solo el UUID
+            folder=f"belgrano_ahorro/{entity_type}",  # La carpeta completa
             resource_type="image",
             format="jpg",
             transformation=[
@@ -131,3 +131,59 @@ def delete_cloudinary_image(image_url):
     except Exception as e:
         logger.error(f"❌ Error eliminando imagen de Cloudinary: {e}")
         return False
+
+
+# Funciones de compatibilidad con el código existente
+def delete_old_image(image_path):
+    """
+    Alias para delete_cloudinary_image para compatibilidad.
+    """
+    if not image_path:
+        return False
+    return delete_cloudinary_image(image_path)
+
+
+def get_image_url(image_path):
+    """
+    Retorna la URL de la imagen.
+    En Cloudinary, la URL ya es pública, así que solo la retornamos.
+    """
+    return image_path if image_path else None
+
+
+def validate_image(file_stream):
+    """
+    Valida que el archivo sea una imagen válida.
+    Retorna True si es válida, False en caso contrario.
+    """
+    try:
+        # Guardar posición actual
+        current_position = file_stream.tell()
+        
+        # Intentar abrir con Pillow
+        image = Image.open(file_stream)
+        
+        # Restaurar posición
+        file_stream.seek(current_position)
+        
+        return True
+    except Exception as e:
+        logger.error(f"❌ Error validando imagen: {e}")
+        # Restaurar posición en caso de error
+        try:
+            file_stream.seek(current_position)
+        except:
+            pass
+        return False
+
+
+def image_to_base64(file):
+    """
+    DEPRECATED: Esta función ya no se usa con Cloudinary.
+    Se mantiene solo para compatibilidad con código legacy.
+    
+    En lugar de convertir a Base64, ahora subimos directamente a Cloudinary.
+    Esta función retorna un error sugiriendo usar save_uploaded_file.
+    """
+    logger.warning("⚠️ image_to_base64 está deprecated. Use save_uploaded_file en su lugar.")
+    return None, "Esta función está deprecated. Las imágenes ahora se suben a Cloudinary automáticamente."
