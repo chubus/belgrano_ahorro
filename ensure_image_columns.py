@@ -85,7 +85,31 @@ def ensure_image_columns_postgres():
         logger.error("❌ psycopg2 no está instalado - no se puede migrar PostgreSQL")
         return
     
+    # Intentar obtener DATABASE_URL de entorno o .env
     db_url = os.environ.get('DATABASE_URL', '')
+    
+    if not db_url:
+        # Intentar leer .env manualmente
+        try:
+            if os.path.exists('.env'):
+                with open('.env', 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith('#'):
+                            continue
+                        if '=' in line:
+                            parts = line.split('=', 1)
+                            key = parts[0].strip()
+                            value = parts[1].strip()
+                            if key == 'DATABASE_URL':
+                                db_url = value
+                                break
+        except Exception as e:
+            logger.warning(f"No se pudo leer .env: {e}")
+
+    if not db_url:
+        logger.error("❌ DATABASE_URL no encontrada en entorno ni .env")
+        return
     
     # Convertir URL si es necesario
     if db_url.startswith('postgresql+psycopg2://'):
@@ -122,6 +146,18 @@ def ensure_image_columns_postgres():
             if not cursor.fetchone()[0]:
                 cursor.execute(f"ALTER TABLE {table} ADD COLUMN imagen TEXT")
                 logger.info(f"✅ Agregada columna 'imagen' a tabla '{table}'")
+
+        # Verificar columna 'logo' en tabla 'negocios'
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name='negocios' AND column_name='logo'
+            )
+        """)
+        
+        if not cursor.fetchone()[0]:
+            cursor.execute("ALTER TABLE negocios ADD COLUMN logo TEXT")
+            logger.info("✅ Agregada columna 'logo' a tabla 'negocios'")
         
         conn.commit()
         cursor.close()

@@ -1894,7 +1894,9 @@ def carrito():
             session['carrito'] = {}
         
         if 'carrito' in session and session['carrito']:
-            for producto_id, cantidad in session['carrito'].items():
+            # Iterar sobre una COPIA de las claves para poder eliminar elementos durante la iteración
+            for producto_id in list(session['carrito'].keys()):
+                cantidad = session['carrito'][producto_id]
                 try:
                     # Validar que cantidad sea un número válido
                     cantidad = int(cantidad) if cantidad else 0

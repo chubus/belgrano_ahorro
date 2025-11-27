@@ -28,6 +28,7 @@ cloudinary.config(
 def save_uploaded_file(file, entity_type, entity_id):
     """
     Sube un archivo a Cloudinary y retorna la URL pública.
+    Crea imágenes cuadradas optimizadas para tarjetas de producto.
     
     Args:
         file: FileStorage object de Flask
@@ -51,12 +52,37 @@ def save_uploaded_file(file, entity_type, entity_id):
         if image.mode in ('RGBA', 'P'):
             image = image.convert('RGB')
         
-        # Redimensionar (max 1200x1200)
-        image.thumbnail((1200, 1200), Resampling.LANCZOS)
+        # Crear imagen cuadrada con padding inteligente
+        # Tamaño óptimo: 800x800 (suficiente calidad, buen rendimiento)
+        target_size = 800
+        
+        # Calcular dimensiones manteniendo aspecto
+        original_width, original_height = image.size
+        
+        # Redimensionar manteniendo aspecto (el lado más largo será target_size)
+        if original_width > original_height:
+            new_width = target_size
+            new_height = int((target_size / original_width) * original_height)
+        else:
+            new_height = target_size
+            new_width = int((target_size / original_height) * original_width)
+        
+        # Redimensionar imagen
+        image = image.resize((new_width, new_height), Resampling.LANCZOS)
+        
+        # Crear canvas cuadrado con fondo blanco
+        square_image = Image.new('RGB', (target_size, target_size), (255, 255, 255))
+        
+        # Calcular posición para centrar la imagen
+        paste_x = (target_size - new_width) // 2
+        paste_y = (target_size - new_height) // 2
+        
+        # Pegar imagen centrada
+        square_image.paste(image, (paste_x, paste_y))
         
         # Convertir a bytes en formato JPEG
         img_byte_arr = io.BytesIO()
-        image.save(img_byte_arr, format='JPEG', quality=85, optimize=True)
+        square_image.save(img_byte_arr, format='JPEG', quality=90, optimize=True)
         img_byte_arr.seek(0)
         
         # Generar nombre único (solo UUID, la carpeta se especifica en folder)
@@ -70,7 +96,7 @@ def save_uploaded_file(file, entity_type, entity_id):
             resource_type="image",
             format="jpg",
             transformation=[
-                {'width': 1200, 'height': 1200, 'crop': 'limit'},
+                {'width': 800, 'height': 800, 'crop': 'limit'},
                 {'quality': 'auto:good'}
             ]
         )

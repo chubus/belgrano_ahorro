@@ -75,8 +75,11 @@ body {
 }
 
 .card-img-top {
+    width: 100%;
     height: 220px;
-    object-fit: cover;
+    object-fit: cover; /* Images are now square, so cover works perfectly */
+    object-position: center;
+    background-color: #ffffff; /* White background matches image padding */
     transition: var(--transition);
 }
 
@@ -235,6 +238,7 @@ body {
     
     .card-img-top {
         height: 180px;
+        object-fit: contain; /* Maintain aspect ratio on mobile too */
     }
     
     .btn {
