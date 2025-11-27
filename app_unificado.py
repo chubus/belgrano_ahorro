@@ -1459,14 +1459,15 @@ def obtener_productos_desde_db():
                 # Manejo de imagen (URL vs Local)
                 imagen_raw = row[6]
                 image_url = None
-                imagen_local = 'producto-default.jpg' # Default filename
+                imagen_local = '/static/img/producto-default.jpg' # Default filename con path absoluto
                 
                 if imagen_raw:
                     if imagen_raw.startswith('http') or imagen_raw.startswith('//'):
                         image_url = imagen_raw
                         imagen_local = None # No usamos local si hay URL
                     else:
-                        imagen_local = imagen_raw
+                        # Asumir que es una imagen en static/img si no es URL
+                        imagen_local = f"/static/img/{imagen_raw}"
                 
                 producto = {
                     'id': str(row[0]),

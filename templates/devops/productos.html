@@ -19,35 +19,7 @@
 </div>
 
 <!-- Tabla de Productos -->
-<div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nombre</th>
-                        <th>Descripción</th>
-                        <th>Precio</th>
-                        <th>Categoría</th>
-                        <th>Stock</th>
-                        <th>Negocio</th>
                         <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for producto in productos %}
-                    <tr>
-                        <td>{{ producto.id }}</td>
-                        <td>
-                            <strong>{{ producto.nombre }}</strong>
-                        </td>
-                        <td>{{ producto.descripcion or '-' }}</td>
-                        <td>
-                            <span class="badge bg-success">${{ "%.2f"|format(producto.precio) }}</span>
-                        </td>
-                        <td>
                             <span class="badge bg-info">{{ producto.categoria or 'Sin categoría' }}</span>
                         </td>
                         <td>
