@@ -1,5 +1,15 @@
 # Changelog - DevOps & Backend Integration
 
+## [2025-11-27] - Integración con Cloudinary
+
+### File Storage (devops/image_utils_cloudinary.py)
+- **Cloudinary Integration**: Implementado almacenamiento permanente en la nube usando Cloudinary. Las imágenes ahora se suben a Cloudinary en lugar de guardarse en disco local, resolviendo el problema de pérdida de imágenes al reiniciar servicios en Render.
+- **Automatic Optimization**: Las imágenes se redimensionan automáticamente a máximo 1200x1200px y se optimizan con calidad 85%.
+- **Permanent URLs**: Las URLs de Cloudinary son permanentes y se sirven desde CDN global para carga rápida.
+
+### Dependencies (requirements.txt)
+- **Added**: `cloudinary==1.41.0` para integración con servicio de almacenamiento en la nube.
+
 ## [2025-11-27] - Fix Crítico de Gunicorn en Python 3.13
 
 ### Deployment (render.yaml)

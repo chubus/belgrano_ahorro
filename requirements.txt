@@ -28,6 +28,7 @@ pyOpenSSL==23.2.0  # Versión específica para compatibilidad
 
 # File Processing
 Pillow==10.4.0  # Versión específica que no requiere compilación
+cloudinary==1.41.0  # Cloud storage para imágenes
 
 # Production Server
 gunicorn==21.2.0
