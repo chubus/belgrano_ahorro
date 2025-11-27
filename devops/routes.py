@@ -597,21 +597,24 @@ def gestion_productos():
                 file = request.files['imagen_file']
                 if file and file.filename:
                     try:
-                        from image_utils import image_to_base64
+                        from image_utils import save_uploaded_file
                     except ImportError:
                         try:
-                            from devops.image_utils import image_to_base64
+                            from devops.image_utils import save_uploaded_file
                         except ImportError:
-                            from .image_utils import image_to_base64
+                            from .image_utils import save_uploaded_file
                     
-                    base64_data, error = image_to_base64(file)
+                    # Guardar archivo y obtener URL pública
+                    # Usamos ID 0 porque es creación
+                    saved_url, error = save_uploaded_file(file, 'product', 0)
+                    
                     if error:
                         flash(f'Advertencia: {error}. El producto se creará sin imagen.', 'warning')
                         logger.warning(f"Error procesando imagen para producto: {error}")
                     else:
-                        image_url = base64_data
+                        image_url = saved_url
                         imagen_filename = file.filename
-                        logger.info(f"✅ Imagen procesada para producto: {len(base64_data)} caracteres")
+                        logger.info(f"✅ Imagen guardada para producto: {saved_url}")
             
             producto_data = {
                 'nombre': nombre,
@@ -693,21 +696,23 @@ def editar_producto(producto_id):
                 file = request.files['imagen_file']
                 if file and file.filename:
                     try:
-                        from image_utils import image_to_base64
+                        from image_utils import save_uploaded_file
                     except ImportError:
                         try:
-                            from devops.image_utils import image_to_base64
+                            from devops.image_utils import save_uploaded_file
                         except ImportError:
-                            from .image_utils import image_to_base64
+                            from .image_utils import save_uploaded_file
                     
-                    base64_data, error = image_to_base64(file)
+                    # Guardar archivo y obtener URL pública
+                    saved_url, error = save_uploaded_file(file, 'product', producto_id)
+                    
                     if error:
                         flash(f'Advertencia: {error}. Se mantendrá la imagen actual.', 'warning')
                         logger.warning(f"Error procesando nueva imagen para producto {producto_id}: {error}")
                     else:
-                        image_url = base64_data
+                        image_url = saved_url
                         imagen_filename = file.filename
-                        logger.info(f"✅ Nueva imagen procesada para producto {producto_id}")
+                        logger.info(f"✅ Nueva imagen guardada para producto {producto_id}: {saved_url}")
             
             # Si no hay nueva imagen, mantener la actual
             if not image_url:
@@ -845,21 +850,27 @@ def gestion_ofertas():
                 file = request.files['imagen_file']
                 if file and file.filename:
                     try:
-                        from image_utils import image_to_base64
+                        from image_utils import save_uploaded_file
                     except ImportError:
                         try:
-                            from devops.image_utils import image_to_base64
+                            from devops.image_utils import save_uploaded_file
                         except ImportError:
-                            from .image_utils import image_to_base64
+                            from .image_utils import save_uploaded_file
                     
-                    base64_data, error = image_to_base64(file)
+                    # Guardar archivo y obtener URL pública
+                    # Usamos 'product' porque ofertas no tiene carpeta propia en image_utils, o podemos agregarla
+                    # image_utils valida business, branch, product. Usemos 'product' por ahora o agreguemos 'offer'
+                    # Pero save_uploaded_file valida entity_type.
+                    # Vamos a usar 'product' ya que las ofertas suelen ser de productos.
+                    saved_url, error = save_uploaded_file(file, 'product', 0)
+                    
                     if error:
                         flash(f'Advertencia: {error}. La oferta se creará sin imagen.', 'warning')
                         logger.warning(f"Error procesando imagen para oferta: {error}")
                     else:
-                        image_url = base64_data
+                        image_url = saved_url
                         imagen_filename = file.filename
-                        logger.info(f"✅ Imagen procesada para oferta: {len(base64_data)} caracteres")
+                        logger.info(f"✅ Imagen guardada para oferta: {saved_url}")
             
             oferta_data = {
                 'titulo': titulo,
@@ -927,21 +938,23 @@ def editar_oferta(oferta_id):
                 file = request.files['imagen_file']
                 if file and file.filename:
                     try:
-                        from image_utils import image_to_base64
+                        from image_utils import save_uploaded_file
                     except ImportError:
                         try:
-                            from devops.image_utils import image_to_base64
+                            from devops.image_utils import save_uploaded_file
                         except ImportError:
-                            from .image_utils import image_to_base64
+                            from .image_utils import save_uploaded_file
                     
-                    base64_data, error = image_to_base64(file)
+                    # Guardar archivo y obtener URL pública
+                    saved_url, error = save_uploaded_file(file, 'product', oferta_id)
+                    
                     if error:
                         flash(f'Advertencia: {error}. Se mantendrá la imagen actual.', 'warning')
                         logger.warning(f"Error procesando nueva imagen para oferta {oferta_id}: {error}")
                     else:
-                        image_url = base64_data
+                        image_url = saved_url
                         imagen_filename = file.filename
-                        logger.info(f"✅ Nueva imagen procesada para oferta {oferta_id}")
+                        logger.info(f"✅ Nueva imagen guardada para oferta {oferta_id}: {saved_url}")
             
             # Si no hay nueva imagen, mantener la actual
             if not image_url:

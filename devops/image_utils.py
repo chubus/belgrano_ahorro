@@ -127,8 +127,12 @@ def save_uploaded_file(file, entity_type, entity_id):
         # Guardar como JPEG optimizado
         image.save(filepath, format='JPEG', quality=85, optimize=True)
         
-        # Devolver ruta relativa
-        return filepath, None
+        # Devolver URL pública para la BD (no la ruta física)
+        # Mapear entity_type a español si es necesario para la URL, o mantener inglés si app_unificado lo soporta
+        # app_unificado soporta ambos, pero usemos el mismo que la carpeta para consistencia
+        public_url = f"/media/{entity_type}/{filename}"
+        
+        return public_url, None
     except Exception as e:
         logger.error(f"Error al guardar archivo: {str(e)}")
         return None, f"Error al guardar el archivo: {str(e)}"

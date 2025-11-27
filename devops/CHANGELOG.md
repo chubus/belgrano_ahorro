@@ -15,6 +15,7 @@
   - Eliminada restricción de formatos (ahora acepta BMP, TIFF, GIF, etc.).
   - Conversión automática a **JPEG optimizado** para cualquier imagen subida.
   - Redimensionamiento automático (max 1200px) antes de guardar.
+  - **Cambio de Estrategia**: Se reemplazó el envío de imágenes en Base64 por **URLs públicas** (`/media/...`). Esto mejora drásticamente la velocidad de carga y asegura que las imágenes se vean correctamente en el frontend.
 
 ### Utilidades (belgrano_tickets/file_utils.py)
 - **Optimización de Imágenes**: Implementado redimensionamiento automático con `Pillow`.
