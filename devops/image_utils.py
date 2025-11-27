@@ -28,36 +28,46 @@ def image_to_base64(file):
     """
     try:
         # Validar que sea una imagen válida
-        file_ext = validate_image(file.stream)
-        if not file_ext:
-            return None, "Formato de archivo no válido. Use JPG, PNG o WebP"
-        
+        # Permitir cualquier formato que Pillow pueda abrir
+        try:
+            image = Image.open(file)
+            format_detected = image.format.lower() if image.format else 'jpeg'
+        except Exception:
+            return None, "El archivo no es una imagen válida o está corrupto."
+            
         # Volver al inicio del archivo
         file.seek(0)
-        file_data = file.read()
         
-        # Validar tamaño (máximo 2MB para Base64)
-        # Base64 aumenta el tamaño ~33%, así que 2MB se convierte en ~2.7MB
-        max_size = 2 * 1024 * 1024  # 2MB
+        # Procesar imagen con Pillow para estandarizar
+        # Convertir a RGB si es necesario
+        if image.mode in ('RGBA', 'P'):
+            image = image.convert('RGB')
+            
+        # Redimensionar si es muy grande (max 1024x1024 para Base64)
+        image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+        
+        # Guardar en buffer como JPEG optimizado
+        buffer = io.BytesIO()
+        image.save(buffer, format='JPEG', quality=85, optimize=True)
+        buffer.seek(0)
+        file_data = buffer.read()
+        
+        # Validar tamaño (máximo 3MB para Base64 después de optimizar)
+        max_size = 3 * 1024 * 1024
         if len(file_data) > max_size:
             size_mb = len(file_data) / (1024 * 1024)
-            return None, f"Imagen demasiado grande ({size_mb:.1f}MB). Máximo 2MB"
+            return None, f"Imagen demasiado grande ({size_mb:.1f}MB). Máximo 3MB"
         
         # Convertir a Base64
         base64_string = base64.b64encode(file_data).decode('utf-8')
         
-        # Determinar MIME type
-        mime_type = {
-            'jpeg': 'image/jpeg',
-            'jpg': 'image/jpeg',
-            'png': 'image/png',
-            'webp': 'image/webp'
-        }.get(file_ext.lower(), 'image/jpeg')
+        # Siempre devolver como JPEG
+        mime_type = 'image/jpeg'
         
-        # Crear data URL (formato estándar para Base64 en HTML)
+        # Crear data URL
         data_url = f"data:{mime_type};base64,{base64_string}"
         
-        logger.info(f"✅ Imagen convertida a Base64: {len(base64_string)} caracteres, tipo: {mime_type}")
+        logger.info(f"✅ Imagen procesada y convertida a Base64: {len(base64_string)} chars")
         
         return data_url, None
         
@@ -68,8 +78,8 @@ def image_to_base64(file):
 
 def validate_image(stream):
     """
-    Valida que el archivo sea una imagen válida (jpg, png, webp).
-    Devuelve la extensión si es válida, None en caso contrario.
+    Valida que el archivo sea una imagen válida soportada por Pillow.
+    Devuelve el formato detectado o 'jpeg' por defecto si es válida.
     """
     try:
         # Read the first few bytes to check the image
@@ -78,12 +88,7 @@ def validate_image(stream):
         
         # Try to open the image with Pillow
         image = Image.open(io.BytesIO(header))
-        
-        # Check if it's a supported format
-        if image.format.lower() in ['jpeg', 'png', 'webp']:
-            return image.format.lower()
-            
-        return None
+        return image.format.lower() if image.format else 'jpeg'
     except UnidentifiedImageError:
         return None
     except Exception as e:
@@ -92,44 +97,37 @@ def validate_image(stream):
 
 def save_uploaded_file(file, entity_type, entity_id):
     """
-    Guarda un archivo subido en el sistema de archivos.
-    
-    Args:
-        file: Archivo a guardar (objeto FileStorage de Flask)
-        entity_type: Tipo de entidad (business, branch, product)
-        entity_id: ID de la entidad
-        
-    Returns:
-        str: Ruta relativa al archivo guardado o None en caso de error
+    Guarda un archivo subido en el sistema de archivos, convirtiéndolo a formato web.
     """
     if entity_type not in ['business', 'branch', 'product']:
         return None, "Tipo de entidad no válido"
         
     # Validar que el archivo sea una imagen
-    file_ext = validate_image(file.stream)
-    if not file_ext or file_ext.lower() not in ['.jpg', '.jpeg', '.png', '.webp']:
-        return None, "Formato de archivo no soportado. Use JPG, PNG o WebP"
+    try:
+        image = Image.open(file)
+    except Exception:
+        return None, "El archivo no es una imagen válida."
         
-    # Validar tamaño del archivo (máximo 5MB)
-    file.seek(0, os.SEEK_END)
-    file_size = file.tell()
-    file.seek(0)
-    
-    if file_size > 5 * 1024 * 1024:  # 5MB
-        return None, "El archivo es demasiado grande. Tamaño máximo: 5MB"
-    
     # Crear directorio si no existe
     upload_dir = os.path.join('uploads', entity_type)
     os.makedirs(upload_dir, exist_ok=True)
     
-    # Generar nombre único para el archivo usando UUID completo
-    filename = f"{str(uuid.uuid4())}{file_ext}"
+    # Generar nombre único (siempre .jpg porque convertiremos)
+    filename = f"{str(uuid.uuid4())}.jpg"
     filepath = os.path.join(upload_dir, filename)
     
     try:
-        # Guardar el archivo
-        file.save(filepath)
-        # Devolver ruta relativa para almacenar en la base de datos
+        # Convertir y optimizar
+        if image.mode in ('RGBA', 'P'):
+            image = image.convert('RGB')
+            
+        # Redimensionar (max 1200x1200 para archivos en disco)
+        image.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+        
+        # Guardar como JPEG optimizado
+        image.save(filepath, format='JPEG', quality=85, optimize=True)
+        
+        # Devolver ruta relativa
         return filepath, None
     except Exception as e:
         logger.error(f"Error al guardar archivo: {str(e)}")

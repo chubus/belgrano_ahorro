@@ -8,9 +8,13 @@
   - Se reintenta la inserción automáticamente.
 - **Persistencia de Imágenes**: Restaurado el guardado de `image_url` en los INSERT de `negocios`, `productos` y `sucursales`.
 
-### DevOps Client (devops/manager_unified.py)
+### DevOps Client (devops/manager_unified.py & devops/image_utils.py)
 - **API Versioning**: Actualizados todos los endpoints para usar `/api/v1/` en lugar de `/api/`.
 - **Cache Inteligente**: Mejorada la invalidación de caché (`clear_cache`) para limpiar tanto la lista como el detalle del item al actualizar.
+- **Soporte Universal de Imágenes**:
+  - Eliminada restricción de formatos (ahora acepta BMP, TIFF, GIF, etc.).
+  - Conversión automática a **JPEG optimizado** para cualquier imagen subida.
+  - Redimensionamiento automático (max 1200px) antes de guardar.
 
 ### Utilidades (belgrano_tickets/file_utils.py)
 - **Optimización de Imágenes**: Implementado redimensionamiento automático con `Pillow`.
