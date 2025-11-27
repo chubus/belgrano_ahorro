@@ -155,7 +155,7 @@ class DevOpsBelgranoManagerUnified:
 
     def get_items(self, kind: str):
         """Obtener items con cache habilitado por defecto"""
-        ok, data = self._req('GET', f"/api/v1/{kind}")
+        ok, data = self._req('GET', f"/api/{kind}")
         if ok and isinstance(data, dict):
             # Si tiene estructura de API estándar con 'data'
             if 'data' in data:
@@ -166,10 +166,10 @@ class DevOpsBelgranoManagerUnified:
         return data if ok else []
 
     def create_item(self, kind: str, payload: Dict[str, Any]):
-        ok, data = self._req('POST', f"/api/v1/{kind}", json_data=payload)
+        ok, data = self._req('POST', f"/api/{kind}", json_data=payload)
         # Limpiar cache del tipo de item creado para forzar refresh
         if ok:
-            clear_cache(f"GET:{self.belgrano_url}/api/v1/{kind}")
+            clear_cache(f"GET:{self.belgrano_url}/api/{kind}")
             return (True, 'ok')
         else:
             # Mejorar el manejo de errores para mostrar el mensaje correcto
@@ -183,18 +183,18 @@ class DevOpsBelgranoManagerUnified:
                 return (False, str(data))
 
     def update_item(self, kind: str, item_id: Any, payload: Dict[str, Any]):
-        ok, data = self._req('PUT', f"/api/v1/{kind}/{item_id}", json_data=payload)
+        ok, data = self._req('PUT', f"/api/{kind}/{item_id}", json_data=payload)
         # Limpiar cache del tipo de item actualizado
         if ok:
-            clear_cache(f"GET:{self.belgrano_url}/api/v1/{kind}")
-            clear_cache(f"GET:{self.belgrano_url}/api/v1/{kind}/{item_id}")
+            clear_cache(f"GET:{self.belgrano_url}/api/{kind}")
+            clear_cache(f"GET:{self.belgrano_url}/api/{kind}/{item_id}")
         return (True, 'ok') if ok else (False, str(data))
 
     def delete_item(self, kind: str, item_id: Any):
-        ok, data = self._req('DELETE', f"/api/v1/{kind}/{item_id}")
+        ok, data = self._req('DELETE', f"/api/{kind}/{item_id}")
         # Limpiar cache del tipo de item eliminado
         if ok:
-            clear_cache(f"GET:{self.belgrano_url}/api/v1/{kind}")
+            clear_cache(f"GET:{self.belgrano_url}/api/{kind}")
         return (True, 'ok') if ok else (False, str(data))
 
     def get_productos(self):

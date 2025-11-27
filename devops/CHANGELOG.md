@@ -1,5 +1,13 @@
 # Changelog - DevOps & Backend Integration
 
+## [2025-11-27] - Fix Crítico de Gunicorn en Python 3.13
+
+### Deployment (render.yaml)
+- **Gunicorn Worker Fix**: Especificado explícitamente `--worker-class sync` en el comando de inicio para evitar el uso de `eventlet`, que no es compatible con Python 3.13+. Esto resuelve el error `RuntimeError: do not call blocking functions from the mainloop`.
+
+### Backend (app_unificado.py)
+- **Upload Configuration Fix**: Agregada configuración de `UPLOAD_FOLDER`, `MAX_CONTENT_LENGTH` y `UPLOAD_EXTENSIONS` a `app.config`. Esto permite que DevOps guarde imágenes correctamente en disco y que se sirvan a través del endpoint `/media/`.
+
 ## [2025-11-26] - Fixes Críticos de Imágenes y Base de Datos
 
 ### Backend (api_belgrano_ahorro.py)
@@ -9,7 +17,7 @@
 - **Persistencia de Imágenes**: Restaurado el guardado de `image_url` en los INSERT de `negocios`, `productos` y `sucursales`.
 
 ### DevOps Client (devops/manager_unified.py & devops/image_utils.py)
-- **API Versioning**: Actualizados todos los endpoints para usar `/api/v1/` en lugar de `/api/`.
+- **API Routing Fix**: Corregidas las rutas de API de `/api/v1/` a `/api/` para coincidir con el blueprint real de Belgrano Ahorro. Esto resuelve los errores 400 "Failed to decode JSON".
 - **Cache Inteligente**: Mejorada la invalidación de caché (`clear_cache`) para limpiar tanto la lista como el detalle del item al actualizar.
 - **Soporte Universal de Imágenes**:
   - Eliminada restricción de formatos (ahora acepta BMP, TIFF, GIF, etc.).

@@ -276,7 +276,8 @@ if api_bp:
 try:
     from config import (
         BELGRANO_AHORRO_URL, BELGRANO_AHORRO_API_KEY,
-        TICKETERA_URL, FLASK_ENV, SECRET_KEY
+        TICKETERA_URL, FLASK_ENV, SECRET_KEY,
+        UPLOAD_FOLDER, MAX_CONTENT_LENGTH, ALLOWED_EXTENSIONS
     )
     logger.info("[INIT] ✅ Configuración centralizada cargada")
 except ImportError:
@@ -286,10 +287,16 @@ except ImportError:
     TICKETERA_URL = os.environ.get('TICKETERA_URL', 'https://ticketerabelgrano.onrender.com')
     FLASK_ENV = os.environ.get('FLASK_ENV', 'production')
     SECRET_KEY = os.environ.get('SECRET_KEY', 'belgrano_ahorro_secret_key_2025')
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
 app.config['ENV'] = FLASK_ENV
 app.secret_key = SECRET_KEY
 app.config['API_KEY'] = BELGRANO_AHORRO_API_KEY
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+app.config['UPLOAD_EXTENSIONS'] = ALLOWED_EXTENSIONS
 
 # Registrar manejadores de errores
 register_error_handlers(app)
