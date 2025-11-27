@@ -19,7 +19,7 @@
 </div>
 
 <!-- Tabla de Productos -->
-        <div class="card">
+<div class="card">
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -78,7 +78,7 @@
                                     <button type="submit" class="btn btn-sm btn-danger btn-delete">
                                         <i class="fas fa-trash"></i>
                                     </button>
-                            </form>
+                                </form>
                             </div>
                         </td>
                     </tr>
@@ -93,8 +93,8 @@
             </table>
         </div>
     </div>
-        </div>
-        
+</div>
+
 <!-- Modal Crear Producto -->
 <div class="modal fade" id="crearProductoModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -105,7 +105,7 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ url_for('devops.gestion_productos') }}">
+            <form method="POST" action="{{ url_for('devops.gestion_productos') }}" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -121,6 +121,11 @@
                         <label class="form-label">Descripción</label>
                         <textarea class="form-control" name="descripcion" rows="3"></textarea>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Imagen del Producto</label>
+                        <input type="file" class="form-control" name="imagen" accept="image/*">
+                        <small class="form-text text-muted">Formatos: JPG, PNG, WEBP. Se redimensionará automáticamente a 800x800.</small>
+                    </div>
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Categoría</label>
@@ -129,7 +134,7 @@
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Stock</label>
                             <input type="number" class="form-control" name="stock" min="0" value="0">
-                    </div>
+                        </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Negocio</label>
                             <select class="form-select" name="negocio_id">
@@ -149,39 +154,44 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save me-2"></i>Crear Producto
-                </button>
+                    </button>
                 </div>
             </form>
         </div>
-        </div>
-            </div>
-            
+    </div>
+</div>
+
 <!-- Modal Editar Producto -->
 <div class="modal fade" id="editarProductoModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="fas fa-edit me-2"></i>Editar Producto
                 </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-            <form id="editarProductoForm" method="POST">
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editarProductoForm" method="POST" enctype="multipart/form-data">
                 <div class="modal-body">
-                        <div class="row">
+                    <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Nombre *</label>
                             <input type="text" class="form-control" name="nombre" id="edit_nombre" required>
-                            </div>
+                        </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Precio *</label>
                             <input type="number" class="form-control" name="precio" id="edit_precio" step="0.01" min="0" required>
                         </div>
-                            </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label">Descripción</label>
                         <textarea class="form-control" name="descripcion" id="edit_descripcion" rows="3"></textarea>
-                            </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Imagen del Producto</label>
+                        <input type="file" class="form-control" name="imagen" accept="image/*">
+                        <small class="form-text text-muted">Dejar vacío para mantener la imagen actual. Formatos: JPG, PNG, WEBP.</small>
+                    </div>
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Categoría</label>
@@ -217,9 +227,9 @@
     </div>
 </div>
 {% endblock %}
-    
+
 {% block scripts %}
-    <script>
+<script>
 function editarProducto(id, nombre, descripcion, precio, categoria, stock, negocio_id, activo) {
     // Llenar el formulario de edición
     document.getElementById('edit_nombre').value = nombre;
@@ -231,11 +241,11 @@ function editarProducto(id, nombre, descripcion, precio, categoria, stock, negoc
     document.getElementById('edit_activo').checked = activo;
     
     // Configurar la acción del formulario
-    document.getElementById('editarProductoForm').action = `/devops/productos/${id}/editar`;
+    document.getElementById('editarProductoForm').action = `/devops/productos/${id}`;
     
     // Mostrar el modal
     const modal = new bootstrap.Modal(document.getElementById('editarProductoModal'));
-                modal.show();
-        }
-    </script>
+    modal.show();
+}
+</script>
 {% endblock %}
