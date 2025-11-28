@@ -767,6 +767,33 @@ def gestion_productos():
                 'precio': precio_float,
                 'categoria': categoria,
                 'negocio': negocio,
+                'descripcion': request.form.get('descripcion', ''),
+                'imagen': request.form.get('imagen', ''),
+                'activo': True
+            }
+
+            # Procesar imagen si se subió
+            if 'imagen' in request.files:
+                file = request.files['imagen']
+                if file and file.filename:
+                    if save_uploaded_file:
+                        image_url, error = save_uploaded_file(file, 'product', 0)
+                        if image_url:
+                            producto_data['imagen'] = image_url
+                            logger.info(f"✅ Imagen subida para nuevo producto: {image_url}")
+                        else:
+                            logger.error(f"❌ Error subiendo imagen: {error}")
+                            flash(f'Error subiendo imagen: {error}', 'warning')
+                    else:
+                        logger.error("❌ save_uploaded_file no disponible")
+                        flash('Sistema de subida de imágenes no disponible', 'warning')
+            
+            
+            if devops_manager:
+                success, message = devops_manager.create_producto(producto_data)
+                if success:
+                    flash(f'Producto "{nombre}" creado exitosamente', 'success')
+                    logger.info(f"Producto creado desde DevOps: {nombre}")
                 else:
                     logger.error(f"Error al crear producto en API: {message}")
                     # Fallback local
