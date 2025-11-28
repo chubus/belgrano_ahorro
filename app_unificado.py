@@ -4551,6 +4551,9 @@ def api_update_precio(producto_id):
             'producto_id': producto_id,
             'precio_anterior': precio_anterior,
             'precio_actual': float(data['nuevo_precio']),
+            'motivo': data.get('motivo', ''),
+            'fecha_actualizacion': datetime.now().isoformat()
+        }
         datos['precios'].append(registro)
         with open('productos.json', 'w', encoding='utf-8') as f:
             json.dump(datos, f, indent=2, ensure_ascii=False)
