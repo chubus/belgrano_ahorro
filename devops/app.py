@@ -134,6 +134,32 @@ def create_app():
     except ImportError:
         logger.warning("⚠️ Flask-WTF no está instalado. CSRF protection deshabilitado.")
         app.config['WTF_CSRF_ENABLED'] = False
+    
+    # Inicializar Cloudinary
+    try:
+        # Agregar directorio raíz al path para importar cloudinary_config
+        project_root = Path(__file__).parent.parent.absolute()
+        if str(project_root) not in sys.path:
+            sys.path.insert(0, str(project_root))
+        
+        from cloudinary_config import init_cloudinary
+        cloudinary_configured = init_cloudinary()
+        if cloudinary_configured:
+            logger.info("[INIT] ✅ Cloudinary configurado correctamente")
+        else:
+            logger.warning("[INIT] ⚠️ Cloudinary no está configurado - las imágenes pueden no funcionar")
+    except ImportError:
+        logger.warning("[INIT] ⚠️ cloudinary_config no disponible - las imágenes pueden no funcionar")
+    except Exception as e:
+        logger.error(f"[INIT] ❌ Error inicializando Cloudinary: {e}")
+    
+    # Configurar CORS
+    try:
+        from flask_cors import CORS
+        CORS(app)
+        logger.info("[INIT] ✅ CORS configurado correctamente")
+    except ImportError:
+        logger.warning("[INIT] ⚠️ Flask-CORS no está instalado - instalar con: pip install Flask-CORS")
         
     # Configuración de base de datos si es necesario
     database_url = os.environ.get('DATABASE_URL', '')
@@ -206,6 +232,94 @@ def create_app():
             'service': 'devops',
             'environment': app.config.get('ENV', 'production')
         })
+    
+    # =================================================================
+    # ENDPOINTS UNIFICADOS DE CLOUDINARY
+    # =================================================================
+    
+    @app.route('/api/upload-image', methods=['POST'])
+    def upload_image():
+        """
+        Endpoint unificado para subir imágenes a Cloudinary.
+        
+        Acepta:
+        - multipart/form-data
+        - Campo obligatorio: file
+        - Campo opcional: folder (por defecto "belgrano-ahorro")
+        
+        Retorna:
+        - secure_url: URL pública de la imagen en Cloudinary
+        - public_id: ID público de la imagen
+        """
+        from flask import request
+        try:
+            # Verificar que se envió un archivo
+            if 'file' not in request.files:
+                return jsonify({"error": "No file provided"}), 400
+            
+            file = request.files['file']
+            
+            # Verificar que el archivo tenga nombre
+            if file.filename == '':
+                return jsonify({"error": "No file selected"}), 400
+            
+            # Obtener folder opcional
+            folder = request.form.get('folder', 'belgrano-ahorro')
+            
+            # Importar cloudinary
+            try:
+                import cloudinary.uploader
+            except ImportError:
+                return jsonify({"error": "Cloudinary not installed"}), 500
+            
+            # Subir a Cloudinary
+            result = cloudinary.uploader.upload(
+                file,
+                folder=folder,
+                resource_type='auto'
+            )
+            
+            logger.info(f"✅ Imagen subida a Cloudinary: {result['secure_url']}")
+            
+            return jsonify({
+                "secure_url": result["secure_url"],
+                "public_id": result["public_id"]
+            })
+        
+        except Exception as e:
+            logger.error(f"❌ Error subiendo imagen a Cloudinary: {e}")
+            return jsonify({"error": str(e)}), 500
+    
+    
+    @app.route('/api/ping-cloudinary', methods=['GET'])
+    def ping_cloudinary():
+        """
+        Endpoint para verificar la conexión con Cloudinary.
+        
+        Retorna:
+        - status: "ok" si la conexión es exitosa
+        - error: mensaje de error si falla
+        """
+        try:
+            import cloudinary.api
+            cloudinary.api.ping()
+            
+            # Obtener configuración
+            project_root = Path(__file__).parent.parent.absolute()
+            if str(project_root) not in sys.path:
+                sys.path.insert(0, str(project_root))
+            from cloudinary_config import get_cloudinary_status
+            status = get_cloudinary_status()
+            
+            return jsonify({
+                "status": "ok",
+                "configured": status['configured'],
+                "cloud_name": status['cloud_name']
+            })
+        except ImportError:
+            return jsonify({"error": "Cloudinary not installed"}), 500
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
     
     logger.info("✅ Aplicación Flask configurada correctamente")
     return app

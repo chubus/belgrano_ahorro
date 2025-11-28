@@ -301,6 +301,27 @@ app.config['UPLOAD_EXTENSIONS'] = ALLOWED_EXTENSIONS
 # Registrar manejadores de errores
 register_error_handlers(app)
 
+# Inicializar Cloudinary
+try:
+    from cloudinary_config import init_cloudinary
+    cloudinary_configured = init_cloudinary()
+    if cloudinary_configured:
+        logger.info("[INIT] ✅ Cloudinary configurado correctamente")
+    else:
+        logger.warning("[INIT] ⚠️ Cloudinary no está configurado - las imágenes pueden no funcionar")
+except ImportError:
+    logger.warning("[INIT] ⚠️ cloudinary_config no disponible - las imágenes pueden no funcionar")
+except Exception as e:
+    logger.error(f"[INIT] ❌ Error inicializando Cloudinary: {e}")
+
+# Configurar CORS
+try:
+    from flask_cors import CORS
+    CORS(app)
+    logger.info("[INIT] ✅ CORS configurado correctamente")
+except ImportError:
+    logger.warning("[INIT] ⚠️ Flask-CORS no está instalado - instalar con: pip install Flask-CORS")
+
 # NO registrar blueprint de DevOps aquí - DevOps es una app separada
 
 # ==========================================
@@ -4530,27 +4551,108 @@ def api_update_precio(producto_id):
             'producto_id': producto_id,
             'precio_anterior': precio_anterior,
             'precio_actual': float(data['nuevo_precio']),
-            'motivo': data.get('motivo', ''),
-            'fecha_actualizacion': datetime.now().isoformat()
-        }
         datos['precios'].append(registro)
-        if guardar_datos_json(datos):
-            logger.info(f"Precio actualizado via API: prod {producto_id}")
-            return jsonify({'message': 'Precio actualizado', 'registro': registro}), 200
-        return jsonify({'error': 'Error al guardar el precio'}), 500
+        with open('productos.json', 'w', encoding='utf-8') as f:
+            json.dump(datos, f, indent=2, ensure_ascii=False)
+        return jsonify({'success': True, 'mensaje': 'Precio actualizado correctamente', 'registro': registro})
     except Exception as e:
-        logger.error(f"Error actualizando precio via API: {e}")
-        return jsonify({'error': 'Error interno del servidor'}), 500
+        logger.error(f"Error actualizando precio: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-# ==========================================
-# INICIO DE LA APLICACIÓN
-# ==========================================
-if __name__ == "__main__":
+# =================================================================
+# ENDPOINTS UNIFICADOS DE CLOUDINARY
+# =================================================================
+
+@app.route('/api/upload-image', methods=['POST'])
+def upload_image():
     """
-    PUNTO DE ENTRADA - Solo se ejecuta si corremos este archivo directamente
-    Inicia el servidor Flask en modo debug
+    Endpoint unificado para subir imágenes a Cloudinary.
+    
+    Acepta:
+    - multipart/form-data
+    - Campo obligatorio: file
+    - Campo opcional: folder (por defecto "belgrano-ahorro")
+    
+    Retorna:
+    - secure_url: URL pública de la imagen en Cloudinary
+    - public_id: ID público de la imagen
     """
-    logger.info("Iniciando aplicación Flask...")
+    try:
+        # Verificar que se envió un archivo
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+        
+        file = request.files['file']
+        
+        # Verificar que el archivo tenga nombre
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        
+        # Obtener folder opcional
+        folder = request.form.get('folder', 'belgrano-ahorro')
+        
+        # Importar cloudinary
+        try:
+            import cloudinary.uploader
+        except ImportError:
+            return jsonify({"error": "Cloudinary not installed"}), 500
+        
+        # Subir a Cloudinary
+        result = cloudinary.uploader.upload(
+            file,
+            folder=folder,
+            resource_type='auto'
+        )
+        
+        logger.info(f"✅ Imagen subida a Cloudinary: {result['secure_url']}")
+        
+        return jsonify({
+            "secure_url": result["secure_url"],
+            "public_id": result["public_id"]
+        })
+    
+    except Exception as e:
+        logger.error(f"❌ Error subiendo imagen a Cloudinary: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/ping-cloudinary', methods=['GET'])
+def ping_cloudinary():
+    """
+    Endpoint para verificar la conexión con Cloudinary.
+    
+    Retorna:
+    - status: "ok" si la conexión es exitosa
+    - error: mensaje de error si falla
+    """
+    try:
+        import cloudinary.api
+        cloudinary.api.ping()
+        
+        # Obtener configuración
+        from cloudinary_config import get_cloudinary_status
+        status = get_cloudinary_status()
+        
+        return jsonify({
+            "status": "ok",
+            "configured": status['configured'],
+            "cloud_name": status['cloud_name']
+        })
+    except ImportError:
+        return jsonify({"error": "Cloudinary not installed"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# =================================================================
+# PUNTO DE ENTRADA PRINCIPAL
+# =================================================================
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    logger.info(f"🚀 Iniciando servidor en puerto {port} (debug={debug})")
+    app.run(host='0.0.0.0', port=port, debug=debug)
     logger.info("🚀 Iniciando Belgrano Ahorro...")
     logger.info("📱 Abre tu navegador en: http://localhost:5000")
     logger.info("⏹️  Presiona Ctrl+C para detener")
