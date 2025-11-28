@@ -37,6 +37,13 @@ services:
         sync: false  # Configurar manualmente en Render Dashboard
       - key: DEVOPS_PASSWORD
         sync: false  # Configurar manualmente en Render Dashboard
+      # Configuración de Cloudinary para almacenamiento de imágenes
+      - key: CLOUDINARY_CLOUD_NAME
+        value: dc2n1p5wx
+      - key: CLOUDINARY_API_KEY
+        value: "882162797341932"
+      - key: CLOUDINARY_API_SECRET
+        sync: false  # Configurar manualmente en Render Dashboard por seguridad
       - key: PORT
         fromService:
           type: web

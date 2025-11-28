@@ -773,19 +773,6 @@ def gestion_productos():
             }
 
             # Procesar imagen si se subió
-            if 'imagen' in request.files:
-                file = request.files['imagen']
-                if file and file.filename:
-                    if save_uploaded_file:
-                        image_url, error = save_uploaded_file(file, 'product', 0)
-                        if image_url:
-                            producto_data['imagen'] = image_url
-                            logger.info(f"✅ Imagen subida para nuevo producto: {image_url}")
-                        else:
-                            logger.error(f"❌ Error subiendo imagen: {error}")
-                            flash(f'Error subiendo imagen: {error}', 'warning')
-                    else:
-                        logger.error("❌ save_uploaded_file no disponible")
                         flash('Sistema de subida de imágenes no disponible', 'warning')
             
             

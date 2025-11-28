@@ -26,6 +26,15 @@ services:
       # Configuración de la API de Belgrano Ahorro
       - key: BELGRANO_AHORRO_URL
         value: https://belgranoahorro-aliq.onrender.com
+      - key: BELGRANO_AHORRO_API_KEY
+        sync: false  # Configurar manualmente en Render Dashboard
+      # Configuración de Cloudinary para almacenamiento de imágenes
+      - key: CLOUDINARY_CLOUD_NAME
+        value: dc2n1p5wx
+      - key: CLOUDINARY_API_KEY
+        value: "882162797341932"
+      - key: CLOUDINARY_API_SECRET
+        sync: false  # Configurar manualmente en Render Dashboard por seguridad
 
 databases:
   - name: belgrano-ahorro-db
