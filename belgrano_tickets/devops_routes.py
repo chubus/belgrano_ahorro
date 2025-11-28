@@ -762,6 +762,7 @@ def gestion_productos():
                 return redirect(url_for('devops.gestion_productos'))
             
             # Crear producto usando el gestor DevOps
+            # Crear producto usando el gestor DevOps
             producto_data = {
                 'nombre': nombre,
                 'precio': precio_float,
@@ -773,14 +774,29 @@ def gestion_productos():
             }
 
             # Procesar imagen si se subió
+            if 'imagen' in request.files:
+                file = request.files['imagen']
+                if file and file.filename:
+                    if save_uploaded_file:
+                        image_url, error = save_uploaded_file(file, 'product', 0)
+                        if image_url:
+                            # CORRECCIÓN: Guardar URL en image_url, no en imagen
+                            producto_data['image_url'] = image_url
+                            producto_data['imagen'] = file.filename
+                            logger.info(f"✅ Imagen subida para nuevo producto: {image_url}")
+                        else:
+                            logger.error(f"❌ Error subiendo imagen: {error}")
+                            flash(f'Error subiendo imagen: {error}', 'warning')
+                    else:
+                        logger.error("❌ save_uploaded_file no disponible")
                         flash('Sistema de subida de imágenes no disponible', 'warning')
-            
             
             if devops_manager:
                 success, message = devops_manager.create_producto(producto_data)
                 if success:
                     flash(f'Producto "{nombre}" creado exitosamente', 'success')
                     logger.info(f"Producto creado desde DevOps: {nombre}")
+
                 else:
                     logger.error(f"Error al crear producto en API: {message}")
                     # Fallback local
