@@ -11,13 +11,6 @@ Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.0.5
 Flask-WTF==1.2.1
 
-# Real-time
-Flask-SocketIO==5.3.6
-python-socketio==5.10.0
-python-engineio==4.8.2
-eventlet>=0.35.2
-greenlet>=3.1.0  # Versión compatible con Python 3.13
-
 # Security
 cryptography>=42.0.2
 pyOpenSSL>=24.0.0
@@ -27,6 +20,7 @@ passlib>=1.7.4
 # File Processing
 Pillow>=10.4.0
 cloudinary==1.41.0  # Cloud storage para imágenes
+Flask-CORS>=4.0.0  # CORS support para APIs
 
 # Production Server
 gunicorn>=21.2.0
