@@ -1459,15 +1459,19 @@ def obtener_productos_desde_db():
                 # Manejo de imagen (URL vs Local)
                 imagen_raw = row[6]
                 image_url = None
-                imagen_local = '/static/img/producto-default.jpg' # Default filename con path absoluto
+                imagen_local = '/static/images/producto-default.jpg' # Default filename con path absoluto correcto
                 
                 if imagen_raw:
                     if imagen_raw.startswith('http') or imagen_raw.startswith('//'):
                         image_url = imagen_raw
                         imagen_local = None # No usamos local si hay URL
                     else:
-                        # Asumir que es una imagen en static/img si no es URL
-                        imagen_local = f"/static/img/{imagen_raw}"
+                        # Asumir que es una imagen en static/images si no es URL
+                        # Si tiene path relativo, usarlo, sino asumir raíz de images
+                        if '/' in imagen_raw:
+                             imagen_local = f"/static/{imagen_raw}" if not imagen_raw.startswith('/') else imagen_raw
+                        else:
+                             imagen_local = f"/static/images/{imagen_raw}"
                 
                 producto = {
                     'id': str(row[0]),
@@ -1697,7 +1701,8 @@ def index():
     # Filtrar productos si hay búsqueda
     productos_filtrados = []
     if busqueda:
-        todos_productos = datos.get('productos', [])
+        # Usar productos obtenidos de DB, no de JSON (datos) que puede estar vacío
+        todos_productos = productos_db
         productos_filtrados = [
             p for p in todos_productos 
             if busqueda.lower() in p['nombre'].lower() and p.get('activo', True)

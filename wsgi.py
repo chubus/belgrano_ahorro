@@ -64,7 +64,8 @@ try:
     from ensure_image_columns import ensure_image_columns
     ensure_image_columns()
 except Exception as e:
-    logger.warning(f"⚠️ No se pudo ejecutar migración automática: {e}")
+    # Capturar cualquier error (incluyendo Deadlocks) para no detener el inicio
+    logger.warning(f"⚠️ No se pudo ejecutar migración automática (posible concurrencia): {e}")
 
 
 try:
