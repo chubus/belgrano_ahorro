@@ -1,6 +1,6 @@
 # MUST be first - before any other imports
-import eventlet
-eventlet.monkey_patch()
+import gevent.monkey
+gevent.monkey.patch_all()
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-

@@ -628,7 +628,8 @@ def api_productos():
             result = session.execute(text('''
                 SELECT p.id, p.nombre, p.store, p.precio, p.original_price, p.categoria,
                        p.imagen, p.stock, p.stock_minimo, p.negocio_id, p.activo, p.destacado,
-                       p.fecha_creacion, p.fecha_actualizacion,
+                       p.imagen, p.stock, p.stock_minimo, p.negocio_id, p.activo, p.destacado,
+                       p.fecha_creacion, p.fecha_actualizacion, p.image_url,
                        n.nombre as negocio_nombre
                 FROM productos p
                 LEFT JOIN negocios n ON p.negocio_id = n.id
@@ -721,7 +722,8 @@ def api_producto_detail(producto_id):
             result = session.execute(text('''
                 SELECT p.id, p.nombre, p.store, p.precio, p.original_price, p.categoria,
                        p.imagen, p.stock, p.stock_minimo, p.negocio_id, p.activo, p.destacado,
-                       p.fecha_creacion, p.fecha_actualizacion,
+                       p.imagen, p.stock, p.stock_minimo, p.negocio_id, p.activo, p.destacado,
+                       p.fecha_creacion, p.fecha_actualizacion, p.image_url,
                        n.nombre as negocio_nombre
                 FROM productos p
                 LEFT JOIN negocios n ON p.negocio_id = n.id
@@ -766,7 +768,7 @@ def api_producto_update(producto_id):
             update_fields = []
             params = {}
             
-            for field in ['nombre', 'store', 'precio', 'original_price', 'categoria', 'imagen',
+            for field in ['nombre', 'store', 'precio', 'original_price', 'categoria', 'imagen', 'image_url',
                          'stock', 'stock_minimo', 'negocio_id']:
                 if field in data:
                     update_fields.append(f"{field} = :{field}")

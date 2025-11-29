@@ -11,34 +11,12 @@ Flask-SQLAlchemy==3.0.5
 # Authentication
 Flask-Login==0.6.3
 
-# Real-time
+# Real-time (usando gevent en lugar de eventlet para Python 3.13)
 Flask-SocketIO==5.3.6
 python-socketio==5.9.0
 python-engineio==4.7.1
-eventlet==0.33.3
-greenlet==3.0.1
-
-# HTTP Client
-requests==2.31.0
-# Core Dependencies
-Flask==2.3.3
-Werkzeug==2.3.7
-python-dotenv==1.0.0
-
-# Database
-SQLAlchemy==2.0.21
-psycopg2-binary==2.9.9
-Flask-SQLAlchemy==3.0.5
-
-# Authentication
-Flask-Login==0.6.3
-
-# Real-time
-Flask-SocketIO==5.3.6
-python-socketio==5.9.0
-python-engineio==4.7.1
-eventlet==0.33.3
-greenlet==3.0.1
+gevent==24.2.1
+gevent-websocket==0.10.1
 
 # HTTP Client
 requests==2.31.0
@@ -52,7 +30,6 @@ pyOpenSSL==23.2.0  # Versión específica para compatibilidad
 Pillow==10.4.0  # Versión específica que no requiere compilación
 cloudinary==1.41.0  # Cloud storage para imágenes
 Flask-CORS==4.0.0  # CORS support para APIs
-
 
 # Production Server
 gunicorn==21.2.0

@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS productos (
     destacado BOOLEAN DEFAULT FALSE,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    image_url TEXT,
     FOREIGN KEY (negocio_id) REFERENCES negocios(id)
 );
 

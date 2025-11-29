@@ -1466,7 +1466,7 @@ def obtener_productos_desde_db():
                 SELECT p.id, p.nombre, p.store as descripcion, p.precio, p.original_price, 
                        p.categoria, p.imagen, p.stock, p.stock_minimo, p.negocio_id, 
                        p.activo, p.destacado, p.fecha_creacion, p.fecha_actualizacion,
-                       n.nombre as negocio_nombre
+                       n.nombre as negocio_nombre, p.image_url
                 FROM productos p
                 LEFT JOIN negocios n ON p.negocio_id = n.id
                 WHERE p.activo = TRUE
@@ -1479,20 +1479,25 @@ def obtener_productos_desde_db():
                 
                 # Manejo de imagen (URL vs Local)
                 imagen_raw = row[6]
-                image_url = None
-                imagen_local = '/static/images/producto-default.jpg' # Default filename con path absoluto correcto
+                image_url_db = row[15] if len(row) > 15 else None
                 
-                if imagen_raw:
-                    if imagen_raw.startswith('http') or imagen_raw.startswith('//'):
-                        image_url = imagen_raw
-                        imagen_local = None # No usamos local si hay URL
+                image_url = None
+                imagen_local = '/static/images/producto-default.jpg' # Default filename
+                
+                # Prioridad 1: URL explícita en base de datos (Cloudinary)
+                if image_url_db and (image_url_db.startswith('http') or image_url_db.startswith('//')):
+                    image_url = image_url_db
+                    imagen_local = None
+                # Prioridad 2: URL en campo imagen (legacy)
+                elif imagen_raw and (imagen_raw.startswith('http') or imagen_raw.startswith('//')):
+                    image_url = imagen_raw
+                    imagen_local = None
+                # Prioridad 3: Archivo local en campo imagen
+                elif imagen_raw:
+                    if '/' in imagen_raw:
+                         imagen_local = f"/static/{imagen_raw}" if not imagen_raw.startswith('/') else imagen_raw
                     else:
-                        # Asumir que es una imagen en static/images si no es URL
-                        # Si tiene path relativo, usarlo, sino asumir raíz de images
-                        if '/' in imagen_raw:
-                             imagen_local = f"/static/{imagen_raw}" if not imagen_raw.startswith('/') else imagen_raw
-                        else:
-                             imagen_local = f"/static/images/{imagen_raw}"
+                         imagen_local = f"/static/images/{imagen_raw}"
                 
                 producto = {
                     'id': str(row[0]),
