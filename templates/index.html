@@ -578,44 +578,6 @@
     </div>
 </section>
 {% endif %}
-
-<!-- Productos por Negocio -->
-<section id="productos" class="mb-5">
-    <div class="container">
-        <h2 class="text-center mb-4 text-gold">🏪 Nuestros Negocios</h2>
-                                    <ul class="dropdown-menu">
-                                        {% if sucursales[negocio_id] is mapping %}
-                                        {% for sucursal_id, sucursal in sucursales[negocio_id].items() %}
-                                        {% if sucursal.activo %}
-                                        <li>
-                                            <a class="dropdown-item" href="{{ url_for('ver_negocio', negocio_id=negocio_id) }}#{{ sucursal_id }}">
-                                                <i class="fas fa-store me-2"></i>{{ sucursal.nombre }}
-                                            </a>
-                                        </li>
-                                        {% endif %}
-                                        {% endfor %}
-                                        {% else %}
-                                            {% for sucursal in sucursales[negocio_id] %}
-                                            {% if sucursal.activo %}
-                                            <li>
-                                                <a class="dropdown-item" href="{{ url_for('ver_negocio', negocio_id=negocio_id) }}#{{ sucursal.id }}">
-                                                    <i class="fas fa-store me-2"></i>{{ sucursal.nombre }}
-                                                </a>
-                                            </li>
-                                            {% endif %}
-                                            {% endfor %}
-                                        {% endif %}
-                                    </ul>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <!-- Carrusel de productos -->
-                        <div class="carrusel-container">
-                            <button class="btn-carrusel btn-carrusel-left" onclick="deslizarCarrusel('negocio-{{ negocio_id }}', 'left')">
-                                ‹
                             </button>
                             <div class="carrusel-productos" id="negocio-{{ negocio_id }}">
                                 {% for producto in productos_negocio[:65] %}
