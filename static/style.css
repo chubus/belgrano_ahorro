@@ -981,4 +981,432 @@ footer {
     }
 }
 
+/* ========================================== */
+/* FIXES CRÍTICOS PARA MÓVIL */
+/* ========================================== */
+
+/* Prevenir overflow horizontal en TODOS los elementos */
+@media (max-width: 768px) {
+    /* Contenedores principales */
+    html, body {
+        overflow-x: hidden;
+        max-width: 100vw;
+        width: 100%;
+    }
+    
+    .container, .container-fluid {
+        overflow-x: hidden;
+        max-width: 100%;
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    
+    /* Todas las rows */
+    .row {
+        overflow-x: hidden;
+        margin-left: 0;
+        margin-right: 0;
+        max-width: 100%;
+    }
+    
+    /* Todas las columnas */
+    [class*="col-"] {
+        padding-left: 10px;
+        padding-right: 10px;
+        max-width: 100%;
+    }
+    
+    /* Cards y elementos contenedores */
+    .card, .card-body, .card-header {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    
+    /* Imágenes dentro de cards */
+    .card img {
+        max-width: 100%;
+        width: 100%;
+        height: auto;
+        object-fit: contain;
+    }
+    
+    /* Ajustar carrito flotante para móvil */
+    .carrito-flotante {
+        bottom: 20px;
+        right: 10px;
+        transform: none;
+    }
+    
+    .carrito-flotante .btn {
+        min-width: 60px;
+        min-height: 60px;
+        padding: 15px;
+        font-size: 1.5rem;
+    }
+    
+    .carrito-badge {
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+        top: -5px;
+        right: -5px;
+    }
+    
+    /* Logo más grande en móvil */
+    .navbar-brand img {
+        height: 50px !important;
+        max-height: 50px;
+    }
+    
+    /* Barra de búsqueda responsive */
+    .form-control[type="search"],
+    input[type="search"] {
+        width: 100%;
+        max-width: 100%;
+        font-size: 16px;
+    }
+    
+    .input-group {
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    /* Botones más grandes y táctiles */
+    .btn {
+        min-height: 48px;
+        padding: 12px 20px;
+        font-size: 1rem;
+        white-space: normal;
+        text-align: center;
+    }
+    
+    .btn-lg {
+        min-height: 56px;
+        font-size: 1.125rem;
+    }
+    
+    /* Hero section responsive */
+    .hero-section {
+        padding: 2rem 1rem;
+        border-radius: 0 0 1rem 1rem;
+    }
+    
+    .hero-section h1 {
+        font-size: 1.75rem;
+    }
+    
+    .hero-section p {
+        font-size: 1rem;
+    }
+    
+    /* Categorías cards */
+    .categoria-card {
+        margin-bottom: 1rem;
+        padding: 1rem;
+    }
+    
+    .categoria-icon {
+        font-size: 2.5rem;
+    }
+    
+    /* Secciones especiales */
+    .seccion-ofertas,
+    .seccion-descuentos,
+    .seccion-mega-oferta,
+    .seccion-super-mercado,
+    .seccion-belgrano-ahorro,
+    .seccion-maxi-descuento {
+        margin: 1rem 0;
+        padding: 1rem;
+        max-width: 100%;
+    }
+    
+    /* Productos card */
+    .product-card,
+    .card.producto {
+        margin: 0.5rem auto;
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    /* Eliminar márgenes negativos que causan overflow */
+    .row.g-4 {
+        margin: 0;
+    }
+    
+    .row.g-4 > * {
+        padding: 0.5rem;
+    }
+    
+    /* Navbar collapsed mejor */
+    .navbar-nav {
+        width: 100%;
+    }
+    
+    .navbar-nav .nav-item {
+        width: 100%;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 0.75rem 1rem;
+        width: 100%;
+    }
+    
+    /* Dropdown menus full width */
+    .dropdown-menu {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
+/* Smartphone muy pequeños */
+@media (max-width: 375px) {
+    /* Reducir padding aún más */
+    .container, .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    [class*="col-"] {
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+    
+    /* Logo proporcional */
+    .navbar-brand img {
+        height: 40px !important;
+    }
+    
+    /* Carrito más pequeño */
+    .carrito-flotante .btn {
+        min-width: 50px;
+        min-height: 50px;
+        padding: 10px;
+        font-size: 1.25rem;
+    }
+    
+    /* Fuentes más pequeñas */
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    h2 {
+        font-size: 1.25rem;
+    }
+    
+    .btn {
+        font-size: 0.9rem;
+        padding: 10px 15px;
+    }
+}
+
+/* Fix para elementos que se salen en landscape */
+@media (max-width: 768px) and (orientation: landscape) {
+    .carrito-flotante {
+        bottom: 10px;
+        right: 10px;
+    }
+    
+    .carrito-flotante .btn {
+        min-width: 50px;
+        min-height: 50px;
+        padding: 12px;
+    }
+    
+    .navbar {
+        padding: 0.25rem 0;
+    }
+}
+
+/* ========================================== */
+/* OPTIMIZACIÓN DE CARRUSELES EN MÓVIL */
+/* ========================================== */
+
+@media (max-width: 768px) {
+    /* Carrusel container */
+    .carrusel-container {
+        position: relative;
+        overflow: hidden;
+        max-width: 100%;
+        padding: 0;
+    }
+    
+    /* Productos en carrusel */
+    .carrusel-productos {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        scroll-behavior: smooth;
+        padding: 10px 5px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        max-width: 100%;
+    }
+    
+    /* Ocultar scrollbar pero mantener funcionalidad */
+    .carrusel-productos::-webkit-scrollbar {
+        height: 4px;
+    }
+    
+    
+    .carrusel-productos::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    .carrusel-productos::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+    }
+    
+    /* Cards de productos en móvil */
+    .producto-carrusel {
+        flex: 0 0 auto;
+        width: 160px;
+        min-width: 160px;
+        max-width: 160px;
+    }
+    
+    .producto-card {
+        width: 100%;
+        min-width: 160px;
+        max-width: 100%;
+        margin: 0;
+    }
+    
+    .producto-card .card-img-top {
+        height: 140px;
+        object-fit: contain;
+        padding: 5px;
+    }
+    
+    .producto-card .card-body {
+        padding: 0.75rem;
+    }
+    
+    .producto-card h6 {
+        font-size: 0.875rem;
+        line-height: 1.2;
+        margin-bottom: 0.5rem;
+    }
+    
+    .producto-card small {
+        font-size: 0.75rem;
+    }
+    
+    .producto-card .fw-bold {
+        font-size: 1rem;
+    }
+    
+    /* Botones de navegación del carrusel más pequeños */
+    .btn-carrusel {
+        width: 35px !important;
+        height: 35px !important;
+        font-size: 18px !important;
+        padding: 0 !important;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+        background: rgba(44, 62, 80, 0.9) !important;
+        border: none !important;
+    }
+    
+    .btn-carrusel-left {
+        left: 5px;
+    }
+    
+    .btn-carrusel-right {
+        right: 5px;
+    }
+    
+    /* Input group para cantidad más compacto */
+    .input-group-sm {
+        width: 100px !important;
+    }
+    
+    .input-group-sm .form-control {
+        font-size: 0.875rem;
+        padding: 0.25rem;
+        width: 40px !important;
+    }
+    
+    .input-group-sm .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    /* Botón de agregar al carrito más pequeño */
+    .btn-cart-circle {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 1rem !important;
+        padding: 0 !important;
+    }
+    
+    /* Negocio section headers */
+    .negocio-section .card-header {
+        padding: 1rem;
+    }
+    
+    .negocio-section h3 {
+        font-size: 1.25rem;
+    }
+    
+    .negocio section p {
+        font-size: 0.875rem;
+    }
+    
+    .negocio-section .btn-light {
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    /* Hero image más pequeña en móvil */
+    .hero-image img {
+        max-height: 200px !important;
+        width: auto;
+        max-width: 100%;
+    }
+    
+    /* Badges más pequeños */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+/* Para pantallas muy pequeñas */
+@media (max-width: 375px) {
+    .producto-carrusel {
+        width: 140px;
+        min-width: 140px;
+        max-width: 140px;
+    }
+    
+    .producto-card .card-img-top {
+        height: 120px;
+    }
+    
+    .producto-card h6 {
+        font-size: 0.8rem;
+    }
+    
+    .producto-card .fw-bold {
+        font-size: 0.9rem;
+    }
+    
+    .input-group-sm {
+        width: 90px !important;
+    }
+    
+    .btn-cart-circle {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 0.875rem !important;
+    }
+}
+
+
+
 
