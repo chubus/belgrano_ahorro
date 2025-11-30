@@ -482,3 +482,459 @@ footer {
     background-clip: text;
     font-weight: bold;
 }
+
+/* ========================================== */
+/* OPTIMIZACIÓN MÓVIL - TODA LA PLATAFORMA */
+/* ========================================== */
+
+/* Tablets y dispositivos medianos (hasta 992px) */
+@media (max-width: 992px) {
+    /* Contenedores con padding reducido */
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    /* Columnas con margen inferior */
+    [class*="col-"] {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Tablets pequeños (hasta 768px) */
+@media (max-width: 768px) {
+    /* ========== TIPOGRAFÍA ========== */
+    h1 {
+        font-size: 1.75rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+    
+    h3, h3.mb-0 {
+        font-size: 1.5rem;
+    }
+    
+    h4, h4.text-success {
+        font-size: 1.25rem;
+    }
+    
+    h5, h5.card-title {
+        font-size: 1.1rem;
+    }
+    
+    h6 {
+        font-size: 1rem;
+    }
+    
+    /* Texto lead más pequeño */
+    p.lead, .lead {
+        font-size: 1rem;
+    }
+    
+    /* Texto regular optimizado */
+    p, p.card-text {
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+    
+    small, .small {
+        font-size: 0.85rem;
+    }
+    
+    /* ========== IMÁGENES ========== */
+    img, img.img-fluid {
+        width: 100%;
+        height: auto;
+        max-width: 100%;
+        margin-bottom: 1rem;
+    }
+    
+    .card-img-top {
+        height: 180px;
+        object-fit: contain;
+    }
+    
+    img.rounded {
+        border-radius: 8px;
+    }
+    
+    img.shadow, .shadow-custom {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* ========== TARJETAS ========== */
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .card-header {
+        padding: 0.75rem 1rem;
+    }
+    
+    .card.h-100 {
+        margin-bottom: 1.5rem;
+    }
+    
+    /* ========== BOTONES ========== */
+    .btn {
+        min-height: 44px;
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+    
+    .btn-sm {
+        min-height: 38px;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+    
+    .btn-lg {
+        min-height: 50px;
+        padding: 0.875rem 2rem;
+        font-size: 1.125rem;
+    }
+    
+    /* Botón de carrito circular */
+    .btn-cart-circle {
+        width: 35px;
+        height: 35px;
+        font-size: 1rem;
+    }
+    
+    /* ========== FORMULARIOS ========== */
+    .form-control {
+        font-size: 16px !important;
+        padding: 0.75rem;
+    }
+    
+    .form-label {
+        font-size: 0.95rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .input-group {
+        flex-wrap: nowrap;
+    }
+    
+    /* ========== NAVBAR ========== */
+    .navbar {
+        padding: 0.5rem 0;
+    }
+    
+    .navbar-brand {
+        font-size: 1.3rem;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 0.75rem 1rem;
+        margin: 0.25rem 0;
+    }
+    
+    .navbar-toggler {
+        padding: 0.5rem;
+        font-size: 1.25rem;
+    }
+    
+    /* ========== GRID Y LAYOUT ========== */
+    .row {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }
+    
+    .row > * {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    
+    section.mb-5 {
+        margin-bottom: 2rem !important;
+    }
+    
+    .col-md-8, .col-md-4, .col-md-6, .col-md-3 {
+        margin-bottom: 1rem;
+    }
+    
+    .col-md-10 {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+    
+    /* ========== TABLAS ========== */
+    .table-responsive {
+        border: none;
+    }
+    
+    table {
+        font-size: 0.875rem;
+    }
+    
+    th, td {
+        padding: 0.5rem;
+    }
+    
+    /* ========== BADGES Y ALERTAS ========== */
+    .badge {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.6rem;
+    }
+    
+    .alert {
+        font-size: 0.9rem;
+        padding: 0.75rem;
+    }
+    
+    /* ========== MODALES ========== */
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    .modal-content {
+        border-radius: 10px;
+    }
+    
+    .modal-header, .modal-footer {
+        padding: 0.75rem;
+    }
+    
+    .modal-body {
+        padding: 1rem;
+    }
+    
+    /* ========== CARRITO Y PRODUCTOS ========== */
+    .cart-item {
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .cart-summary {
+        padding: 1rem;
+    }
+    
+    .product-card {
+        margin-bottom: 1rem;
+    }
+    
+    /* ========== ÁREA TÁCTIL ========== */
+    a, button, .btn, .nav-link {
+        -webkit-tap-highlight-color: rgba(255, 215, 0, 0.2);
+        min-height: 44px;
+        min-width: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .card a {
+        padding: 0.5rem;
+    }
+}
+
+/* Smartphones (hasta 576px) */
+@media (max-width: 576px) {
+    /* ========== TIPOGRAFÍA COMPACTA ========== */
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    h2 {
+        font-size: 1.35rem;
+    }
+    
+    h3, h3.mb-0 {
+        font-size: 1.3rem;
+    }
+    
+    h4, h4.text-success {
+        font-size: 1.1rem;
+    }
+    
+    h5, h5.card-title {
+        font-size: 1rem;
+    }
+    
+    p.lead, .lead {
+        font-size: 0.95rem;
+    }
+    
+    p, p.card-text {
+        font-size: 0.85rem;
+        line-height: 1.8;
+    }
+    
+    /* ========== CARDS MÁS COMPACTOS ========== */
+    .card-header {
+        padding: 0.75rem 1rem;
+    }
+    
+    .card-body {
+        padding: 0.75rem;
+    }
+    
+    /* ========== CONTENEDORES ========== */
+    .container, .container-fluid {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    
+    .col-md-10, .col-lg-8 {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    
+    /* ========== ESPACIADO ========== */
+    .mb-3 {
+        margin-bottom: 1rem !important;
+    }
+    
+    .mb-4 {
+        margin-bottom: 1.25rem !important;
+    }
+    
+    .mb-5 {
+        margin-bottom: 1.5rem !important;
+    }
+    
+    /* ========== BOTONES FULL WIDTH ========== */
+    .btn-block, .d-grid .btn {
+        width: 100%;
+        display: block;
+    }
+    
+    /* Grupos de botones apilados */
+    .btn-group {
+        flex-direction: column;
+    }
+    
+    .btn-group > .btn {
+        border-radius: 25px !important;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* ========== LISTAS Y TEXTO ========== */
+    .card-text br {
+        line-height: 2;
+    }
+    
+    ul, ol {
+        padding-left: 1.25rem;
+    }
+    
+    /* ========== TABLAS MÓVIL ========== */
+    table {
+        font-size: 0.8rem;
+    }
+    
+    th, td {
+        padding: 0.4rem;
+    }
+    
+    /* ========== NAVBAR COMPACTO ========== */
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+    
+    .navbar-nav {
+        margin-top: 0.5rem;
+    }
+    
+    /* ========== FORMULARIOS ========== */
+    .form-control {
+        padding: 0.625rem 0.75rem;
+    }
+    
+    input[type="search"] {
+        max-width: 100%;
+    }
+}
+
+/* Prevenir zoom en inputs en iOS */
+@media (max-width: 768px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="number"],
+    input[type="password"],
+    input[type="search"],
+    textarea,
+    select {
+        font-size: 16px !important;
+    }
+}
+
+/* Mejorar scroll y overflow */
+@media (max-width: 768px) {
+    body {
+        overflow-x: hidden;
+    }
+    
+    .container,
+    .container-fluid,
+    .row {
+        overflow-x: hidden;
+    }
+    
+    /* Smooth scroll */
+    html {
+        scroll-behavior: smooth;
+    }
+}
+
+/* Optimización de impresión (opcional) */
+@media print {
+    .navbar,
+    .btn,
+    .modal,
+    footer {
+        display: none !important;
+    }
+    
+    body {
+        font-size: 12pt;
+    }
+    
+    .card {
+        border: 1px solid #000;
+        page-break-inside: avoid;
+    }
+}
+
+/* Landscape en móvil */
+@media (max-width: 768px) and (orientation: landscape) {
+    .navbar {
+        padding: 0.25rem 0;
+    }
+    
+    .card-img-top {
+        height: 150px;
+    }
+    
+    h1, h2, h3 {
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* Accesibilidad - preferencia de movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* Modo oscuro (respeta preferencia del sistema) */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --background-color: #1a1a1a;
+        --secondary-color: #e0e0e0;
+    }
+}
+
+
