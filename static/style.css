@@ -7,6 +7,9 @@
 /* ========================================== */
 /* VARIABLES CSS - CAMBIA AQUÍ LOS COLORES */
 /* ========================================== */
+/* ========================================== */
+/* VARIABLES CSS - CAMBIA AQUÍ LOS COLORES */
+/* ========================================== */
 :root {
     --primary-color: #ffd700;     /* Dorado principal */
     --primary-dark: #b8860b;       /* Dorado oscuro para hover */
@@ -18,6 +21,47 @@
     --transition: all 0.3s ease;
     --gold-light: #ffed4e;         /* Dorado claro */
     --gold-dark: #daa520;          /* Dorado oscuro */
+}
+
+/* ========================================== */
+/* RESETS Y COMPATIBILIDAD CROSS-BROWSER */
+/* ========================================== */
+
+/* Solucionar problema de 100vh en móviles (especialmente iOS) */
+html {
+    height: -webkit-fill-available;
+}
+
+body {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+}
+
+/* Prevenir zoom automático en inputs iOS */
+input, select, textarea {
+    font-size: 16px;
+}
+
+/* Mejorar scroll en iOS */
+* {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Desactivar resaltado de tap en móvil */
+button, a {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+}
+
+/* Suavizar fuentes en todos los navegadores */
+* {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Box-sizing universal */
+*, *::before, *::after {
+    box-sizing: border-box;
 }
 
 /* ========================================== */
