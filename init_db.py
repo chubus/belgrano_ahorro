@@ -214,6 +214,7 @@ def init_db():
                     nombre VARCHAR(255),
                     apellido VARCHAR(255),
                     telefono VARCHAR(20),
+                    direccion TEXT,
                     rol VARCHAR(50) DEFAULT 'cliente',
                     activo BOOLEAN DEFAULT TRUE,
                     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -229,6 +230,16 @@ def init_db():
             except Exception:
                 # La columna ya existe o no se puede agregar, continuar
                 pass
+            
+            # Agregar columna 'direccion' si la tabla ya existe pero no tiene el campo
+            try:
+                conn.execute(text('''
+                    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS direccion TEXT
+                '''))
+                logger.info("[DB] ✅ Columna 'direccion' verificada/agregada a tabla 'usuarios'")
+            except Exception as e:
+                logger.warning(f"[DB] ⚠️ No se pudo agregar columna 'direccion': {e}")
+            
             logger.info("[DB] ✅ Tabla 'usuarios' verificada/creada")
             
             # Tabla pedidos (si no existe)
