@@ -346,6 +346,111 @@
         .notification-alert .btn-close:hover {
             opacity: 1;
         }
+        
+        /* ========================================== */
+        /* ESTILOS MÓVILES CRÍTICOS - INLINE */
+        /* ========================================== */
+        
+        @media (max-width: 768px) {
+            /* FORZAR max-width en TODO */
+            *, *::before, *::after {
+                max-width: 100vw !important;
+            }
+            
+            body {
+                overflow-x: hidden !important;
+            }
+            
+            .container, .container-fluid {
+                max-width: 100% !important;
+                padding-left: 10px !important;
+                padding-right: 10px !important;
+                overflow-x: hidden !important;
+            }
+            
+            .row {
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                max-width: 100% !important;
+            }
+            
+            /* Navbar toggler VISIBLE */
+            .navbar-toggler {
+                display: block !important;
+                background-color: rgba(255, 255, 255, 0.9) !important;
+                border: 2px solid #2c3e50 !important;
+                padding: 0.5rem !important;
+            }
+            
+            .navbar-brand {
+                font-size: 1rem !important;
+                max-width: 55% !important;
+            }
+            
+            .navbar-brand img {
+                height: 35px !important;
+                margin-right: 5px !important;
+            }
+            
+            /* Hero section compacto */
+            .hero-section {
+                padding: 1rem 0.5rem !important;
+                margin: 0 !important;
+            }
+            
+            .hero-section h1 {
+                font-size: 1.25rem !important;
+                word-wrap: break-word !important;
+            }
+            
+            .hero-section p {
+                font-size: 0.85rem !important;
+            }
+            
+            .hero-section img {
+                max-height: 120px !important;
+            }
+            
+            /* Carrito flotante móvil */
+            .carrito-flotante {
+                bottom: 20px !important;
+                right: 10px !important;
+                transform: none !important;
+            }
+            
+            .carrito-flotante .btn {
+                min-width: 55px !important;
+                min-height: 55px !important;
+                padding: 12px !important;
+                font-size: 1.5rem !important;
+            }
+            
+            .carrito-badge {
+                width: 22px !important;
+                height: 22px !important;
+                font-size: 11px !important;
+            }
+            
+            /* Barra de búsqueda */
+            .input-group {
+                flex-wrap: nowrap !important;
+            }
+            
+            .input-group .btn {
+                font-size: 0.8rem !important;
+                padding: 0.5rem 0.75rem !important;
+            }
+        }
+        
+        @media (max-width: 360px) {
+            .navbar-brand span {
+                display: none !important;
+            }
+            
+            .hero-section h1 {
+                font-size: 1.1rem !important;
+            }
+        }
     </style>
 </head>
 <body>
