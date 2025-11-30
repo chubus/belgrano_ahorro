@@ -422,20 +422,21 @@ def editar_negocio(negocio_id):
                 file = request.files['logo_file']
                 if file and file.filename:
                     try:
-                        from image_utils import image_to_base64
+                        from image_utils import save_uploaded_file
                     except ImportError:
                         try:
-                            from devops.image_utils import image_to_base64
+                            from devops.image_utils import save_uploaded_file
                         except ImportError:
-                            from .image_utils import image_to_base64
+                            from .image_utils import save_uploaded_file
                     
-                    base64_data, error = image_to_base64(file)
+                    # Usar save_uploaded_file en lugar de image_to_base64
+                    saved_url, error = save_uploaded_file(file, 'business', negocio_id)
                     if error:
                         flash(f'Advertencia: {error}. Se mantendrá la imagen actual.', 'warning')
                         logger.warning(f"Error procesando nueva imagen para negocio {negocio_id}: {error}")
                     else:
-                        image_url = base64_data
-                        logger.info(f"✅ Nueva imagen procesada para negocio {negocio_id}")
+                        image_url = saved_url
+                        logger.info(f"✅ Nueva imagen subida a Cloudinary para negocio {negocio_id}: {saved_url}")
             
             # Si no hay nueva imagen, mantener la actual
             if not image_url:

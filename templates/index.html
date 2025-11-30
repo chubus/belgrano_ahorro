@@ -583,32 +583,6 @@
 <section id="productos" class="mb-5">
     <div class="container">
         <h2 class="text-center mb-4 text-gold">🏪 Nuestros Negocios</h2>
-        
-        {% for negocio_id, productos_negocio in productos_por_negocio.items() %}
-            {% if productos_negocio %}
-            <div class="negocio-section mb-5">
-                <div class="card shadow-custom">
-                    <div class="card-header" style="background-color: {{ negocios[negocio_id].color }}; color: white;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h3 class="mb-0">{{ negocios[negocio_id].nombre }}</h3>
-                                <p class="mb-0">{{ negocios[negocio_id].descripcion }}</p>
-                                {% if sucursales and sucursales[negocio_id] %}
-                                <small class="mt-2 d-block">
-                                    <i class="fas fa-store me-1"></i>
-                                    {{ sucursales[negocio_id]|selectattr('activo', 'equalto', true)|list|length }} sucursales disponibles
-                                </small>
-                                {% endif %}
-                            </div>
-                            <div class="text-end">
-                                <a href="{{ url_for('ver_negocio', negocio_id=negocio_id) }}" class="btn btn-light btn-sm mb-2">
-                                Ver Todo →
-                            </a>
-                                {% if sucursales and sucursales[negocio_id] %}
-                                <div class="dropdown">
-                                    <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                        <i class="fas fa-map-marker-alt"></i> Sucursales
-                                    </button>
                                     <ul class="dropdown-menu">
                                         {% if sucursales[negocio_id] is mapping %}
                                         {% for sucursal_id, sucursal in sucursales[negocio_id].items() %}
