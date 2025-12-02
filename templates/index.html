@@ -146,25 +146,23 @@
                             <h6 class="card-title">{{ producto.nombre }}</h6>
                             <small class="text-muted">{{ negocios[producto.negocio].nombre }} - {% set cat_key = producto.categoria|string|lower if producto.categoria else 'general' %}{{ categorias[cat_key].nombre if cat_key in categorias else (categorias[producto.categoria].nombre if producto.categoria in categorias else producto.categoria or 'General') }}</small>
                             <div class="mt-auto">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        {% if producto.precio_original and producto.precio_original > producto.precio %}
-                                        <span class="text-danger fw-bold">${{ producto.precio }}</span>
-                                        <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
-                                        {% else %}
-                                        <span class="fw-bold">${{ producto.precio }}</span>
-                                        {% endif %}
+                                <div class="producto-precio-container">
+                                    {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                    <span class="text-danger fw-bold">${{ producto.precio }}</span>
+                                    <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
+                                    {% else %}
+                                    <span class="fw-bold">${{ producto.precio }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="producto-acciones-container">
+                                    <div class="input-group input-group-sm cantidad-input">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                                        <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
                                     </div>
-                                    <div class="d-flex align-items-center gap-2">
-                        <div class="input-group input-group-sm" style="width: 120px;">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
-                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
-                        </div>
-                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
-                            🛒
-                        </button>
-                    </div>
+                                    <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                                        🛒
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -265,25 +263,23 @@
                                             <h6 class="card-title">{{ producto.nombre }}</h6>
                                             <small class="text-muted">{% set cat_key = producto.categoria|string|lower if producto.categoria else 'general' %}{{ categorias[cat_key].nombre if cat_key in categorias else (categorias[producto.categoria].nombre if producto.categoria in categorias else producto.categoria or 'General') }}</small>
                                             <div class="mt-auto">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        {% if producto.precio_original and producto.precio_original > producto.precio %}
-                                                        <span class="text-danger fw-bold">${{ producto.precio }}</span>
-                                                        <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
-                                                        {% else %}
-                                                        <span class="fw-bold">${{ producto.precio }}</span>
-                                                        {% endif %}
+                                                <div class="producto-precio-container">
+                                                    {% if producto.precio_original and producto.precio_original > producto.precio %}
+                                                    <span class="text-danger fw-bold">${{ producto.precio }}</span>
+                                                    <small class="text-muted text-decoration-line-through">${{ producto.precio_original }}</small>
+                                                    {% else %}
+                                                    <span class="fw-bold">${{ producto.precio }}</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="producto-acciones-container">
+                                                    <div class="input-group input-group-sm cantidad-input">
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
+                                                        <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99">
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
                                                     </div>
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <div class="input-group input-group-sm" style="width: 120px;">
-                                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', -1)">-</button>
-                                                            <input type="number" id="cantidad-{{ producto.id }}" class="form-control text-center" value="1" min="1" max="99" style="width: 50px;">
-                                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="cambiarCantidad('{{ producto.id }}', 1)">+</button>
-                                                        </div>
-                                                        <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
-                                                            🛒
-                                                        </button>
-                                                    </div>
+                                                    <button type="button" class="btn-cart-circle" onclick="agregarAlCarrito('{{ producto.id }}')" title="Agregar al carrito">
+                                                        🛒
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>

@@ -366,7 +366,7 @@ footer {
 }
 
 /* Animación de pulso para el carrito */
-@keyframes cart Pulse {
+@keyframes cartPulse {
     0% {
         transform: scale(1);
     }
@@ -643,5 +643,82 @@ footer {
 }
 
 /* ========================================== */
+/* ESTILOS PARA CONTROLES DE PRODUCTO */
+/* ========================================== */
+
+/* Contenedor de precio - siempre visible arriba */
+.producto-precio-container {
+    margin-bottom: 0.75rem;
+    text-align: left;
+}
+
+/* Contenedor de acciones - controles de cantidad + botón carrito */
+.producto-acciones-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+}
+
+/* Input de cantidad - flexible */
+.cantidad-input {
+    flex: 1;
+    min-width: 0;
+    max-width: 140px;
+}
+
+.cantidad-input input {
+    min-width: 35px;
+}
+
+/* Botón de carrito siempre visible */
+.btn-cart-circle {
+    flex-shrink: 0;
+}
+
+/* Responsive para móviles */
+@media (max-width: 768px) {
+    /* En móviles, asegurar que todo quepa */
+    .producto-acciones-container {
+        gap: 6px;
+    }
+    
+    .cantidad-input {
+        max-width: 110px;
+    }
+    
+    .cantidad-input .btn-sm {
+        padding: 0.25rem 0.4rem;
+        font-size: 0.75rem;
+    }
+    
+    .cantidad-input input {
+        font-size: 0.875rem;
+        padding: 0.25rem;
+    }
+}
+
+/* Para pantallas muy pequeñas, apilar verticalmente si es necesario */
+@media (max-width: 360px) {
+    .producto-acciones-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    
+    .cantidad-input {
+        max-width: 100%;
+    }
+    
+    .btn-cart-circle {
+        width: 100%;
+        border-radius: 8px;
+        height: 38px;
+    }
+}
+
+/* ========================================== */
 /* FIN DEL ARCHIVO CSS */
 /* ========================================== */
+
