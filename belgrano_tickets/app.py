@@ -1982,6 +1982,9 @@ def panel():
         tickets_en_camino = Ticket.query.filter_by(estado='en-camino').count()
         tickets_entregados = Ticket.query.filter_by(estado='entregado').count()
         
+        # Obtener usuarios de flota para el dropdown de asignación
+        usuarios_flota = User.query.filter_by(role='flota', activo=True).all()
+        
         return render_template('admin_panel.html', 
                              tickets=tickets, 
                              total_tickets=total_tickets,
@@ -1989,7 +1992,8 @@ def panel():
                              tickets_en_camino=tickets_en_camino,
                              tickets_entregados=tickets_entregados,
                              estado_filter=estado_filter,
-                             fecha_filter=fecha_filter)
+                             fecha_filter=fecha_filter,
+                             usuarios_flota=usuarios_flota)
     elif current_user.role == 'flota':
         tickets = Ticket.query.filter_by(asignado_a=current_user.id).order_by(Ticket.fecha_creacion.desc()).all()
         return render_template('flota_panel.html', tickets=tickets)
@@ -2052,6 +2056,10 @@ def _serialize_ticket(ticket: Ticket) -> Dict[str, Any]:
         'fecha_creacion': ticket.fecha_creacion.isoformat() if ticket.fecha_creacion else None,
         'fecha_asignacion': ticket.fecha_asignacion.isoformat() if ticket.fecha_asignacion else None,
         'fecha_entrega': ticket.fecha_entrega.isoformat() if ticket.fecha_entrega else None,
+        # Campos para compras múltiples (diferentes negocios)
+        'grupo_compra': getattr(ticket, 'grupo_compra', None),
+        'negocio_nombre': getattr(ticket, 'negocio_nombre', None),
+        'tickets_grupo_total': getattr(ticket, 'tickets_grupo_total', 1),
     }
 
 
@@ -2222,6 +2230,13 @@ def recibir_ticket_externo():
         
         print(f"✅ {len(productos_validos)} productos validados correctamente")
         
+        # Recalcular total desde productos si el total recibido es 0 o inválido
+        if total_recibido <= 0 and productos_validos:
+            total_calculado = sum(p['subtotal'] for p in productos_validos)
+            if total_calculado > 0:
+                print(f"⚠️ CORRECCIÓN: Total recibido es {total_recibido}, usando total calculado de productos: ${total_calculado}")
+                total_recibido = total_calculado
+        
         # Crear el ticket con los datos recibidos
         ticket = Ticket(
             numero=numero_ticket or f'TICKET-{datetime.now().strftime("%Y%m%d%H%M%S")}',
@@ -2233,7 +2248,11 @@ def recibir_ticket_externo():
             total=total_recibido,  # CORRECCIÓN: Usar total validado
             estado=data.get('estado', 'pendiente'),
             prioridad=prioridad,
-            indicaciones=data.get('indicaciones', data.get('notas', ''))
+            indicaciones=data.get('indicaciones', data.get('notas', '')),
+            # Campos para compras múltiples (diferentes negocios)
+            grupo_compra=data.get('grupo_compra'),  # ID del grupo de compra original
+            negocio_nombre=data.get('negocio_nombre'),  # Nombre del negocio de este ticket
+            tickets_grupo_total=int(data.get('tickets_grupo_total', 1))  # Total de tickets en el grupo
         )
         
         print(f"✅ Ticket creado con total: ${ticket.total}")
@@ -2490,7 +2509,7 @@ def editar_ticket(ticket_id):
         nuevo_estado = request.form.get('estado')
         nueva_prioridad = request.form.get('prioridad')
         nuevas_indicaciones = request.form.get('indicaciones')
-        nuevo_repartidor = request.form.get('repartidor_nombre')
+        nuevo_repartidor_username = request.form.get('repartidor_nombre') # Ahora recibe username
         
         # Actualizar solo los campos que se enviaron
         if nuevo_estado:
@@ -2499,8 +2518,28 @@ def editar_ticket(ticket_id):
             ticket.prioridad = nueva_prioridad
         if nuevas_indicaciones is not None:  # Permitir strings vacíos
             ticket.indicaciones = nuevas_indicaciones
-        if nuevo_repartidor:
-            ticket.repartidor_nombre = nuevo_repartidor
+            
+        if nuevo_repartidor_username:
+            # Buscar usuario por username
+            user = User.query.filter_by(username=nuevo_repartidor_username).first()
+            if user:
+                ticket.asignado_a = user.id
+                ticket.repartidor_nombre = user.nombre
+                ticket.fecha_asignacion = datetime.utcnow()
+                if ticket.estado == 'pendiente':
+                    ticket.estado = 'en-camino'
+            else:
+                # Fallback si por alguna razón llega el nombre en lugar del username
+                # Intentar buscar por nombre
+                user_by_name = User.query.filter_by(nombre=nuevo_repartidor_username).first()
+                if user_by_name:
+                    ticket.asignado_a = user_by_name.id
+                    ticket.repartidor_nombre = user_by_name.nombre
+                    ticket.fecha_asignacion = datetime.utcnow()
+                else:
+                    # Si no se encuentra, guardar solo el nombre (legacy behavior) pero loguear warning
+                    print(f"⚠️ ADVERTENCIA: Asignando repartidor '{nuevo_repartidor_username}' sin ID de usuario asociado")
+                    ticket.repartidor_nombre = nuevo_repartidor_username
         
         # Guardar cambios
         db.session.commit()
@@ -2513,11 +2552,20 @@ def editar_ticket(ticket_id):
             'repartidor': ticket.repartidor_nombre
         })
         
+        # También emitir evento de asignación si hubo cambio de repartidor
+        if nuevo_repartidor_username:
+             socketio.emit('ticket_asignado', {
+                'ticket_id': ticket.id,
+                'repartidor': ticket.repartidor_nombre
+            })
+        
         flash('Ticket actualizado correctamente', 'success')
         return redirect(url_for('panel'))
     
     # Para GET, mostrar formulario de edición
-    return render_template('editar_ticket.html', ticket=ticket)
+    # Obtener usuarios de flota para el dropdown
+    usuarios_flota = User.query.filter_by(role='flota', activo=True).all()
+    return render_template('editar_ticket.html', ticket=ticket, usuarios_flota=usuarios_flota)
 
 
 
@@ -2527,17 +2575,17 @@ def gestion_flota():
     if current_user.role != 'admin':
         return 'Acceso no permitido', 403
     
-    # Obtener todos los repartidores disponibles
-    repartidores = ['Repartidor1', 'Repartidor2', 'Repartidor3', 'Repartidor4', 'Repartidor5']
+    # Obtener todos los repartidores de la base de datos
+    usuarios_flota = User.query.filter_by(role='flota', activo=True).all()
     
     # Obtener tickets con repartidores asignados
-    tickets_asignados = Ticket.query.filter(Ticket.repartidor_nombre.isnot(None)).all()
+    tickets_asignados = Ticket.query.filter(Ticket.asignado_a.isnot(None)).all()
     
     # Estadísticas por repartidor
     stats_repartidores = {}
-    for rep in repartidores:
-        tickets_rep = Ticket.query.filter_by(repartidor_nombre=rep).all()
-        stats_repartidores[rep] = {
+    for user_flota in usuarios_flota:
+        tickets_rep = Ticket.query.filter_by(asignado_a=user_flota.id).all()
+        stats_repartidores[user_flota.nombre] = {
             'total': len(tickets_rep),
             'pendientes': len([t for t in tickets_rep if t.estado == 'pendiente']),
             'en_camino': len([t for t in tickets_rep if t.estado == 'en-camino']),
@@ -2545,7 +2593,7 @@ def gestion_flota():
         }
     
     return render_template('gestion_flota.html', 
-                         repartidores=repartidores, 
+                         usuarios_flota=usuarios_flota,
                          tickets_asignados=tickets_asignados,
                          stats_repartidores=stats_repartidores)
 
@@ -2561,11 +2609,11 @@ def reportes():
     tickets_en_camino = Ticket.query.filter_by(estado='en-camino').count()
     tickets_entregados = Ticket.query.filter_by(estado='entregado').count()
     
-    # Tickets por repartidor
+    # Tickets por repartidor - usar usuarios reales de la base de datos
     tickets_por_repartidor = {}
-    repartidores = ['Repartidor1', 'Repartidor2', 'Repartidor3', 'Repartidor4', 'Repartidor5']
-    for rep in repartidores:
-        tickets_por_repartidor[rep] = Ticket.query.filter_by(repartidor_nombre=rep).count()
+    usuarios_flota = User.query.filter_by(role='flota', activo=True).all()
+    for user_flota in usuarios_flota:
+        tickets_por_repartidor[user_flota.nombre] = Ticket.query.filter_by(asignado_a=user_flota.id).count()
     
     return render_template('reportes.html',
                          total_tickets=total_tickets,
@@ -2581,19 +2629,30 @@ def asignar_repartidor(ticket_id):
         return jsonify({'error': 'Acceso no permitido'}), 403
     
     ticket = Ticket.query.get_or_404(ticket_id)
-    repartidor = request.form.get('repartidor')
+    repartidor_username = request.form.get('repartidor')
     
-    if repartidor:
-        ticket.repartidor = repartidor
-        db.session.commit()
+    if repartidor_username:
+        # Buscar usuario por username
+        user = User.query.filter_by(username=repartidor_username).first()
         
-        # Emitir evento WebSocket
-        socketio.emit('ticket_asignado', {
-            'ticket_id': ticket.id,
-            'repartidor': repartidor
-        })
-        
-        return jsonify({'exito': True, 'mensaje': f'Ticket asignado a {repartidor}'})
+        if user:
+            ticket.asignado_a = user.id
+            ticket.repartidor_nombre = user.nombre  # Guardar el nombre real del repartidor
+            ticket.fecha_asignacion = datetime.utcnow()
+            ticket.estado = 'en-camino' # Actualizar estado al asignar
+            
+            db.session.commit()
+            
+            # Emitir evento WebSocket
+            socketio.emit('ticket_asignado', {
+                'ticket_id': ticket.id,
+                'repartidor': user.nombre,
+                'repartidor_username': user.username
+            })
+            
+            return jsonify({'exito': True, 'mensaje': f'Ticket asignado a {user.nombre}'})
+        else:
+            return jsonify({'error': f'Usuario repartidor "{repartidor_username}" no encontrado'}), 404
     
     return jsonify({'error': 'Repartidor no especificado'}), 400
 
@@ -2601,7 +2660,8 @@ def asignar_repartidor(ticket_id):
 @login_required
 def detalle_ticket(ticket_id):
     ticket = Ticket.query.get_or_404(ticket_id)
-    return render_template('detalle_ticket.html', ticket=ticket)
+    usuarios_flota = User.query.filter_by(role='flota', activo=True).all()
+    return render_template('detalle_ticket.html', ticket=ticket, usuarios_flota=usuarios_flota)
 
 @app.route('/ticket/<int:ticket_id>/pdf')
 @login_required

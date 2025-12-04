@@ -1485,6 +1485,7 @@ def api_crear_compra():
         
         # Intentar enviar a Ticketera si está configurado
         ticket_creado = None
+        tickets_creados = []  # Lista de tickets creados (uno por negocio)
         try:
             ticketera_url = os.getenv('TICKETERA_URL', '')
             if ticketera_url:
@@ -1497,9 +1498,9 @@ def api_crear_compra():
                     
                     if row:
                         usuario = dict(row._mapping)
-                        # Preparar datos para Ticketera
-                        productos_lista = []
-                        logger.info(f"[API] 🔍 Procesando {len(carrito_items)} items para Ticketera...")
+                        # Preparar datos para Ticketera AGRUPADOS POR NEGOCIO
+                        productos_por_negocio = {}  # {negocio_id: {'nombre': nombre, 'productos': [], 'total': 0}}
+                        logger.info(f"[API] 🔍 Procesando {len(carrito_items)} items para Ticketera, agrupando por negocio...")
                         
                         for idx, item in enumerate(carrito_items, 1):
                             try:
@@ -1512,27 +1513,31 @@ def api_crear_compra():
                                 prod_row = result.fetchone()
                                 
                                 if not prod_row:
-                                    logger.warning(f"[API] ⚠️ Producto {item['producto_id']} no encontrado, usando datos básicos")
-                                    productos_lista.append({
-                                        'id': str(item['producto_id']),
-                                        'nombre': 'Producto no encontrado',
-                                        'precio': float(item['precio_unitario']),
-                                        'cantidad': int(item['cantidad']),
-                                        'subtotal': float(item['precio_unitario']) * int(item['cantidad'])
-                                    })
-                                    continue
+                                    logger.warning(f"[API] ⚠️ Producto {item['producto_id']} no encontrado, usando negocio genérico")
+                                    negocio_id = 0
+                                    negocio_nombre = 'Negocio no especificado'
+                                    prod_data = {'id': item['producto_id'], 'nombre': 'Producto no encontrado'}
+                                else:
+                                    prod_data = dict(prod_row._mapping)
+                                    negocio_id = prod_data.get('negocio_id', 0) or 0
+                                    
+                                    # Obtener información del negocio si existe
+                                    negocio_nombre = 'Negocio no especificado'
+                                    if negocio_id:
+                                        neg_result = session.execute(text('''
+                                            SELECT nombre FROM negocios WHERE id = :negocio_id
+                                        '''), {'negocio_id': negocio_id})
+                                        neg_row = neg_result.fetchone()
+                                        if neg_row:
+                                            negocio_nombre = dict(neg_row._mapping)['nombre']
                                 
-                                prod_data = dict(prod_row._mapping)
-                                
-                                # Obtener información del negocio si existe
-                                negocio_nombre = 'Negocio no especificado'
-                                if prod_data.get('negocio_id'):
-                                    neg_result = session.execute(text('''
-                                        SELECT nombre FROM negocios WHERE id = :negocio_id
-                                    '''), {'negocio_id': prod_data['negocio_id']})
-                                    neg_row = neg_result.fetchone()
-                                    if neg_row:
-                                        negocio_nombre = dict(neg_row._mapping)['nombre']
+                                # Inicializar grupo de negocio si no existe
+                                if negocio_id not in productos_por_negocio:
+                                    productos_por_negocio[negocio_id] = {
+                                        'nombre': negocio_nombre,
+                                        'productos': [],
+                                        'total': 0
+                                    }
                                 
                                 # Obtener información de la categoría si existe
                                 categoria_nombre = 'Sin categoría'
@@ -1584,8 +1589,10 @@ def api_crear_compra():
                                     'destacado': bool(prod_data.get('destacado', False))
                                 }
                                 
-                                productos_lista.append(producto_ticket)
-                                logger.debug(f"[API] ✅ Producto {idx} procesado: {producto_ticket['nombre']} x{producto_ticket['cantidad']}")
+                                # Agregar al grupo del negocio correspondiente
+                                productos_por_negocio[negocio_id]['productos'].append(producto_ticket)
+                                productos_por_negocio[negocio_id]['total'] += subtotal
+                                logger.debug(f"[API] ✅ Producto {idx} procesado: {producto_ticket['nombre']} x{producto_ticket['cantidad']} -> Negocio: {negocio_nombre}")
                                 
                             except Exception as e:
                                 logger.error(f"[API] ❌ Error procesando item {idx}: {e}")
@@ -1593,54 +1600,76 @@ def api_crear_compra():
                                 logger.error(traceback.format_exc())
                                 continue
                         
-                        logger.info(f"[API] ✅ {len(productos_lista)} productos procesados correctamente para Ticketera")
+                        # Calcular total de negocios (tickets que se crearán)
+                        total_negocios = len(productos_por_negocio)
+                        logger.info(f"[API] ✅ Productos agrupados en {total_negocios} negocio(s)")
                         
-                        # Enviar a Ticketera
+                        # Enviar un ticket por cada negocio
                         import requests
                         from config import BELGRANO_AHORRO_API_KEY
-                        ticket_data = {
-                            'numero': numero_pedido,
-                            'cliente_nombre': f"{usuario.get('nombre', '')} {usuario.get('apellido', '')}".strip() or usuario.get('email', 'Cliente'),
-                            'cliente_direccion': data['direccion_entrega'],
-                            'cliente_telefono': usuario.get('telefono', ''),
-                            'cliente_email': usuario.get('email', ''),
-                            'productos': productos_lista,  # CORRECCIÓN: Enviar lista, no JSON string
-                            'total': total,
-                            'estado': 'pendiente',
-                            'prioridad': 'normal',
-                            'origen': 'belgrano_ahorro',
-                            'fecha_creacion': datetime.now().isoformat()
-                        }
                         
-                        headers = {
-                            'Content-Type': 'application/json',
-                            'X-API-Key': BELGRANO_AHORRO_API_KEY  # CORRECCIÓN: Agregar API Key requerida
-                        }
-                        
-                        response = requests.post(
-                            f"{ticketera_url.rstrip('/')}/api/tickets/recibir",  # CORRECCIÓN: Usar endpoint correcto
-                            json=ticket_data,
-                            headers=headers,
-                            timeout=20  # Aumentar timeout
-                        )
-                        
-                        if response.status_code in (200, 201):
-                            ticket_creado = response.json()
-                            logger.info(f"[API] ✅ Ticket creado en Ticketera para pedido {numero_pedido}")
-                            logger.info(f"[API]    Ticket ID: {ticket_creado.get('ticket_id', 'N/A')}")
-                            logger.info(f"[API]    Productos enviados: {len(productos_lista)} items")
-                            
-                            # Verificar productos en la respuesta
-                            productos_respuesta = ticket_creado.get('productos', [])
-                            if productos_respuesta:
-                                logger.info(f"[API]    Productos recibidos en respuesta: {len(productos_respuesta)} items")
-                                for idx, prod in enumerate(productos_respuesta[:5], 1):  # Mostrar primeros 5
-                                    logger.info(f"[API]       {idx}. {prod.get('nombre', 'Sin nombre')} x{prod.get('cantidad', 0)}")
+                        for idx_negocio, (negocio_id, negocio_data) in enumerate(productos_por_negocio.items(), 1):
+                            # Generar número de ticket único para cada negocio
+                            if total_negocios > 1:
+                                numero_ticket_negocio = f"{numero_pedido}-N{idx_negocio}"
                             else:
-                                logger.warning(f"[API]    ⚠️ No se recibieron productos en la respuesta de Ticketera")
-                        else:
-                            logger.warning(f"[API] ⚠️ Ticketera respondió con código {response.status_code}: {response.text[:200]}")
-                            logger.warning(f"[API]    Productos que se intentaron enviar: {len(productos_lista)} items")
+                                numero_ticket_negocio = numero_pedido
+                            
+                            ticket_data = {
+                                'numero': numero_ticket_negocio,
+                                'cliente_nombre': f"{usuario.get('nombre', '')} {usuario.get('apellido', '')}".strip() or usuario.get('email', 'Cliente'),
+                                'cliente_direccion': data['direccion_entrega'],
+                                'cliente_telefono': usuario.get('telefono', ''),
+                                'cliente_email': usuario.get('email', ''),
+                                'productos': negocio_data['productos'],
+                                'total': negocio_data['total'],
+                                'estado': 'pendiente',
+                                'prioridad': 'normal',
+                                'origen': 'belgrano_ahorro',
+                                'fecha_creacion': datetime.now().isoformat(),
+                                # Nuevos campos para identificar el grupo de compra
+                                'grupo_compra': numero_pedido,  # Pedido original
+                                'negocio_nombre': negocio_data['nombre'],  # Nombre del negocio
+                                'tickets_grupo_total': total_negocios  # Total de tickets del grupo
+                            }
+                            
+                            headers = {
+                                'Content-Type': 'application/json',
+                                'X-API-Key': BELGRANO_AHORRO_API_KEY
+                            }
+                            
+                            logger.info(f"[API] 📤 Enviando ticket {idx_negocio}/{total_negocios} para negocio: {negocio_data['nombre']}")
+                            logger.info(f"[API]    Número de ticket: {numero_ticket_negocio}")
+                            logger.info(f"[API]    Productos: {len(negocio_data['productos'])} items")
+                            logger.info(f"[API]    Total: ${negocio_data['total']}")
+                            
+                            response = requests.post(
+                                f"{ticketera_url.rstrip('/')}/api/tickets/recibir",
+                                json=ticket_data,
+                                headers=headers,
+                                timeout=20
+                            )
+                            
+                            if response.status_code in (200, 201):
+                                ticket_respuesta = response.json()
+                                tickets_creados.append({
+                                    'ticket_id': ticket_respuesta.get('ticket_id'),
+                                    'numero': numero_ticket_negocio,
+                                    'negocio': negocio_data['nombre'],
+                                    'productos_count': len(negocio_data['productos']),
+                                    'total': negocio_data['total']
+                                })
+                                logger.info(f"[API] ✅ Ticket {idx_negocio}/{total_negocios} creado exitosamente")
+                                logger.info(f"[API]    Ticket ID: {ticket_respuesta.get('ticket_id', 'N/A')}")
+                            else:
+                                logger.warning(f"[API] ⚠️ Ticketera respondió con código {response.status_code}: {response.text[:200]}")
+                        
+                        # Marcar que se crearon tickets
+                        if tickets_creados:
+                            ticket_creado = True
+                            logger.info(f"[API] ✅ Total de tickets creados: {len(tickets_creados)} (uno por negocio)")
+                            for tc in tickets_creados:
+                                logger.info(f"[API]    - {tc['numero']} ({tc['negocio']}): {tc['productos_count']} productos, ${tc['total']}")
                 finally:
                     session.close()
         except Exception as e:
@@ -1655,7 +1684,9 @@ def api_crear_compra():
                 'total': total,
                 'items': carrito_items,
                 'stock_actualizado': stock_actualizado,
-                'ticket_creado': ticket_creado is not None
+                'ticket_creado': ticket_creado is not None,
+                'tickets_por_negocio': tickets_creados,  # Lista de tickets creados (uno por negocio)
+                'negocios_count': len(tickets_creados) if tickets_creados else 0  # Total de negocios/tickets
             },
             'timestamp': datetime.now().isoformat()
         }), 201

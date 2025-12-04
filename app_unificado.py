@@ -2691,7 +2691,7 @@ def actualizar_pedido_con_ticket(numero_pedido, ticket_response):
 def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, total, metodo_pago, direccion, notas=None):
     """
     Enviar pedido a la Ticketera con conexión sólida y sin pérdida
-    Versión mejorada con mejor manejo de errores y reintentos
+    Versión mejorada: AGRUPA PRODUCTOS POR NEGOCIO y crea un ticket separado para cada negocio
     """
     try:
         # Obtener URL de la API desde variables de entorno
@@ -2735,9 +2735,9 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
         except Exception as e:
             logger.warning(f"⚠️ Error obteniendo categorías para ticket: {e}")
         
-        # Preparar lista de productos con estructura completa para la Ticketera
-        productos_lista = []
-        logger.info(f"🔍 Procesando {len(carrito_items)} items del carrito para Ticketera...")
+        # AGRUPAR PRODUCTOS POR NEGOCIO
+        productos_por_negocio = {}  # {negocio_id: {'nombre': nombre, 'productos': [], 'total': 0}}
+        logger.info(f"🔍 Procesando {len(carrito_items)} items del carrito para Ticketera, agrupando por negocio...")
         
         for idx, item in enumerate(carrito_items, 1):
             try:
@@ -2754,14 +2754,23 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
                     logger.warning(f"⚠️ Item {idx} tiene cantidad inválida ({cantidad}), saltando...")
                     continue
                 
-                # Obtener información del negocio
+                # Obtener negocio_id y nombre
+                negocio_id = producto.get('negocio_id', 0) or 0
                 negocio_nombre = producto.get('negocio', 'Negocio no especificado')
-                if producto.get('negocio_id'):
-                    negocio_data = negocios_dict.get(str(producto['negocio_id']))
+                if negocio_id:
+                    negocio_data = negocios_dict.get(str(negocio_id))
                     if negocio_data:
                         negocio_nombre = negocio_data.get('nombre', negocio_nombre)
                 
-                # Obtener información de la sucursal (usar la primera disponible)
+                # Inicializar grupo de negocio si no existe
+                if negocio_id not in productos_por_negocio:
+                    productos_por_negocio[negocio_id] = {
+                        'nombre': negocio_nombre,
+                        'productos': [],
+                        'total': 0
+                    }
+                
+                # Obtener información de la sucursal
                 sucursal_nombre = "Sucursal no especificada"
                 if producto.get('sucursales') and len(producto['sucursales']) > 0:
                     sucursal_id = producto['sucursales'][0]
@@ -2775,14 +2784,8 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
                     categoria_data = categorias_dict.get(str(producto['categoria_id']))
                     if categoria_data:
                         categoria_nombre = categoria_data.get('nombre', categoria_nombre)
-                elif producto.get('categoria'):
-                    # Si categoria es un string, usarlo directamente
-                    if isinstance(producto.get('categoria'), str):
-                        categoria_nombre = producto.get('categoria')
-                    else:
-                        categoria_data = categorias_dict.get(str(producto['categoria']))
-                        if categoria_data:
-                            categoria_nombre = categoria_data.get('nombre', categoria_nombre)
+                elif producto.get('categoria') and isinstance(producto.get('categoria'), str):
+                    categoria_nombre = producto.get('categoria')
                 
                 # Construir objeto producto para Ticketera
                 producto_ticket = {
@@ -2799,67 +2802,24 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
                     'destacado': bool(producto.get('destacado', False))
                 }
                 
-                productos_lista.append(producto_ticket)
-                logger.debug(f"   ✅ Producto {idx} procesado: {producto_ticket['nombre']} x{producto_ticket['cantidad']}")
+                # Agregar al grupo del negocio correspondiente
+                productos_por_negocio[negocio_id]['productos'].append(producto_ticket)
+                productos_por_negocio[negocio_id]['total'] += subtotal
+                logger.debug(f"   ✅ Producto {idx} procesado: {producto_ticket['nombre']} -> Negocio: {negocio_nombre}")
                 
             except Exception as e:
                 logger.error(f"❌ Error procesando item {idx} del carrito: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
                 continue
         
-        logger.info(f"✅ {len(productos_lista)} productos procesados correctamente para Ticketera")
+        # Calcular total de negocios (tickets que se crearán)
+        total_negocios = len(productos_por_negocio)
+        logger.info(f"✅ Productos agrupados en {total_negocios} negocio(s)")
         
-        # Preparar datos para enviar a la API con validación
-        ticket_data = {
-            "numero": numero_pedido,
-            "cliente_nombre": nombre_completo,
-            "cliente_direccion": direccion or "Dirección no especificada",
-            "cliente_telefono": usuario.get('telefono', ''),
-            "cliente_email": usuario['email'],
-            "productos": productos_lista,
-            "total": float(total),  # Asegurar que sea float
-            "metodo_pago": metodo_pago,
-            "indicaciones": notas or 'Sin indicaciones especiales',
-            "estado": "pendiente",
-            "prioridad": "normal",
-            "tipo_cliente": "cliente",
-            "fecha_creacion": datetime.now().isoformat(),
-            "origen": "belgrano_ahorro"
-        }
-        
-        # Validar datos antes de enviar
-        if not ticket_data["cliente_nombre"] or not ticket_data["cliente_email"]:
-            logger.error("❌ Datos de cliente incompletos")
-            return None
-        
-        if not productos_lista:
+        if total_negocios == 0:
             logger.error("❌ No hay productos en el carrito")
             return None
         
-        # Log de datos que se van a enviar
-        logger.info(f"📤 Enviando pedido a Ticketera:")
-        logger.info(f"   URL: {api_url}")
-        logger.info(f"   Pedido: {numero_pedido}")
-        logger.info(f"   Cliente: {nombre_completo}")
-        logger.info(f"   Total: ${total}")
-        logger.info(f"   Productos: {len(productos_lista)} items")
-        
-        # Log detallado de cada producto que se envía
-        for idx, producto in enumerate(productos_lista, 1):
-            logger.info(f"   Producto {idx}: {producto.get('nombre', 'Sin nombre')} - Cantidad: {producto.get('cantidad', 0)} - Precio: ${producto.get('precio', 0)} - Subtotal: ${producto.get('subtotal', 0)}")
-        
-        # Log del payload completo (solo estructura, no datos sensibles)
-        logger.debug(f"📋 Estructura del ticket_data:")
-        logger.debug(f"   - numero: {ticket_data.get('numero')}")
-        logger.debug(f"   - cliente_nombre: {ticket_data.get('cliente_nombre')}")
-        logger.debug(f"   - cliente_email: {ticket_data.get('cliente_email')}")
-        logger.debug(f"   - total: {ticket_data.get('total')}")
-        logger.debug(f"   - productos (count): {len(ticket_data.get('productos', []))}")
-        logger.debug(f"   - metodo_pago: {ticket_data.get('metodo_pago')}")
-        logger.debug(f"   - origen: {ticket_data.get('origen')}")
-        
-        # Headers mejorados
+        # Headers para la API
         headers = {
             'Content-Type': 'application/json',
             'X-API-Key': BELGRANO_AHORRO_API_KEY,
@@ -2867,127 +2827,111 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
             'X-Request-ID': f"{numero_pedido}-{int(time.time())}",
             'X-Origin': 'belgrano_ahorro'
         }
-
-        # Configuración de reintentos mejorada
-        max_retries = 5
-        backoff_seconds = [1, 2, 4, 8, 16]  # Backoff exponencial más agresivo
-        last_response = None
-        last_error = None
         
-        for attempt in range(max_retries):
-            try:
-                logger.info(f"🔄 Intento {attempt + 1}/{max_retries} enviando a Ticketera...")
-                
-                # Verificar conectividad antes de enviar
-                if attempt > 0:
-                    try:
-                        health_check = requests.get(f"{api_url.replace('/api/tickets', '/healthz')}", timeout=5)
-                        if health_check.status_code != 200:
-                            logger.warning(f"⚠️ Health check falló en intento {attempt + 1}")
-                    except Exception as e:
-                        logger.warning(f"⚠️ No se pudo verificar health check en intento {attempt + 1}: {e}")
-                
-                # Log del payload completo antes de enviar (solo en debug)
-                import json as json_module
-                logger.debug(f"📦 Payload completo a enviar a Ticketera:")
-                logger.debug(json_module.dumps(ticket_data, indent=2, ensure_ascii=False))
-                
-                response = requests.post(
-                    api_url,
-                    json=ticket_data,
-                    headers=headers,
-                    timeout=20  # Timeout aumentado
-                )
-                last_response = response
-                
-                # Log de la respuesta recibida
-                logger.info(f"📥 Respuesta de Ticketera: Status {response.status_code}")
-                if response.status_code in (200, 201):
-                    try:
-                        response_data = response.json()
-                        logger.info(f"   ✅ Ticket creado: {response_data.get('ticket_id', 'N/A')}")
-                        logger.info(f"   ✅ Productos recibidos: {len(response_data.get('productos', []))} items")
-                        # Log detallado de productos en la respuesta
-                        productos_respuesta = response_data.get('productos', [])
-                        if productos_respuesta:
-                            logger.info(f"   📦 Productos en respuesta de Ticketera:")
-                            for idx, prod in enumerate(productos_respuesta, 1):
-                                logger.info(f"      {idx}. {prod.get('nombre', 'Sin nombre')} x{prod.get('cantidad', 0)}")
-                        else:
-                            logger.warning(f"   ⚠️ No se recibieron productos en la respuesta de Ticketera")
-                    except Exception as e:
-                        logger.warning(f"   ⚠️ No se pudo parsear respuesta JSON: {e}")
-                        logger.warning(f"   ⚠️ Respuesta raw: {response.text[:200]}")
-                
-                if response.status_code in (200, 201):
-                    logger.info(f"✅ Petición exitosa en intento {attempt + 1}")
-                    break
-                elif response.status_code == 401:
-                    logger.error(f"❌ Error de autenticación (API Key inválida)")
-                    return None
-                elif response.status_code == 400:
-                    logger.error(f"❌ Error en datos enviados: {response.text}")
-                    return None
-                else:
-                    logger.warning(f"⚠️ Status {response.status_code} en intento {attempt + 1}")
-                    logger.error(f"   Response: {response.text[:200]}...")
+        # ENVIAR UN TICKET POR CADA NEGOCIO
+        tickets_creados = []
+        
+        for idx_negocio, (negocio_id, negocio_data) in enumerate(productos_por_negocio.items(), 1):
+            # Generar número de ticket único para cada negocio
+            if total_negocios > 1:
+                numero_ticket_negocio = f"{numero_pedido}-N{idx_negocio}"
+            else:
+                numero_ticket_negocio = numero_pedido
+            
+            # Preparar datos para enviar a la API
+            ticket_data = {
+                "numero": numero_ticket_negocio,
+                "cliente_nombre": nombre_completo,
+                "cliente_direccion": direccion or "Dirección no especificada",
+                "cliente_telefono": usuario.get('telefono', ''),
+                "cliente_email": usuario['email'],
+                "productos": negocio_data['productos'],
+                "total": negocio_data['total'],
+                "metodo_pago": metodo_pago,
+                "indicaciones": notas or 'Sin indicaciones especiales',
+                "estado": "pendiente",
+                "prioridad": "normal",
+                "tipo_cliente": "cliente",
+                "fecha_creacion": datetime.now().isoformat(),
+                "origen": "belgrano_ahorro",
+                "grupo_compra": numero_pedido,
+                "negocio_nombre": negocio_data['nombre'],
+                "tickets_grupo_total": total_negocios
+            }
+            
+            logger.info(f"📤 Enviando ticket {idx_negocio}/{total_negocios} para negocio: {negocio_data['nombre']}")
+            logger.info(f"   Número: {numero_ticket_negocio}, Productos: {len(negocio_data['productos'])}, Total: ${negocio_data['total']}")
+            
+            # Reintentos
+            max_retries = 3
+            backoff_seconds = [1, 2, 4]
+            last_response = None
+            
+            for attempt in range(max_retries):
+                try:
+                    response = requests.post(api_url, json=ticket_data, headers=headers, timeout=20)
+                    last_response = response
                     
-            except requests.exceptions.Timeout:
-                last_error = f"Timeout en intento {attempt + 1}"
-                logger.warning(f"⏰ {last_error}")
-            except requests.exceptions.ConnectionError:
-                last_error = f"Error de conexión en intento {attempt + 1}"
-                logger.warning(f"🔌 {last_error}")
-            except requests.exceptions.RequestException as e:
-                last_error = f"Error de request en intento {attempt + 1}: {str(e)}"
-                logger.warning(f"🌐 {last_error}")
-            except Exception as e:
-                last_error = f"Error inesperado en intento {attempt + 1}: {str(e)}"
-                logger.error(f"❌ {last_error}")
+                    if response.status_code in (200, 201):
+                        logger.info(f"✅ Ticket {idx_negocio}/{total_negocios} creado exitosamente")
+                        break
+                    elif response.status_code == 401:
+                        logger.error("❌ Error de autenticación (API Key inválida)")
+                        break
+                    elif response.status_code == 400:
+                        logger.error(f"❌ Error en datos enviados: {response.text}")
+                        break
+                    else:
+                        logger.warning(f"⚠️ Status {response.status_code} en intento {attempt + 1}")
+                        
+                except requests.exceptions.Timeout:
+                    logger.warning(f"⏰ Timeout en intento {attempt + 1}")
+                except requests.exceptions.ConnectionError:
+                    logger.warning(f"🔌 Error de conexión en intento {attempt + 1}")
+                except Exception as e:
+                    logger.error(f"❌ Error en intento {attempt + 1}: {e}")
+                
+                if attempt < max_retries - 1:
+                    time.sleep(backoff_seconds[attempt])
             
-            # Backoff exponencial
-            if attempt < max_retries - 1:
-                wait_time = backoff_seconds[attempt]
-                logger.info(f"⏳ Esperando {wait_time}s antes del siguiente intento...")
-                time.sleep(wait_time)
+            # Procesar resultado del ticket
+            if last_response is not None and last_response.status_code in (200, 201):
+                try:
+                    ticket_response = last_response.json()
+                    tickets_creados.append({
+                        'ticket_id': ticket_response.get('ticket_id'),
+                        'numero': numero_ticket_negocio,
+                        'negocio': negocio_data['nombre'],
+                        'productos_count': len(negocio_data['productos']),
+                        'total': negocio_data['total']
+                    })
+                    logger.info(f"   ✅ Ticket ID: {ticket_response.get('ticket_id', 'N/A')}")
+                except json.JSONDecodeError as e:
+                    logger.warning(f"⚠️ Error parseando respuesta JSON: {e}")
+            else:
+                logger.warning(f"⚠️ No se pudo crear ticket para negocio {negocio_data['nombre']}")
         
-        # Procesar resultado final
-        if last_response is not None and last_response.status_code in (200, 201):
-            try:
-                ticket_response = last_response.json()
-                logger.info(f"🎉 Pedido enviado exitosamente a Ticketera!")
-                logger.error(f"   Ticket ID: {ticket_response.get('ticket_id', 'N/A')}")
-                logger.error(f"   Número: {ticket_response.get('numero', 'N/A')}")
-                logger.error(f"   Estado: {ticket_response.get('estado', 'N/A')}")
-                logger.error(f"   Repartidor: {ticket_response.get('repartidor_asignado', 'N/A')}")
-                
-                # Actualizar base de datos de Ahorro con información del ticket
-                actualizar_pedido_con_ticket(numero_pedido, ticket_response)
-                
-                # Log de éxito
-                logger.info(f"✅ Comunicación completada: Pedido {numero_pedido} → Ticket {ticket_response.get('ticket_id')}")
-                
-                return ticket_response
-                
-            except json.JSONDecodeError as e:
-                logger.warning(f"⚠️ Error parseando respuesta JSON: {e}")
-                logger.error(f"   Respuesta recibida: {last_response.text}")
-                return None
+        # Log final
+        if tickets_creados:
+            logger.info(f"🎉 Total de tickets creados: {len(tickets_creados)} (uno por negocio)")
+            for tc in tickets_creados:
+                logger.info(f"   - {tc['numero']} ({tc['negocio']}): {tc['productos_count']} productos, ${tc['total']}")
+            
+            # Actualizar base de datos con información del primer ticket
+            actualizar_pedido_con_ticket(numero_pedido, {
+                'ticket_id': tickets_creados[0]['ticket_id'],
+                'estado': 'pendiente',
+                'tickets_creados': len(tickets_creados)
+            })
+            
+            return {
+                'exito': True,
+                'tickets_creados': tickets_creados,
+                'negocios_count': len(tickets_creados)
+            }
         else:
-            # Error final después de todos los reintentos
-            status = last_response.status_code if last_response is not None else 'no_response'
-            body = last_response.text if last_response is not None else 'no_body'
-            error_msg = last_error if last_error else f"Status {status}"
-            
-            logger.error(f"💥 Error final enviando pedido a Ticketera después de {max_retries} intentos")
-            logger.error(f"   Error: {error_msg}")
-            if last_response:
-                logger.error(f"   Status: {status}")
-                logger.error(f"   Respuesta: {body[:500]}...")
-            
-            # Guardar pedido pendiente para reintento posterior
-            guardar_pedido_pendiente(numero_pedido, ticket_data, error_msg)
-            
+            logger.error("💥 No se pudo crear ningún ticket")
+            guardar_pedido_pendiente(numero_pedido, {'carrito_items': len(carrito_items)}, "No se pudo crear tickets")
             return None
             
     except Exception as e:
@@ -2995,6 +2939,7 @@ def enviar_pedido_a_ticketera_mejorado(numero_pedido, usuario, carrito_items, to
         import traceback
         logger.error(f"   Traceback: {traceback.format_exc()}")
         return None
+
 
 def guardar_pedido_pendiente(numero_pedido, ticket_data, error_msg):
     """
