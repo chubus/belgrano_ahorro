@@ -613,28 +613,33 @@ footer {
     
     /* Carruseles */
     .carrusel-productos {
-        gap: 15px;
+        gap: 12px;
         padding: 10px 5px;
     }
     
+    /* Tarjetas más angostas para móvil */
     .producto-carrusel {
-        width: 280px;
+        width: 200px;
     }
     
-    /* Reducir padding interno de las tarjetas para que quepa todo */
+    /* Reducir padding interno de las tarjetas */
     .producto-carrusel .card-body {
-        padding: 0.75rem;
+        padding: 0.6rem;
     }
     
     .producto-carrusel .card-title {
-        font-size: 0.95rem;
-        margin-bottom: 0.25rem;
+        font-size: 0.9rem;
+        margin-bottom: 0.2rem;
+    }
+    
+    .producto-carrusel .card-img-top {
+        height: 140px;
     }
     
     .btn-carrusel {
-        width: 36px;
-        height: 36px;
-        font-size: 16px;
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
     }
 }
 
@@ -643,12 +648,16 @@ footer {
 /* ========================================== */
 @media (max-width: 576px) {
     .producto-carrusel {
-        width: 270px;
+        width: 180px;
+    }
+    
+    .producto-carrusel .card-img-top {
+        height: 120px;
     }
     
     .btn {
-        font-size: 0.75rem;
-        padding: 0.3rem 0.8rem;
+        font-size: 0.7rem;
+        padding: 0.25rem 0.6rem;
     }
 }
 
@@ -687,66 +696,57 @@ footer {
     flex-shrink: 0;
 }
 
-/* Responsive para móviles - Controles compactos */
+/* Responsive para móviles - Controles en vertical */
 @media (max-width: 768px) {
-    /* En móviles, mantener horizontal pero más compacto */
+    /* En móviles, apilar verticalmente */
     .producto-acciones-container {
-        flex-direction: row;
-        align-items: center;
+        flex-direction: column;
+        align-items: stretch;
         gap: 6px;
-        flex-wrap: nowrap;
     }
     
     .cantidad-input {
-        flex: 1;
-        max-width: none;
-        min-width: 0;
+        max-width: 100%;
     }
     
     .cantidad-input .btn-sm {
-        padding: 0.3rem 0.5rem;
-        font-size: 0.8rem;
-        min-width: 28px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
     }
     
     .cantidad-input input {
-        font-size: 0.9rem;
-        padding: 0.3rem 0.2rem;
-        min-width: 30px;
+        font-size: 0.85rem;
+        padding: 0.25rem;
     }
     
-    /* Botón de carrito compacto pero visible */
+    /* Botón de carrito ancho completo */
     .btn-cart-circle {
-        width: 38px !important;
-        height: 38px !important;
-        border-radius: 50% !important;
+        width: 100% !important;
+        height: 36px !important;
+        border-radius: 8px !important;
         font-size: 1.1rem;
-        flex-shrink: 0;
     }
     
     /* Reducir margen del precio */
     .producto-precio-container {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.4rem;
     }
 }
 
 /* Para pantallas muy pequeñas */
 @media (max-width: 400px) {
     .cantidad-input .btn-sm {
-        padding: 0.25rem 0.4rem;
-        font-size: 0.75rem;
-        min-width: 24px;
+        padding: 0.2rem 0.4rem;
+        font-size: 0.7rem;
     }
     
     .cantidad-input input {
-        font-size: 0.85rem;
-        padding: 0.25rem 0.15rem;
-        min-width: 25px;
+        font-size: 0.8rem;
+        padding: 0.2rem;
     }
     
     .btn-cart-circle {
-        width: 34px !important;
-        height: 34px !important;
+        height: 32px !important;
         font-size: 1rem;
     }
 }
