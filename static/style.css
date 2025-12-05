@@ -514,7 +514,7 @@ footer {
 
 .producto-carrusel {
     flex: 0 0 auto;
-    width: 240px;
+    width: 280px;
     scroll-snap-align: start;
 }
 
@@ -613,18 +613,18 @@ footer {
     
     /* Carruseles */
     .carrusel-productos {
-        gap: 10px;
+        gap: 15px;
         padding: 10px 5px;
     }
     
     .producto-carrusel {
-        width: 160px;
+        width: 260px;
     }
     
     .btn-carrusel {
-        width: 40px;
-        height: 40px;
-        font-size: 20px;
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
     }
 }
 
@@ -633,7 +633,7 @@ footer {
 /* ========================================== */
 @media (max-width: 576px) {
     .producto-carrusel {
-        width: 140px;
+        width: 240px;
     }
     
     .btn {
