@@ -677,30 +677,9 @@ footer {
     flex-shrink: 0;
 }
 
-/* Responsive para móviles */
+/* Responsive para móviles - Controles en vertical */
 @media (max-width: 768px) {
-    /* En móviles, asegurar que todo quepa */
-    .producto-acciones-container {
-        gap: 6px;
-    }
-    
-    .cantidad-input {
-        max-width: 110px;
-    }
-    
-    .cantidad-input .btn-sm {
-        padding: 0.25rem 0.4rem;
-        font-size: 0.75rem;
-    }
-    
-    .cantidad-input input {
-        font-size: 0.875rem;
-        padding: 0.25rem;
-    }
-}
-
-/* Para pantallas muy pequeñas, apilar verticalmente si es necesario */
-@media (max-width: 360px) {
+    /* En móviles, apilar verticalmente para que todo sea visible */
     .producto-acciones-container {
         flex-direction: column;
         align-items: stretch;
@@ -711,9 +690,33 @@ footer {
         max-width: 100%;
     }
     
+    .cantidad-input .btn-sm {
+        padding: 0.35rem 0.6rem;
+        font-size: 0.85rem;
+    }
+    
+    .cantidad-input input {
+        font-size: 1rem;
+        padding: 0.35rem;
+    }
+    
+    /* Botón de carrito ancho completo */
     .btn-cart-circle {
         width: 100%;
-        border-radius: 8px;
+        border-radius: 10px;
+        height: 42px;
+        font-size: 1.3rem;
+    }
+}
+
+/* Para pantallas muy pequeñas */
+@media (max-width: 360px) {
+    .cantidad-input .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .btn-cart-circle {
         height: 38px;
     }
 }
