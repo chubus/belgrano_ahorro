@@ -618,7 +618,17 @@ footer {
     }
     
     .producto-carrusel {
-        width: 260px;
+        width: 280px;
+    }
+    
+    /* Reducir padding interno de las tarjetas para que quepa todo */
+    .producto-carrusel .card-body {
+        padding: 0.75rem;
+    }
+    
+    .producto-carrusel .card-title {
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
     }
     
     .btn-carrusel {
@@ -633,7 +643,7 @@ footer {
 /* ========================================== */
 @media (max-width: 576px) {
     .producto-carrusel {
-        width: 240px;
+        width: 270px;
     }
     
     .btn {
@@ -677,47 +687,67 @@ footer {
     flex-shrink: 0;
 }
 
-/* Responsive para móviles - Controles en vertical */
+/* Responsive para móviles - Controles compactos */
 @media (max-width: 768px) {
-    /* En móviles, apilar verticalmente para que todo sea visible */
+    /* En móviles, mantener horizontal pero más compacto */
     .producto-acciones-container {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: nowrap;
     }
     
     .cantidad-input {
-        max-width: 100%;
+        flex: 1;
+        max-width: none;
+        min-width: 0;
     }
     
     .cantidad-input .btn-sm {
-        padding: 0.35rem 0.6rem;
-        font-size: 0.85rem;
+        padding: 0.3rem 0.5rem;
+        font-size: 0.8rem;
+        min-width: 28px;
     }
     
     .cantidad-input input {
-        font-size: 1rem;
-        padding: 0.35rem;
+        font-size: 0.9rem;
+        padding: 0.3rem 0.2rem;
+        min-width: 30px;
     }
     
-    /* Botón de carrito ancho completo */
+    /* Botón de carrito compacto pero visible */
     .btn-cart-circle {
-        width: 100%;
-        border-radius: 10px;
-        height: 42px;
-        font-size: 1.3rem;
+        width: 38px !important;
+        height: 38px !important;
+        border-radius: 50% !important;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+    
+    /* Reducir margen del precio */
+    .producto-precio-container {
+        margin-bottom: 0.5rem;
     }
 }
 
 /* Para pantallas muy pequeñas */
-@media (max-width: 360px) {
+@media (max-width: 400px) {
     .cantidad-input .btn-sm {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.8rem;
+        padding: 0.25rem 0.4rem;
+        font-size: 0.75rem;
+        min-width: 24px;
+    }
+    
+    .cantidad-input input {
+        font-size: 0.85rem;
+        padding: 0.25rem 0.15rem;
+        min-width: 25px;
     }
     
     .btn-cart-circle {
-        height: 38px;
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 1rem;
     }
 }
 
