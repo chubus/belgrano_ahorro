@@ -530,7 +530,7 @@
     }
     
     .producto-carrusel {
-        width: 200px;
+        width: 160px;
     }
     
     .btn-carrusel {
@@ -546,10 +546,18 @@
 </style>
 
 <script>
-// Función para deslizar carruseles mejorada
+// Función para deslizar carruseles mejorada - Un item a la vez
 function deslizarCarrusel(carruselId, direccion) {
     const carrusel = document.getElementById(carruselId);
-    const scrollAmount = 400; // Más traslado de ítems
+    
+    // Obtener el primer producto para calcular su ancho real
+    const primerProducto = carrusel.querySelector('.producto-carrusel');
+    if (!primerProducto) return;
+    
+    // Calcular el ancho de un item incluyendo el gap (20px)
+    const estiloCarrusel = window.getComputedStyle(carrusel);
+    const gap = parseInt(estiloCarrusel.gap) || 20;
+    const scrollAmount = primerProducto.offsetWidth + gap;
     
     if (direccion === 'left') {
         carrusel.scrollBy({
